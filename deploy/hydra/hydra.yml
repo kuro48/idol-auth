@@ -1,0 +1,44 @@
+serve:
+  public:
+    base_url: http://localhost:4444/
+  admin:
+    base_url: http://hydra:4445/
+
+oauth2:
+  expose_internal_errors: false
+  pkce:
+    enforced: true
+    enforced_for_public_clients: true
+
+urls:
+  self:
+    issuer: http://localhost:4444/
+  consent: http://localhost:8080/v1/auth/consent
+  login: http://localhost:8080/v1/auth/login
+  logout: http://localhost:8080/v1/auth/logout
+
+ttl:
+  access_token: 5m
+  refresh_token: 720h
+  id_token: 5m
+  auth_code: 10m
+
+strategies:
+  access_token: jwt
+
+scopes:
+  supported:
+    - openid
+    - offline_access
+    - admin:apps:read
+    - admin:apps:write
+    - admin:clients:read
+    - admin:clients:write
+    - admin:users:read
+    - admin:users:write
+    - admin:audit:read
+
+log:
+  level: debug
+  format: text
+  leak_sensitive_values: false

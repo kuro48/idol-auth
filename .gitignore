@@ -1,0 +1,22 @@
+# Environment
+.env
+*.local
+
+# Build output
+/bin/
+/out/
+
+# Go
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
