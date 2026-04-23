@@ -4,31 +4,18 @@ dsn: memory
 
 serve:
   public:
-    base_url: http://localhost:4433/
+    base_url: {{KRATOS_BROWSER_URL}}/
     cors:
-      enabled: true
-      allowed_origins:
-        - http://localhost:3002
-        - http://localhost:8080
-      allowed_methods:
-        - POST
-        - GET
-        - PUT
-        - PATCH
-        - DELETE
-      allowed_headers:
-        - Authorization
-        - Content-Type
-        - X-Session-Token
+      enabled: false
   admin:
     base_url: http://kratos:4434/
 
 selfservice:
-  default_browser_return_url: http://localhost:3002/
+  default_browser_return_url: {{PORTAL_APP_URL}}/
 
   allowed_return_urls:
-    - http://localhost:3002
-    - http://localhost:8080
+    - {{PORTAL_APP_URL}}
+    - {{APP_BASE_URL}}
 
   methods:
     password:
@@ -40,7 +27,7 @@ selfservice:
     totp:
       enabled: true
       config:
-        issuer: idol-auth
+        issuer: {{KRATOS_TOTP_ISSUER}}
     lookup_secret:
       enabled: false
     link:
@@ -51,38 +38,38 @@ selfservice:
   flows:
     registration:
       enabled: true
-      ui_url: http://localhost:3002/registration
+      ui_url: {{PORTAL_APP_URL}}/registration
       lifespan: 10m
       after:
         password:
           hooks:
             - hook: session
     login:
-      ui_url: http://localhost:3002/login
+      ui_url: {{PORTAL_APP_URL}}/login
       lifespan: 10m
     logout:
       after:
-        default_browser_return_url: http://localhost:3002/login
+        default_browser_return_url: {{PORTAL_APP_URL}}/login
     settings:
-      ui_url: http://localhost:3002/settings
+      ui_url: {{PORTAL_APP_URL}}/settings
       required_aal: highest_available
     recovery:
       enabled: true
-      ui_url: http://localhost:3002/recovery
+      ui_url: {{PORTAL_APP_URL}}/recovery
       use: code
     verification:
       enabled: true
-      ui_url: http://localhost:3002/verification
+      ui_url: {{PORTAL_APP_URL}}/verification
       use: code
       after:
-        default_browser_return_url: http://localhost:3002/
+        default_browser_return_url: {{PORTAL_APP_URL}}/
 
 session:
   lifespan: 24h
   cookie:
     persistent: true
     same_site: Lax
-    domain: localhost
+    domain: {{SESSION_COOKIE_DOMAIN}}
 
 identity:
   default_schema_id: default
@@ -92,10 +79,10 @@ identity:
 
 courier:
   smtp:
-    from_address: noreply@idol-auth.local
-    from_name: idol-auth
+    from_address: {{KRATOS_SMTP_FROM_ADDRESS}}
+    from_name: {{KRATOS_SMTP_FROM_NAME}}
 
 log:
-  level: debug
+  level: {{ORY_LOG_LEVEL}}
   format: text
   leak_sensitive_values: false

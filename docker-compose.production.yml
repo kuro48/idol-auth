@@ -1,0 +1,175 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: idol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: idol_auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idol -d idol_auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kratos-migrate:
+    image: oryd/kratos:v26.2.0
+    command: migrate sql -e --yes -c /etc/config/kratos/kratos.yml
+    environment:
+      DSN: ${KRATOS_DSN}
+    volumes:
+      - ./dist/kratos:/etc/config/kratos:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  kratos:
+    image: oryd/kratos:v26.2.0
+    command: serve -c /etc/config/kratos/kratos.yml --watch-courier
+    environment:
+      DSN: ${KRATOS_DSN}
+      COURIER_SMTP_CONNECTION_URI: ${KRATOS_SMTP_CONNECTION_URI}
+      SECRETS_DEFAULT: ${KRATOS_SECRETS_DEFAULT}
+      SECRETS_COOKIE: ${KRATOS_SECRETS_COOKIE}
+      SECRETS_CIPHER: ${KRATOS_SECRETS_CIPHER}
+    volumes:
+      - ./dist/kratos:/etc/config/kratos:ro
+    expose:
+      - "4433"
+      - "4434"
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  hydra-migrate:
+    image: oryd/hydra:v26.2.0
+    command: migrate sql -e --yes -c /etc/config/hydra/hydra.yml
+    environment:
+      DSN: ${HYDRA_DSN}
+    volumes:
+      - ./dist/hydra:/etc/config/hydra:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  hydra:
+    image: oryd/hydra:v26.2.0
+    command: serve all -c /etc/config/hydra/hydra.yml
+    environment:
+      DSN: ${HYDRA_DSN}
+      SECRETS_SYSTEM: ${HYDRA_SYSTEM_SECRET}
+      SERVE_PUBLIC_CORS_ENABLED: ${HYDRA_PUBLIC_CORS_ENABLED:-false}
+      SERVE_PUBLIC_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+    volumes:
+      - ./dist/hydra:/etc/config/hydra:ro
+    expose:
+      - "4444"
+      - "4445"
+    depends_on:
+      hydra-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  app:
+    build:
+      context: .
+      target: app
+    environment:
+      APP_ENV: production
+      APP_PORT: 8080
+      APP_BASE_URL: ${APP_BASE_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      KRATOS_PUBLIC_URL: http://kratos:4433
+      KRATOS_ADMIN_URL: http://kratos:4434
+      HYDRA_PUBLIC_URL: http://hydra:4444
+      HYDRA_ADMIN_URL: http://hydra:4445
+      KRATOS_BROWSER_URL: ${KRATOS_BROWSER_URL}
+      HYDRA_BROWSER_URL: ${HYDRA_BROWSER_URL}
+      ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN}
+      SESSION_COOKIE_SECURE: "true"
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES}
+      LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+    expose:
+      - "8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      kratos:
+        condition: service_started
+      hydra:
+        condition: service_started
+    restart: unless-stopped
+
+  portal:
+    build:
+      context: .
+      target: portal
+    environment:
+      PORTAL_PORT: 3003
+      PORTAL_APP_URL: ${PORTAL_APP_URL}
+      PORTAL_KRATOS_PUBLIC_URL: http://kratos:4433
+      PORTAL_KRATOS_BROWSER_URL: ${KRATOS_BROWSER_URL}
+    expose:
+      - "3003"
+    depends_on:
+      kratos:
+        condition: service_started
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      APP_HOSTNAME: ${APP_HOSTNAME}
+      PORTAL_HOSTNAME: ${PORTAL_HOSTNAME}
+      HYDRA_HOSTNAME: ${HYDRA_HOSTNAME}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_started
+      portal:
+        condition: service_started
+      hydra:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

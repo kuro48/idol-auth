@@ -1,0 +1,16 @@
+[Unit]
+Description=idol-auth production stack
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/idol-auth
+Environment=ENV_FILE=/opt/idol-auth/.env.production
+ExecStart=/opt/idol-auth/scripts/run-nix-app.sh deploy-production /opt/idol-auth/.env.production
+ExecStop=/usr/bin/docker compose --env-file /opt/idol-auth/.env.production -f /opt/idol-auth/docker-compose.production.yml down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

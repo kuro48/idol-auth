@@ -1,0 +1,44 @@
+serve:
+  public:
+    base_url: {{HYDRA_BROWSER_URL}}/
+  admin:
+    base_url: http://hydra:4445/
+
+oauth2:
+  expose_internal_errors: false
+  pkce:
+    enforced: true
+    enforced_for_public_clients: true
+
+urls:
+  self:
+    issuer: {{HYDRA_BROWSER_URL}}/
+  consent: {{APP_BASE_URL}}/v1/auth/consent
+  login: {{APP_BASE_URL}}/v1/auth/login
+  logout: {{APP_BASE_URL}}/v1/auth/logout
+
+ttl:
+  access_token: 5m
+  refresh_token: 720h
+  id_token: 5m
+  auth_code: 10m
+
+strategies:
+  access_token: jwt
+
+scopes:
+  supported:
+    - openid
+    - offline_access
+    - admin:apps:read
+    - admin:apps:write
+    - admin:clients:read
+    - admin:clients:write
+    - admin:users:read
+    - admin:users:write
+    - admin:audit:read
+
+log:
+  level: {{ORY_LOG_LEVEL}}
+  format: text
+  leak_sensitive_values: false

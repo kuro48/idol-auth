@@ -1,0 +1,21 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_HOSTNAME} {
+	reverse_proxy app:8080 {
+		header_up X-Forwarded-Proto https
+	}
+}
+
+{$PORTAL_HOSTNAME} {
+	reverse_proxy portal:3003 {
+		header_up X-Forwarded-Proto https
+	}
+}
+
+{$HYDRA_HOSTNAME} {
+	reverse_proxy hydra:4444 {
+		header_up X-Forwarded-Proto https
+	}
+}

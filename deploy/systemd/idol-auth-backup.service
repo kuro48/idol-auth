@@ -1,0 +1,11 @@
+[Unit]
+Description=idol-auth PostgreSQL backup
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/idol-auth
+Environment=ENV_FILE=/opt/idol-auth/.env.production
+Environment=BACKUP_DIR=/opt/idol-auth/backups
+ExecStart=/opt/idol-auth/scripts/run-nix-app.sh backup-postgres /opt/idol-auth/.env.production
