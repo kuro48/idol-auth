@@ -11,7 +11,6 @@ import (
 type Config struct {
 	App      AppConfig
 	DB       DBConfig
-	Redis    RedisConfig
 	Ory      OryConfig
 	Admin    AdminConfig
 	Security SecurityConfig
@@ -26,11 +25,6 @@ type AppConfig struct {
 
 type DBConfig struct {
 	URL string `env:"DATABASE_URL,required"`
-}
-
-type RedisConfig struct {
-	Addr     string `env:"REDIS_ADDR"     envDefault:"localhost:6379"`
-	Password string `env:"REDIS_PASSWORD" envDefault:""`
 }
 
 type OryConfig struct {
