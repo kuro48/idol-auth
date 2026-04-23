@@ -82,6 +82,9 @@ func (c *Config) Validate() error {
 	}
 
 	if strings.EqualFold(strings.TrimSpace(c.App.Env), "production") {
+		if strings.Contains(strings.ToLower(c.DB.URL), "sslmode=disable") {
+			return fmt.Errorf("config: production forbids sslmode=disable in DATABASE_URL; use sslmode=require or sslmode=verify-full")
+		}
 		if !c.Security.CookieSecure {
 			return fmt.Errorf("config: production requires SESSION_COOKIE_SECURE=true")
 		}
