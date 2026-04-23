@@ -534,8 +534,8 @@ func (s *server) handleEnableIdentity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := strings.TrimSpace(chi.URLParam(r, "identityID"))
-	if identityID == "" {
+	identityID := chi.URLParam(r, "identityID")
+	if _, err := uuid.Parse(identityID); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid identity id")
 		return
 	}
@@ -555,8 +555,8 @@ func (s *server) handleRevokeIdentitySessions(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := strings.TrimSpace(chi.URLParam(r, "identityID"))
-	if identityID == "" {
+	identityID := chi.URLParam(r, "identityID")
+	if _, err := uuid.Parse(identityID); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid identity id")
 		return
 	}

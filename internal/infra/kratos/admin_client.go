@@ -42,7 +42,7 @@ func (c *AdminClient) SetIdentityRoles(ctx context.Context, identityID string, r
 		return fmt.Errorf("marshal identity patch: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+identityID, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+url.PathEscape(identityID), bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("build kratos patch identity request: %w", err)
 	}
@@ -134,7 +134,7 @@ func (c *AdminClient) EnableIdentity(ctx context.Context, input admindomain.Enab
 }
 
 func (c *AdminClient) RevokeIdentitySessions(ctx context.Context, identityID string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+strings.TrimSpace(identityID)+"/sessions", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID))+"/sessions", nil)
 	if err != nil {
 		return fmt.Errorf("build kratos revoke identity sessions request: %w", err)
 	}
@@ -165,7 +165,7 @@ func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string,
 		return admindomain.Identity{}, fmt.Errorf("marshal identity state patch: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+identityID, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+url.PathEscape(identityID), bytes.NewReader(payload))
 	if err != nil {
 		return admindomain.Identity{}, fmt.Errorf("build kratos patch identity state request: %w", err)
 	}
@@ -199,7 +199,7 @@ func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string,
 }
 
 func (c *AdminClient) DeleteIdentity(ctx context.Context, identityID string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+strings.TrimSpace(identityID), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), nil)
 	if err != nil {
 		return fmt.Errorf("build kratos delete identity request: %w", err)
 	}
@@ -221,7 +221,7 @@ func (c *AdminClient) DeleteIdentity(ctx context.Context, identityID string) err
 }
 
 func (c *AdminClient) getMetadataPublic(ctx context.Context, identityID string) (map[string]any, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+identityID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(identityID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("build kratos get identity request: %w", err)
 	}

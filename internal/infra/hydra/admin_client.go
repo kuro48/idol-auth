@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -87,7 +88,7 @@ func (c *AdminClient) CreateClient(ctx context.Context, spec app.ClientProvision
 }
 
 func (c *AdminClient) DeleteClient(ctx context.Context, clientID string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/clients/"+clientID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/clients/"+url.PathEscape(clientID), nil)
 	if err != nil {
 		return fmt.Errorf("build hydra delete client request: %w", err)
 	}
