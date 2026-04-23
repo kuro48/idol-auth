@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -56,7 +57,8 @@ func (c *AdminClient) SetIdentityRoles(ctx context.Context, identityID string, r
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("kratos patch identity returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "patch identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos patch identity returned status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -150,7 +152,8 @@ func (c *AdminClient) RevokeIdentitySessions(ctx context.Context, identityID str
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("kratos revoke identity sessions returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "revoke identity sessions", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos revoke identity sessions returned status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -179,7 +182,8 @@ func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string,
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return admindomain.Identity{}, fmt.Errorf("kratos patch identity state returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "patch identity state", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return admindomain.Identity{}, fmt.Errorf("kratos patch identity state returned status %d", resp.StatusCode)
 	}
 
 	var decoded struct {
@@ -215,7 +219,8 @@ func (c *AdminClient) DeleteIdentity(ctx context.Context, identityID string) err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("kratos delete identity returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "delete identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos delete identity returned status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -234,7 +239,8 @@ func (c *AdminClient) getMetadataPublic(ctx context.Context, identityID string) 
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("kratos get identity returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("kratos get identity returned status %d", resp.StatusCode)
 	}
 
 	var decoded struct {

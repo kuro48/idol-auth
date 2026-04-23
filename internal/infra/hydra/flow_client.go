@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -147,7 +148,8 @@ func (c *FlowClient) get(ctx context.Context, path, queryName, queryValue string
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("hydra get request returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "hydra upstream error", "method", "GET", "path", path, "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("hydra get request returned status %d", resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
 		return fmt.Errorf("decode hydra get response: %w", err)
@@ -173,7 +175,8 @@ func (c *FlowClient) put(ctx context.Context, path, queryName, queryValue string
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("hydra put request returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+		slog.WarnContext(ctx, "hydra upstream error", "method", "PUT", "path", path, "status", resp.StatusCode, "body", strings.TrimSpace(string(respBody)))
+		return fmt.Errorf("hydra put request returned status %d", resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
 		return fmt.Errorf("decode hydra put response: %w", err)
