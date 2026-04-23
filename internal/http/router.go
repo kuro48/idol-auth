@@ -111,10 +111,11 @@ type readinessChecker interface {
 }
 
 type server struct {
-	config    RouterConfig
-	adminSvc  AdminService
-	authSvc   AuthService
-	readiness readinessChecker
+	config             RouterConfig
+	adminSvc           AdminService
+	authSvc            AuthService
+	readiness          readinessChecker
+	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 }
 
 type contextKey string
@@ -125,10 +126,11 @@ const consentCSRFCookieName = "idol_auth_consent_csrf"
 
 func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessChecker, authSvc AuthService) http.Handler {
 	s := &server{
-		config:    cfg,
-		adminSvc:  adminSvc,
-		authSvc:   authSvc,
-		readiness: readiness,
+		config:             cfg,
+		adminSvc:           adminSvc,
+		authSvc:            authSvc,
+		readiness:          readiness,
+		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 	}
 
 	r := chi.NewRouter()
@@ -611,15 +613,24 @@ func (s *server) handleListAuditLogs(w http.ResponseWriter, r *http.Request) {
 func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-		if token != "" && s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
-			ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
-			ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
-				IPAddress: clientIP(r, s.config.Security.TrustedProxies),
-				UserAgent: r.UserAgent(),
-				RequestID: middleware.GetReqID(r.Context()),
-			})
-			next.ServeHTTP(w, r.WithContext(ctx))
-			return
+		if token != "" {
+			// Apply a tight per-IP limiter to all Bearer token attempts to prevent
+			// brute-force guessing of the bootstrap token.
+			ip := clientIP(r, s.config.Security.TrustedProxies)
+			if !s.authFailureLimiter.Allow(ip) {
+				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
+				return
+			}
+			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
+				ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
+				ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
+					IPAddress: ip,
+					UserAgent: r.UserAgent(),
+					RequestID: middleware.GetReqID(r.Context()),
+				})
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
 		}
 
 		if s.authSvc != nil {
@@ -863,6 +874,7 @@ func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool) {
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   secure,
+		MaxAge:   600, // 10 minutes — matches Hydra consent flow TTL
 	})
 }
 
