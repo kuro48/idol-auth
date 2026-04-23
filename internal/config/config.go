@@ -69,6 +69,18 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
+	// Token strength is enforced whenever a token is set, regardless of environment.
+	// This prevents weak tokens from being used in staging or shared dev environments.
+	token := strings.TrimSpace(c.Admin.BootstrapToken)
+	if token != "" {
+		if len(token) < 32 {
+			return fmt.Errorf("config: ADMIN_BOOTSTRAP_TOKEN must be at least 32 characters")
+		}
+		if isKnownWeakToken(token) {
+			return fmt.Errorf("config: ADMIN_BOOTSTRAP_TOKEN appears to be a well-known weak value; rotate it")
+		}
+	}
+
 	if strings.EqualFold(strings.TrimSpace(c.App.Env), "production") {
 		if !c.Security.CookieSecure {
 			return fmt.Errorf("config: production requires SESSION_COOKIE_SECURE=true")
@@ -88,15 +100,8 @@ func (c *Config) Validate() error {
 		if err := requireHTTPSURL("HYDRA_BROWSER_URL", c.Ory.HydraBrowserURL); err != nil {
 			return err
 		}
-		token := strings.TrimSpace(c.Admin.BootstrapToken)
 		if token == "" {
 			return fmt.Errorf("config: production requires ADMIN_BOOTSTRAP_TOKEN")
-		}
-		if len(token) < 32 {
-			return fmt.Errorf("config: production requires ADMIN_BOOTSTRAP_TOKEN to be at least 32 characters")
-		}
-		if isKnownWeakToken(token) {
-			return fmt.Errorf("config: ADMIN_BOOTSTRAP_TOKEN appears to be a well-known weak value; rotate it before deploying to production")
 		}
 	}
 	return nil
