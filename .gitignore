@@ -1,10 +1,16 @@
 # Environment
 .env
+.env.production
+.env.staging
 *.local
 
 # Build output
 /bin/
 /out/
+/dist/
+
+# Runtime generated
+/backups/
 
 # Go
 *.test

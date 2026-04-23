@@ -1,0 +1,38 @@
+# Git
+.git/
+.gitignore
+
+# Environment / secrets
+.env
+.env.*
+
+# Generated configs (volume-mounted at runtime, not baked in)
+dist/
+
+# Backups
+backups/
+
+# Docs and scripts (not needed in build context)
+docs/
+scripts/
+deploy/
+
+# Tests
+integration/
+*_test.go
+
+# Dev tooling
+flake.nix
+flake.lock
+Makefile
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Markdown
+*.md
