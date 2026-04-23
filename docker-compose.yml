@@ -7,6 +7,7 @@ services:
       POSTGRES_DB: idol_auth
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U idol -d idol_auth"]
       interval: 5s
@@ -77,7 +78,7 @@ services:
       URLS_LOGIN: http://localhost:8080/v1/auth/login
       URLS_LOGOUT: http://localhost:8080/v1/auth/logout
       SERVE_PUBLIC_CORS_ENABLED: "true"
-      SERVE_PUBLIC_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      SERVE_PUBLIC_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3002}
       LOG_LEVEL: debug
     ports:
       - "4444:4444"
@@ -112,6 +113,9 @@ services:
       KRATOS_ADMIN_URL: http://kratos:4434
       HYDRA_PUBLIC_URL: http://hydra:4444
       HYDRA_ADMIN_URL: http://hydra:4445
+      KRATOS_BROWSER_URL: ${KRATOS_BROWSER_URL:-http://localhost:4433}
+      HYDRA_BROWSER_URL: ${HYDRA_BROWSER_URL:-http://localhost:4444}
+      ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN}
       SESSION_COOKIE_SECURE: "false"
       TRUSTED_PROXIES: ""
       LOG_LEVEL: debug
@@ -123,6 +127,26 @@ services:
       kratos:
         condition: service_started
       hydra:
+        condition: service_started
+    restart: unless-stopped
+
+  demo:
+    build:
+      context: .
+      target: demo
+    environment:
+      DEMO_PORT: 3001
+      DEMO_APP_URL: ${DEMO_APP_URL:-http://localhost:3002}
+      DEMO_AUTH_INTERNAL_URL: http://app:8080
+      DEMO_KRATOS_PUBLIC_URL: http://kratos:4433
+      DEMO_KRATOS_BROWSER_URL: http://localhost:4433
+      DEMO_HYDRA_PUBLIC_URL: http://hydra:4444
+      DEMO_HYDRA_BROWSER_URL: http://localhost:4444
+      ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN}
+    ports:
+      - "${DEMO_PORT:-3002}:3001"
+    depends_on:
+      app:
         condition: service_started
     restart: unless-stopped
 
