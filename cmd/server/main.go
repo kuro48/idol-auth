@@ -12,7 +12,12 @@ import (
 	"time"
 
 	"github.com/ryunosukekurokawa/idol-auth/internal/config"
+	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
 	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
+	"github.com/ryunosukekurokawa/idol-auth/internal/infra/db"
+	"github.com/ryunosukekurokawa/idol-auth/internal/infra/hydra"
+	"github.com/ryunosukekurokawa/idol-auth/internal/infra/kratos"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -32,7 +37,36 @@ func run() error {
 
 	setupLogger(cfg.Log.Level)
 
-	router := apphttp.NewRouter()
+	dbPool, err := db.NewPool(context.Background(), cfg.DB.URL)
+	if err != nil {
+		return fmt.Errorf("init db pool: %w", err)
+	}
+	defer dbPool.Close()
+
+	appService := app.NewService(
+		db.NewAppRepository(dbPool),
+		db.NewOIDCClientRepository(dbPool),
+		db.NewAuditRepository(dbPool),
+		hydra.NewAdminClient(cfg.Ory.HydraAdminURL),
+		time.Now,
+	)
+	adminService := admindomain.NewService(
+		appService,
+		kratos.NewAdminClient(cfg.Ory.KratosAdminURL),
+		db.NewAuditRepository(dbPool),
+		time.Now,
+	)
+	authService := apphttp.NewAuthService(
+		cfg.App.BaseURL,
+		hydra.NewFlowClient(cfg.Ory.HydraAdminURL),
+		kratos.NewFrontendClient(cfg.Ory.KratosPublicURL, cfg.Ory.KratosBrowserURL),
+	)
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		App:      cfg.App,
+		Admin:    cfg.Admin,
+		Ory:      cfg.Ory,
+		Security: cfg.Security,
+	}, adminService, db.NewReadinessChecker(dbPool), authService)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
