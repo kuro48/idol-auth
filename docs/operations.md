@@ -1,5 +1,152 @@
 # Operations
 
+## 初回デプロイ前 オペレーター操作手順
+
+コード側の準備は完了している。以下の 3 つはオペレーター（あなた）が手動で行う必要がある。
+
+---
+
+### Step 1: ADMIN_ALLOWED_CIDR を設定する
+
+管理 API（`/v1/admin/*`）へのアクセスを自分の IP に限定する。
+
+**自分の IP を確認する:**
+
+```bash
+curl -s https://checkip.amazonaws.com
+# または
+curl -s https://ifconfig.me
+```
+
+**`.env.production` に設定する:**
+
+```bash
+vi /opt/idol-auth/.env.production
+```
+
+```
+# 例: 自宅の固定 IP が 203.0.113.10 の場合
+ADMIN_ALLOWED_CIDR=203.0.113.10/32
+
+# VPN 経由でアクセスする場合は VPN の CIDR を指定
+ADMIN_ALLOWED_CIDR=10.8.0.0/24
+```
+
+**設定を反映する（Caddy を再起動）:**
+
+```bash
+cd /opt/idol-auth
+docker compose -f docker-compose.production.yml --env-file .env.production \
+  up -d --no-deps caddy
+```
+
+**動作確認:**
+
+```bash
+# 自分の IP からは 200 が返ること
+curl -sf -H "Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>" \
+  https://<APP_HOSTNAME>/v1/admin/apps
+
+# 別の IP から試すと 403 が返ること（VPN を切った状態など）
+```
+
+> **注意**: IP が変わるたびにこの設定を更新する必要がある。
+> 固定 IP がない場合は VPN（WireGuard など）を経由してアクセスするのが安全。
+
+---
+
+### Step 2: 外形監視（UptimeRobot）を設定する
+
+サービスのダウンをメールで通知する無料の外形監視を設定する。
+
+1. [UptimeRobot](https://uptimerobot.com) にアカウント登録（無料）
+
+2. ダッシュボードで **「Add New Monitor」** をクリック
+
+3. 以下を設定:
+
+   | 項目 | 値 |
+   |------|-----|
+   | Monitor Type | HTTP(s) |
+   | Friendly Name | idol-auth healthz |
+   | URL | `https://<APP_HOSTNAME>/healthz` |
+   | Monitoring Interval | 5 minutes |
+
+4. **同様に `/readyz` も追加する:**
+
+   | 項目 | 値 |
+   |------|-----|
+   | Monitor Type | HTTP(s) |
+   | Friendly Name | idol-auth readyz |
+   | URL | `https://<APP_HOSTNAME>/readyz` |
+   | Monitoring Interval | 5 minutes |
+
+5. **Alert Contacts** でメールアドレスを設定し、両モニターに紐づける
+
+6. デプロイ後に UptimeRobot のダッシュボードで「Up」になっていることを確認する
+
+---
+
+### Step 3: E2E スモークテストを通過させる
+
+本番相当の環境でフルフローが動くことを確認する。
+
+**ローカル環境で実施する場合:**
+
+```bash
+cd /path/to/idol-auth
+
+# 依存サービスをすべて起動
+make up
+
+# サービスが立ち上がるまで待機
+make wait
+
+# ユニットテスト + E2E テストを実行
+make e2e
+```
+
+**VPS 上で実施する場合（ステージング）:**
+
+```bash
+cd /opt/idol-auth
+
+# ステージング用の compose があれば使う。なければ本番スタックで確認
+docker compose -f docker-compose.production.yml --env-file .env.production ps
+
+# 手動スモーク確認コマンド
+./scripts/smoke-local-auth.sh  # 存在する場合
+```
+
+**手動で確認するフロー:**
+
+1. `https://<PORTAL_HOSTNAME>/` にアクセスしてログインページが表示される
+2. 新規アカウントを登録し、メール認証が届く
+3. ログイン後に TOTP 登録画面が表示される
+4. TOTP を登録し、認証アプリでログインできる
+5. ログアウトが正常に動作する
+6. Admin API で操作が監査ログに記録される:
+
+```bash
+curl -sf -H "Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>" \
+  "https://<APP_HOSTNAME>/v1/admin/audit-logs" | jq .
+```
+
+---
+
+### 完了チェックリスト
+
+全て確認したらデプロイを完了とみなす。
+
+- [ ] ADMIN_ALLOWED_CIDR を実際の operator IP に設定し、admin API にアクセスできる
+- [ ] 別 IP からの admin API アクセスが 403 で拒否される
+- [ ] UptimeRobot で `/healthz` と `/readyz` のモニターが「Up」になっている
+- [ ] ダウン時のメール通知先が設定されている
+- [ ] E2E フロー（登録 → TOTP → ログイン → ログアウト）が一通り通る
+- [ ] 管理操作が監査ログに記録されている
+
+---
+
 ## Target Shape
 
 - 1 Linux VM
