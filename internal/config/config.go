@@ -43,8 +43,9 @@ type AdminConfig struct {
 }
 
 type SecurityConfig struct {
-	CookieSecure   bool     `env:"SESSION_COOKIE_SECURE" envDefault:"true"`
-	TrustedProxies []string `env:"TRUSTED_PROXIES"       envSeparator:","`
+	CookieSecure   bool     `env:"SESSION_COOKIE_SECURE"  envDefault:"true"`
+	CookieDomain   string   `env:"SESSION_COOKIE_DOMAIN"`
+	TrustedProxies []string `env:"TRUSTED_PROXIES"        envSeparator:","`
 }
 
 type LogConfig struct {

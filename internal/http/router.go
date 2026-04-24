@@ -251,7 +251,7 @@ func (s *server) handleConsent(w http.ResponseWriter, r *http.Request) {
 	}
 	if result.Prompt != nil {
 		secureCookies := s.config.Security.CookieSecure && requestIsSecure(r, s.config.Security.TrustedProxies)
-		if err := writeConsentPage(w, result.Prompt, secureCookies); err != nil {
+		if err := writeConsentPage(w, result.Prompt, secureCookies, s.config.Security.CookieDomain); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to render consent page")
 		}
 		return
@@ -293,7 +293,7 @@ func (s *server) handleConsentSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	secureCookies := s.config.Security.CookieSecure && requestIsSecure(r, s.config.Security.TrustedProxies)
-	clearConsentCSRFCookie(w, secureCookies)
+	clearConsentCSRFCookie(w, secureCookies, s.config.Security.CookieDomain)
 	http.Redirect(w, r, result.RedirectTo, http.StatusFound)
 }
 
@@ -762,7 +762,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookies bool) error {
+func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookies bool, cookieDomain string) error {
 	const tpl = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -811,7 +811,7 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
 	if err != nil {
 		return err
 	}
-	setConsentCSRFCookie(w, csrfToken, secureCookies)
+	setConsentCSRFCookie(w, csrfToken, secureCookies, cookieDomain)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; style-src 'unsafe-inline'")
 	view := struct {
@@ -866,11 +866,12 @@ func validateConsentCSRF(r *http.Request) bool {
 	return subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formToken)) == 1
 }
 
-func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool) {
+func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool, domain string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     consentCSRFCookieName,
 		Value:    token,
 		Path:     "/v1/auth/consent",
+		Domain:   domain,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   secure,
@@ -878,11 +879,12 @@ func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool) {
 	})
 }
 
-func clearConsentCSRFCookie(w http.ResponseWriter, secure bool) {
+func clearConsentCSRFCookie(w http.ResponseWriter, secure bool, domain string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     consentCSRFCookieName,
 		Value:    "",
 		Path:     "/v1/auth/consent",
+		Domain:   domain,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   secure,
