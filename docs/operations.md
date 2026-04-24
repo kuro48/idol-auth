@@ -87,6 +87,80 @@ gunzip -c backups/idol_auth_<timestamp>.sql.gz | docker compose --env-file .env.
 5. Start the stack.
 6. Verify login, MFA, and OIDC.
 
+## Rollback
+
+To roll back to a previous release:
+
+1. Identify the target tag or commit:
+
+```bash
+git log --oneline
+```
+
+2. Check out the target version on the VPS:
+
+```bash
+cd /opt/idol-auth
+git fetch
+git checkout <tag-or-commit>
+```
+
+3. Re-deploy:
+
+```bash
+./scripts/run-nix-app.sh deploy-production .env.production
+```
+
+4. Verify:
+
+```bash
+curl -fsS https://<APP_HOSTNAME>/healthz
+curl -fsS https://<APP_HOSTNAME>/readyz
+```
+
+If the migration introduced breaking schema changes, restore from the last backup before
+re-deploying the older version (see Restore Drill above).
+
+## Break-Glass: Bootstrap Token Rotation
+
+Use this procedure when the `ADMIN_BOOTSTRAP_TOKEN` is suspected to be compromised or
+needs emergency rotation.
+
+1. Generate a new token:
+
+```bash
+openssl rand -hex 32
+```
+
+2. Update `.env.production` on the VPS:
+
+```bash
+vi /opt/idol-auth/.env.production
+# Replace ADMIN_BOOTSTRAP_TOKEN=<old> with the new value
+```
+
+3. Restart only the app container (no downtime for Ory or Postgres):
+
+```bash
+cd /opt/idol-auth
+docker compose -f docker-compose.production.yml --env-file .env.production \
+  up -d --no-deps --build app
+```
+
+4. Confirm the old token is rejected and the new token works:
+
+```bash
+# Should return 401
+curl -sf -H "Authorization: Bearer <old-token>" \
+  https://<APP_HOSTNAME>/v1/admin/apps | jq .
+
+# Should return 200
+curl -sf -H "Authorization: Bearer <new-token>" \
+  https://<APP_HOSTNAME>/v1/admin/apps | jq .
+```
+
+5. Store the new token in your secret manager and revoke the old one.
+
 ## Secrets Handling
 
 - Do not commit `.env.production`.
