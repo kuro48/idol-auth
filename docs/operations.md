@@ -105,6 +105,18 @@ gunzip -c backups/idol_auth_<timestamp>.sql.gz | docker compose --env-file .env.
 - Use session auth for read-only admin access.
 - Keep bootstrap token for break-glass writes only.
 
+## Rate Limiter
+
+The rate limiter uses an **in-memory sliding-window implementation** (no Redis).
+
+- State resets on process restart
+- State is not shared across replicas
+- This is intentional for the current single-instance deployment on Sakura VPS
+
+If you scale to multiple replicas in the future, replace `internal/http/ratelimit.go`
+with a Redis-backed implementation and reconnect `REDIS_ADDR` / `REDIS_PASSWORD`
+via the app environment.
+
 ## Monitoring Baseline
 
 - container restarts
