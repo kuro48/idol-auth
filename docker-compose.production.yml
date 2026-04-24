@@ -118,6 +118,12 @@ services:
       LOG_LEVEL: ${APP_LOG_LEVEL:-info}
     expose:
       - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/readyz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       migrate:
         condition: service_completed_successfully

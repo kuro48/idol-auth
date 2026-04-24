@@ -199,3 +199,27 @@ via the app environment.
 - `/readyz` failures
 - repeated auth failures
 - SMTP delivery failures
+
+### Minimum Viable Alerting
+
+Set up external uptime monitoring as a minimum before going to production:
+
+1. Sign up for [UptimeRobot](https://uptimerobot.com) (free tier is sufficient).
+2. Add an HTTP monitor for `https://<APP_HOSTNAME>/healthz` — interval 5 minutes.
+3. Add an HTTP monitor for `https://<APP_HOSTNAME>/readyz` — interval 5 minutes.
+4. Configure email or Slack alerts on status change.
+
+To verify health from the VPS itself after a deploy:
+
+```bash
+make check-health AUTH_URL=http://localhost:8080
+```
+
+Docker-level health status:
+
+```bash
+docker compose -f docker-compose.production.yml ps
+```
+
+The `app` container reports `healthy` / `unhealthy` based on the `/readyz` probe
+(30s interval, 5s timeout, 3 retries, 10s start period).

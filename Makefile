@@ -18,7 +18,7 @@ COMPOSE_ENV = POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 	DEMO_APP_URL=$(DEMO_APP_URL) \
 	CORS_ALLOWED_ORIGINS=$(CORS_ALLOWED_ORIGINS)
 
-.PHONY: up down test vuln e2e wait verify-local config-check render-production-config nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres
+.PHONY: up down test vuln check-health e2e wait verify-local config-check render-production-config nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres
 
 up:
 	$(COMPOSE_ENV) docker compose up -d --build
@@ -31,6 +31,10 @@ test:
 
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+check-health:
+	@curl -fsS $(AUTH_URL)/healthz && echo " /healthz OK" || echo " /healthz FAILED"
+	@curl -fsS $(AUTH_URL)/readyz  && echo " /readyz  OK" || echo " /readyz  FAILED"
 
 config-check:
 	go run ./cmd/configcheck
