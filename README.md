@@ -66,6 +66,8 @@ sudo ./scripts/provision-sakura-vps.sh
 ## ドキュメント
 
 - [アーキテクチャ詳細](docs/ARCHITECTURE.md)
+- [運用手順](docs/operations.md)
+- [Nix on Sakura VPS](docs/nix-vps.md)
 - [リリースチェックリスト](docs/release-checklist.md)
 
 ## Production

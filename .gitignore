@@ -8,6 +8,7 @@
 /bin/
 /out/
 /dist/
+/server
 
 # Runtime generated
 /backups/

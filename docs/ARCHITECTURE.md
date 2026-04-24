@@ -239,8 +239,6 @@ Kratos の ID データ（メール・パスワード・MFA・`metadata_public.r
 | `SESSION_COOKIE_SECURE` | `true` | 本番では `true` 必須 |
 | `TRUSTED_PROXIES` | `` | カンマ区切り CIDR。本番では必須 |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error`。本番では `debug` 不可 |
-| `REDIS_ADDR` | `localhost:6379` | Redis アドレス（将来の機能用） |
-| `REDIS_PASSWORD` | `` | Redis パスワード |
 
 <!-- /AUTO-GENERATED -->
 
