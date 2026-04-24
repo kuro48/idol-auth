@@ -614,14 +614,9 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if token != "" {
-			// Apply a tight per-IP limiter to all Bearer token attempts to prevent
-			// brute-force guessing of the bootstrap token.
 			ip := clientIP(r, s.config.Security.TrustedProxies)
-			if !s.authFailureLimiter.Allow(ip) {
-				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
-				return
-			}
 			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
+				// Valid bootstrap token — do not consume the failure rate-limit budget.
 				ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
 				ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
 					IPAddress: ip,
@@ -629,6 +624,12 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 					RequestID: middleware.GetReqID(r.Context()),
 				})
 				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			// Wrong or absent bootstrap token — consume from the per-IP failure budget
+			// to prevent brute-force guessing.
+			if !s.authFailureLimiter.Allow(ip) {
+				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
 				return
 			}
 		}
@@ -842,6 +843,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'self'")
+		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
 }
