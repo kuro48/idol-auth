@@ -1,5 +1,156 @@
 # Diagrams
 
+## シーケンス図
+
+### 1. ログインフロー（OAuth2 Authorization Code + PKCE）
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant App as クライアントアプリ
+    participant Hydra as Ory Hydra<br/>(OAuth2サーバー)
+    participant Server as idol-auth<br/>(本サービス)
+    participant Kratos as Ory Kratos<br/>(認証サービス)
+
+    User->>App: ログインボタン押下
+    App->>Hydra: GET /oauth2/auth?response_type=code&...
+    Hydra-->>Server: リダイレクト GET /v1/auth/login?login_challenge=xxx
+
+    Server->>Hydra: GetLoginRequest(challenge)
+    Hydra-->>Server: LoginRequest { skip, subject }
+
+    alt skip=true（既存セッション再利用）
+        Server->>Hydra: AcceptLoginRequest(challenge, subject)
+        Hydra-->>Server: redirect_to
+    else skip=false
+        Server->>Kratos: ToSession(Cookie)
+        alt セッションなし
+            Kratos-->>Server: 401 No Session
+            Server-->>User: リダイレクト → Kratos ログイン画面
+            User->>Kratos: メール・パスワード入力
+            Kratos-->>User: MFA要求（TOTP）
+            User->>Kratos: TOTPコード入力
+            Kratos-->>User: セッションCookie発行
+            User->>Server: リダイレクト GET /v1/auth/login?login_challenge=xxx
+            Server->>Kratos: ToSession(Cookie)
+        else MFA未完了（AAL1のみ）
+            Kratos-->>Server: Session { aal: aal1 }
+            Server-->>User: リダイレクト → Kratos 設定画面（MFA設定）
+        end
+        Kratos-->>Server: Session { aal: aal2, identity_id }
+        Server->>Hydra: AcceptLoginRequest(challenge, identity_id)
+        Hydra-->>Server: redirect_to
+    end
+
+    Server-->>User: リダイレクト → Hydra（同意フローへ）
+```
+
+### 2. 同意フロー（Consent）
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant Hydra as Ory Hydra
+    participant Server as idol-auth
+    participant Kratos as Ory Kratos
+
+    Hydra-->>Server: リダイレクト GET /v1/auth/consent?consent_challenge=xxx
+
+    Server->>Hydra: GetConsentRequest(challenge)
+    Hydra-->>Server: ConsentRequest { skip, client.skip_consent, subject, scopes }
+
+    alt skip=true または first_party クライアント
+        Server->>Kratos: ToSession(Cookie)
+        Kratos-->>Server: Session { roles }
+        Server->>Hydra: AcceptConsentRequest(challenge, scopes, claims{roles})
+        Hydra-->>Server: redirect_to
+        Server-->>User: リダイレクト → クライアントアプリ
+    else third_party クライアント（同意画面表示）
+        Server->>Kratos: ToSession(Cookie)
+        Kratos-->>Server: Session { identity_id, roles }
+        Server-->>User: 同意画面（スコープ一覧表示）<br/>CSRFトークンをCookieにセット
+
+        alt ユーザーが許可
+            User->>Server: POST /v1/auth/consent { action=accept }
+            Note over Server: CSRFトークン検証（Double Submit Cookie）
+            Server->>Hydra: AcceptConsentRequest(scopes, claims{roles})
+            Hydra-->>Server: redirect_to
+        else ユーザーが拒否
+            User->>Server: POST /v1/auth/consent { action=deny }
+            Server->>Hydra: RejectConsentRequest(access_denied)
+            Hydra-->>Server: redirect_to
+        end
+        Server-->>User: リダイレクト → クライアントアプリ
+    end
+```
+
+### 3. ログアウトフロー
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant App as クライアントアプリ
+    participant Hydra as Ory Hydra
+    participant Server as idol-auth
+
+    User->>App: ログアウトボタン押下
+    App->>Server: POST /v1/auth/logout
+    Server-->>App: { logout_url: "https://hydra/oauth2/sessions/logout" }
+    App->>Hydra: GET /oauth2/sessions/logout
+    Hydra-->>Server: リダイレクト GET /v1/auth/logout?logout_challenge=xxx
+
+    Server->>Hydra: GetLogoutRequest(challenge)
+    Hydra-->>Server: LogoutRequest { subject }
+    Server->>Hydra: AcceptLogoutRequest(challenge)
+    Hydra-->>Server: redirect_to
+
+    Server-->>User: リダイレクト（ログアウト完了）
+```
+
+### 4. Admin API 認証フロー
+
+```mermaid
+sequenceDiagram
+    actor Admin as 管理者
+    participant Server as idol-auth
+    participant Kratos as Ory Kratos
+
+    Admin->>Server: POST /v1/admin/apps<br/>Authorization: Bearer <token>
+
+    alt Bearer Token あり
+        Note over Server: constant-time compare(token, ADMIN_BOOTSTRAP_TOKEN)
+        alt トークン一致
+            Server-->>Admin: 201 Created（処理続行）
+        else トークン不一致
+            Note over Server: authFailureLimiter.Allow(IP)<br/>失敗試行のみカウント
+            alt レート超過（5回/5分）
+                Server-->>Admin: 429 Too Many Requests
+            else
+                Note over Server: セッション認証へフォールスルー
+            end
+        end
+    end
+
+    alt セッション認証（Bearer Tokenなし or 不一致）
+        Server->>Kratos: ToSession(Cookie)
+        alt セッションなし
+            Kratos-->>Server: 401
+            Server-->>Admin: 401 Unauthorized
+        else MFA未完了（AAL1）
+            Kratos-->>Server: Session { aal: aal1 }
+            Server-->>Admin: 403 admin mfa required
+        else 許可メール/ロール外
+            Server-->>Admin: 403 admin access denied
+        else 許可済み（AAL2、GET/HEAD/OPTIONS）
+            Server-->>Admin: 200 OK（読み取り操作）
+        else 許可済み（AAL2）だが変更操作（POST/PUT/DELETE）
+            Server-->>Admin: 403 admin bootstrap token required for mutating requests
+        end
+    end
+```
+
+---
+
 ## ER図
 
 ```mermaid
