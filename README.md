@@ -1,8 +1,13 @@
 # idol-auth
 
-Ory スタック（Hydra + Kratos）をベースにした OAuth2/OIDC 認証基盤。
-アプリ登録・クライアント発行・ロール管理・監査ログを一元管理するコントロールプレーンと、
-ログイン/コンセント/ログアウトフローを処理するブリッジサーバーを提供する。
+[![CI](https://github.com/kuro48/idol-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/kuro48/idol-auth/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](go.mod)
+
+**OAuth2/OIDC 認証基盤** — Ory Hydra + Kratos をベースに、複数アプリが 1 つの ID プールを共有するマルチテナント認証サーバー。
+
+アプリ登録・OIDC クライアント発行・ロール管理・監査ログを一元管理するコントロールプレーン API と、
+Hydra の login/consent/logout フローを処理するブリッジサーバーを提供する。
 
 ## クイックスタート
 
@@ -66,7 +71,11 @@ sudo ./scripts/provision-sakura-vps.sh
 ## ドキュメント
 
 - [アーキテクチャ詳細](docs/ARCHITECTURE.md)
+- [運用手順](docs/operations.md)
+- [Nix on Sakura VPS](docs/nix-vps.md)
 - [リリースチェックリスト](docs/release-checklist.md)
+- [セキュリティポリシー](SECURITY.md)
+- [ライセンス](LICENSE)
 
 ## Production
 

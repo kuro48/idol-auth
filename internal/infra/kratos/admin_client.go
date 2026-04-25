@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,7 +43,7 @@ func (c *AdminClient) SetIdentityRoles(ctx context.Context, identityID string, r
 		return fmt.Errorf("marshal identity patch: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+identityID, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+url.PathEscape(identityID), bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("build kratos patch identity request: %w", err)
 	}
@@ -56,7 +57,8 @@ func (c *AdminClient) SetIdentityRoles(ctx context.Context, identityID string, r
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("kratos patch identity returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "patch identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos patch identity returned status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -134,7 +136,7 @@ func (c *AdminClient) EnableIdentity(ctx context.Context, input admindomain.Enab
 }
 
 func (c *AdminClient) RevokeIdentitySessions(ctx context.Context, identityID string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+strings.TrimSpace(identityID)+"/sessions", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID))+"/sessions", nil)
 	if err != nil {
 		return fmt.Errorf("build kratos revoke identity sessions request: %w", err)
 	}
@@ -150,7 +152,8 @@ func (c *AdminClient) RevokeIdentitySessions(ctx context.Context, identityID str
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("kratos revoke identity sessions returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "revoke identity sessions", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos revoke identity sessions returned status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -165,7 +168,7 @@ func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string,
 		return admindomain.Identity{}, fmt.Errorf("marshal identity state patch: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+identityID, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.baseURL+"/admin/identities/"+url.PathEscape(identityID), bytes.NewReader(payload))
 	if err != nil {
 		return admindomain.Identity{}, fmt.Errorf("build kratos patch identity state request: %w", err)
 	}
@@ -179,7 +182,8 @@ func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string,
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return admindomain.Identity{}, fmt.Errorf("kratos patch identity state returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "patch identity state", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return admindomain.Identity{}, fmt.Errorf("kratos patch identity state returned status %d", resp.StatusCode)
 	}
 
 	var decoded struct {
@@ -199,7 +203,7 @@ func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string,
 }
 
 func (c *AdminClient) DeleteIdentity(ctx context.Context, identityID string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+strings.TrimSpace(identityID), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), nil)
 	if err != nil {
 		return fmt.Errorf("build kratos delete identity request: %w", err)
 	}
@@ -215,13 +219,14 @@ func (c *AdminClient) DeleteIdentity(ctx context.Context, identityID string) err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("kratos delete identity returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "delete identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos delete identity returned status %d", resp.StatusCode)
 	}
 	return nil
 }
 
 func (c *AdminClient) getMetadataPublic(ctx context.Context, identityID string) (map[string]any, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+identityID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(identityID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("build kratos get identity request: %w", err)
 	}
@@ -234,7 +239,8 @@ func (c *AdminClient) getMetadataPublic(ctx context.Context, identityID string) 
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("kratos get identity returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("kratos get identity returned status %d", resp.StatusCode)
 	}
 
 	var decoded struct {

@@ -111,10 +111,11 @@ type readinessChecker interface {
 }
 
 type server struct {
-	config    RouterConfig
-	adminSvc  AdminService
-	authSvc   AuthService
-	readiness readinessChecker
+	config             RouterConfig
+	adminSvc           AdminService
+	authSvc            AuthService
+	readiness          readinessChecker
+	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 }
 
 type contextKey string
@@ -125,10 +126,11 @@ const consentCSRFCookieName = "idol_auth_consent_csrf"
 
 func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessChecker, authSvc AuthService) http.Handler {
 	s := &server{
-		config:    cfg,
-		adminSvc:  adminSvc,
-		authSvc:   authSvc,
-		readiness: readiness,
+		config:             cfg,
+		adminSvc:           adminSvc,
+		authSvc:            authSvc,
+		readiness:          readiness,
+		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 	}
 
 	r := chi.NewRouter()
@@ -249,7 +251,7 @@ func (s *server) handleConsent(w http.ResponseWriter, r *http.Request) {
 	}
 	if result.Prompt != nil {
 		secureCookies := s.config.Security.CookieSecure && requestIsSecure(r, s.config.Security.TrustedProxies)
-		if err := writeConsentPage(w, result.Prompt, secureCookies); err != nil {
+		if err := writeConsentPage(w, result.Prompt, secureCookies, s.config.Security.CookieDomain); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to render consent page")
 		}
 		return
@@ -291,7 +293,7 @@ func (s *server) handleConsentSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	secureCookies := s.config.Security.CookieSecure && requestIsSecure(r, s.config.Security.TrustedProxies)
-	clearConsentCSRFCookie(w, secureCookies)
+	clearConsentCSRFCookie(w, secureCookies, s.config.Security.CookieDomain)
 	http.Redirect(w, r, result.RedirectTo, http.StatusFound)
 }
 
@@ -534,8 +536,8 @@ func (s *server) handleEnableIdentity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := strings.TrimSpace(chi.URLParam(r, "identityID"))
-	if identityID == "" {
+	identityID := chi.URLParam(r, "identityID")
+	if _, err := uuid.Parse(identityID); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid identity id")
 		return
 	}
@@ -555,8 +557,8 @@ func (s *server) handleRevokeIdentitySessions(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := strings.TrimSpace(chi.URLParam(r, "identityID"))
-	if identityID == "" {
+	identityID := chi.URLParam(r, "identityID")
+	if _, err := uuid.Parse(identityID); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid identity id")
 		return
 	}
@@ -611,15 +613,25 @@ func (s *server) handleListAuditLogs(w http.ResponseWriter, r *http.Request) {
 func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-		if token != "" && s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
-			ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
-			ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
-				IPAddress: clientIP(r, s.config.Security.TrustedProxies),
-				UserAgent: r.UserAgent(),
-				RequestID: middleware.GetReqID(r.Context()),
-			})
-			next.ServeHTTP(w, r.WithContext(ctx))
-			return
+		if token != "" {
+			ip := clientIP(r, s.config.Security.TrustedProxies)
+			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
+				// Valid bootstrap token — do not consume the failure rate-limit budget.
+				ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
+				ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
+					IPAddress: ip,
+					UserAgent: r.UserAgent(),
+					RequestID: middleware.GetReqID(r.Context()),
+				})
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+			// Wrong or absent bootstrap token — consume from the per-IP failure budget
+			// to prevent brute-force guessing.
+			if !s.authFailureLimiter.Allow(ip) {
+				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
+				return
+			}
 		}
 
 		if s.authSvc != nil {
@@ -751,7 +763,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookies bool) error {
+func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookies bool, cookieDomain string) error {
 	const tpl = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -800,7 +812,7 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
 	if err != nil {
 		return err
 	}
-	setConsentCSRFCookie(w, csrfToken, secureCookies)
+	setConsentCSRFCookie(w, csrfToken, secureCookies, cookieDomain)
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; style-src 'unsafe-inline'")
 	view := struct {
@@ -831,6 +843,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'self'")
+		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -855,22 +868,25 @@ func validateConsentCSRF(r *http.Request) bool {
 	return subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formToken)) == 1
 }
 
-func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool) {
+func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool, domain string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     consentCSRFCookieName,
 		Value:    token,
 		Path:     "/v1/auth/consent",
+		Domain:   domain,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   secure,
+		MaxAge:   600, // 10 minutes — matches Hydra consent flow TTL
 	})
 }
 
-func clearConsentCSRFCookie(w http.ResponseWriter, secure bool) {
+func clearConsentCSRFCookie(w http.ResponseWriter, secure bool, domain string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     consentCSRFCookieName,
 		Value:    "",
 		Path:     "/v1/auth/consent",
+		Domain:   domain,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 		Secure:   secure,

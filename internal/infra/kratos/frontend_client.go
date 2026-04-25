@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -48,7 +49,8 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return apphttp.KratosSession{}, fmt.Errorf("kratos whoami returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "whoami", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return apphttp.KratosSession{}, fmt.Errorf("kratos whoami returned status %d", resp.StatusCode)
 	}
 
 	var decoded struct {

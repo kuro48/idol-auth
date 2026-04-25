@@ -16,7 +16,12 @@ type RateLimiter interface {
 
 // NewInMemoryRateLimiter returns a per-key sliding-window rate limiter backed
 // by an in-memory map. It is safe for concurrent use but does not share state
-// across multiple process instances.
+// across multiple process instances or survive process restarts.
+//
+// For production deployments with multiple replicas, replace this with a
+// Redis-backed implementation using atomic INCR+EXPIRE to share state across
+// instances. The RateLimiter interface is designed to make this substitution
+// straightforward — pass the alternative via RouterConfig.Limiter.
 func NewInMemoryRateLimiter(limit int, window time.Duration) RateLimiter {
 	return newSlidingWindowLimiter(limit, window, time.Now)
 }

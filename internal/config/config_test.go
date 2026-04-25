@@ -41,12 +41,6 @@ func TestLoad_DefaultValues(t *testing.T) {
 	if cfg.Log.Level != "info" {
 		t.Errorf("expected default log level %q, got %q", "info", cfg.Log.Level)
 	}
-	if cfg.Redis.Addr != "localhost:6379" {
-		t.Errorf("expected default redis addr %q, got %q", "localhost:6379", cfg.Redis.Addr)
-	}
-	if cfg.Redis.Password != "" {
-		t.Errorf("expected empty redis password, got %q", cfg.Redis.Password)
-	}
 	if !cfg.Security.CookieSecure {
 		t.Error("expected CookieSecure to default to true")
 	}
@@ -75,8 +69,6 @@ func TestLoad_CustomValues(t *testing.T) {
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("APP_BASE_URL", "https://example.com")
 	t.Setenv("LOG_LEVEL", "debug")
-	t.Setenv("REDIS_ADDR", "redis:6379")
-	t.Setenv("REDIS_PASSWORD", "s3cret")
 	t.Setenv("SESSION_COOKIE_SECURE", "false")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.1,10.0.0.2")
 	t.Setenv("KRATOS_BROWSER_URL", "http://browser-kratos:4433")
@@ -102,12 +94,6 @@ func TestLoad_CustomValues(t *testing.T) {
 	}
 	if cfg.Log.Level != "debug" {
 		t.Errorf("expected log level %q, got %q", "debug", cfg.Log.Level)
-	}
-	if cfg.Redis.Addr != "redis:6379" {
-		t.Errorf("expected redis addr %q, got %q", "redis:6379", cfg.Redis.Addr)
-	}
-	if cfg.Redis.Password != "s3cret" {
-		t.Errorf("expected redis password %q, got %q", "s3cret", cfg.Redis.Password)
 	}
 	if cfg.Security.CookieSecure {
 		t.Error("expected CookieSecure to be false")

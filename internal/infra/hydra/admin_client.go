@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -72,7 +74,8 @@ func (c *AdminClient) CreateClient(ctx context.Context, spec app.ClientProvision
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return app.ProvisionedClient{}, fmt.Errorf("hydra create client returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "hydra upstream error", "op", "create client", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return app.ProvisionedClient{}, fmt.Errorf("hydra create client returned status %d", resp.StatusCode)
 	}
 
 	var decoded createClientResponse
@@ -87,7 +90,7 @@ func (c *AdminClient) CreateClient(ctx context.Context, spec app.ClientProvision
 }
 
 func (c *AdminClient) DeleteClient(ctx context.Context, clientID string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/clients/"+clientID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/clients/"+url.PathEscape(clientID), nil)
 	if err != nil {
 		return fmt.Errorf("build hydra delete client request: %w", err)
 	}
@@ -103,7 +106,8 @@ func (c *AdminClient) DeleteClient(ctx context.Context, clientID string) error {
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("hydra delete client returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		slog.WarnContext(ctx, "hydra upstream error", "op", "delete client", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("hydra delete client returned status %d", resp.StatusCode)
 	}
 	return nil
 }

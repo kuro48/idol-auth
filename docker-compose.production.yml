@@ -106,8 +106,6 @@ services:
       APP_PORT: 8080
       APP_BASE_URL: ${APP_BASE_URL}
       DATABASE_URL: ${DATABASE_URL}
-      REDIS_ADDR: redis:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
       KRATOS_PUBLIC_URL: http://kratos:4433
       KRATOS_ADMIN_URL: http://kratos:4434
       HYDRA_PUBLIC_URL: http://hydra:4444
@@ -116,10 +114,17 @@ services:
       HYDRA_BROWSER_URL: ${HYDRA_BROWSER_URL}
       ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN}
       SESSION_COOKIE_SECURE: "true"
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES}
       LOG_LEVEL: ${APP_LOG_LEVEL:-info}
     expose:
       - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/readyz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       migrate:
         condition: service_completed_successfully
