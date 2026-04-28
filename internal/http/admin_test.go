@@ -565,6 +565,345 @@ func TestAdminMutatingAccessRequiresBootstrapTokenForSessionAuth(t *testing.T) {
 	}
 }
 
+func TestAdminCreateAppWithClientReturnsCreatedWithSecret(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{
+		"name":"Idol Web","slug":"idol-web","type":"web","party_type":"first_party",
+		"client":{
+			"name":"Idol Web Client","client_type":"confidential",
+			"redirect_uris":["https://example.com/callback"],"scopes":["openid","email"]
+		}
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	for _, key := range []string{"app", "client", "client_secret"} {
+		if _, ok := resp[key]; !ok {
+			t.Fatalf("expected %q in response, got %s", key, w.Body.String())
+		}
+	}
+}
+
+func TestAdminCreateAppWithClientPropagatesClientError(t *testing.T) {
+	adminSvc := &stubAdminService{createClientErr: app.ErrInvalidRedirectURI}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{
+		"name":"Idol Web","slug":"idol-web","type":"web","party_type":"first_party",
+		"client":{"name":"Bad","client_type":"confidential","redirect_uris":["javascript:evil"],"scopes":["openid"]}
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+}
+
+func TestAdminPatchUserStateInactiveDisablesIdentity(t *testing.T) {
+	adminSvc := &stubAdminService{
+		disableResult: admindomain.Identity{ID: "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81", State: admindomain.IdentityStateInactive},
+	}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81",
+		bytes.NewBufferString(`{"state":"inactive"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if adminSvc.lastIdentityID != "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81" {
+		t.Fatalf("expected identity id to be forwarded, got %q", adminSvc.lastIdentityID)
+	}
+	if !strings.Contains(w.Body.String(), `"state":"inactive"`) {
+		t.Fatalf("unexpected body: %s", w.Body.String())
+	}
+}
+
+func TestAdminPatchUserStateActiveEnablesIdentity(t *testing.T) {
+	adminSvc := &stubAdminService{
+		enableResult: admindomain.Identity{ID: "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81", State: admindomain.IdentityStateActive},
+	}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81",
+		bytes.NewBufferString(`{"state":"active"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"state":"active"`) {
+		t.Fatalf("unexpected body: %s", w.Body.String())
+	}
+}
+
+func TestAdminPatchUserStateRejectsInvalidState(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81",
+		bytes.NewBufferString(`{"state":"disabled"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+}
+
+func TestAdminDisableUserByEmailResolvesIdentity(t *testing.T) {
+	targetID := "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81"
+	adminSvc := &stubAdminService{
+		searchResult: []admindomain.Identity{
+			{ID: targetID, Email: "user@example.com", State: admindomain.IdentityStateActive},
+		},
+	}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/users/user%40example.com/disable", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if adminSvc.lastIdentityID != targetID {
+		t.Fatalf("expected resolved id %q, got %q", targetID, adminSvc.lastIdentityID)
+	}
+}
+
+func TestAdminPatchUserByEmailResolvesIdentity(t *testing.T) {
+	targetID := "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81"
+	adminSvc := &stubAdminService{
+		searchResult: []admindomain.Identity{
+			{ID: targetID, Email: "user@example.com", State: admindomain.IdentityStateActive},
+		},
+		enableResult: admindomain.Identity{ID: targetID, State: admindomain.IdentityStateActive},
+	}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/user%40example.com",
+		bytes.NewBufferString(`{"state":"active"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if adminSvc.lastIdentityID != targetID {
+		t.Fatalf("expected resolved id %q, got %q", targetID, adminSvc.lastIdentityID)
+	}
+}
+
+func TestAdminUserNotFoundForUnknownEmailRef(t *testing.T) {
+	adminSvc := &stubAdminService{searchResult: nil}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/users/unknown%40example.com/disable", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusNotFound, w.Code, w.Body.String())
+	}
+}
+
+func TestAdminSetIdentityRolesViaUsersPath(t *testing.T) {
+	adminSvc := &stubAdminService{rolesResult: []string{"admin"}}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPut, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81/roles", bytes.NewBufferString(`{"roles":["admin"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if dep := w.Header().Get("Deprecation"); dep != "" {
+		t.Fatalf("canonical /users/ path must not set Deprecation header, got %q", dep)
+	}
+}
+
+func TestAdminSetIdentityRolesDeprecatedPathHasHeaders(t *testing.T) {
+	adminSvc := &stubAdminService{rolesResult: []string{"admin"}}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPut, "/v1/admin/identities/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81/roles", bytes.NewBufferString(`{"roles":["admin"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Deprecation"); got != "true" {
+		t.Fatalf("expected Deprecation: true header, got %q", got)
+	}
+	if got := w.Header().Get("Sunset"); got == "" {
+		t.Fatal("expected Sunset header to be set")
+	}
+}
+
+func TestAdminPatchUserWithRolesOnly(t *testing.T) {
+	adminSvc := &stubAdminService{rolesResult: []string{"admin"}}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81",
+		bytes.NewBufferString(`{"roles":["admin"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"roles":["admin"]`) {
+		t.Fatalf("unexpected body: %s", w.Body.String())
+	}
+}
+
+func TestAdminPatchUserWithStateAndRoles(t *testing.T) {
+	adminSvc := &stubAdminService{
+		enableResult: admindomain.Identity{ID: "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81", State: admindomain.IdentityStateActive},
+		rolesResult:  []string{"admin"},
+	}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81",
+		bytes.NewBufferString(`{"state":"active","roles":["admin"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"state":"active"`) {
+		t.Fatalf("expected state in body, got %s", body)
+	}
+}
+
+func TestAdminPatchUserWithNeitherStateNorRolesReturnsBadRequest(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81",
+		bytes.NewBufferString(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+}
+
+func TestAdminCreateAppWithTopLevelRedirectURIsReturnsAppAndClient(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{
+		"name":"My SPA","type":"spa","party_type":"first_party",
+		"redirect_uris":["https://example.com/callback"]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	for _, key := range []string{"app", "client", "client_secret"} {
+		if _, ok := resp[key]; !ok {
+			t.Fatalf("expected %q in response, got %s", key, w.Body.String())
+		}
+	}
+}
+
+func TestAdminCreateAppSetsLocationHeader(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{
+		"name":"Idol Web","slug":"idol-web","type":"web","party_type":"first_party"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
+	}
+	if loc := w.Header().Get("Location"); !strings.HasPrefix(loc, "/v1/admin/apps/") {
+		t.Fatalf("expected Location header starting with /v1/admin/apps/, got %q", loc)
+	}
+}
+
 type stubReadinessChecker struct {
 	err error
 }

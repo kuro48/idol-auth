@@ -321,6 +321,81 @@ func TestHandleLogoutReturnsServiceUnavailableWhenAuthSvcNil(t *testing.T) {
 	}
 }
 
+func TestLogoutStartGetRedirectsToBrowser(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodGet, "/v1/auth/logout/start", nil)
+	req.Header.Set("Accept", "text/html")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, w.Code)
+	}
+	if got := w.Header().Get("Location"); !strings.Contains(got, "/oauth2/sessions/logout") {
+		t.Fatalf("expected logout redirect, got %q", got)
+	}
+}
+
+func TestLogoutCallbackDelegatesChallenge(t *testing.T) {
+	authn := &stubAuthService{
+		logoutResult: apphttp.AuthFlowResult{
+			RedirectTo: "http://localhost:3000/logged-out",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn)
+	req := httptest.NewRequest(http.MethodGet, "/v1/auth/logout/callback?logout_challenge=logout123", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, w.Code)
+	}
+	if got := w.Header().Get("Location"); got != "http://localhost:3000/logged-out" {
+		t.Fatalf("expected logout redirect, got %q", got)
+	}
+}
+
+func TestLogoutLegacyHasDeprecationHeaders(t *testing.T) {
+	authn := &stubAuthService{
+		logoutResult: apphttp.AuthFlowResult{
+			RedirectTo: "http://localhost:3000/logged-out",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn)
+	req := httptest.NewRequest(http.MethodGet, "/v1/auth/logout?logout_challenge=logout123", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, w.Code)
+	}
+	if got := w.Header().Get("Deprecation"); got != "true" {
+		t.Fatalf("expected Deprecation: true header, got %q", got)
+	}
+	if got := w.Header().Get("Sunset"); got == "" {
+		t.Fatal("expected Sunset header to be set")
+	}
+}
+
+func TestLogoutStartPostBrowserRequestRedirects(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/logout", nil)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, w.Code)
+	}
+	if got := w.Header().Get("Location"); !strings.Contains(got, "/oauth2/sessions/logout") {
+		t.Fatalf("expected logout redirect, got %q", got)
+	}
+}
+
 type stubAuthService struct {
 	loginResult         apphttp.LoginFlowResult
 	loginErr            error

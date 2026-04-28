@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -25,6 +26,11 @@ import (
 var (
 	ErrChallengeRequired      = errors.New("challenge is required")
 	ErrConsentSessionMismatch = errors.New("active session does not match consent subject")
+)
+
+var (
+	errUserNotFound     = errors.New("user not found")
+	errAmbiguousUserRef = errors.New("multiple users found for identifier")
 )
 
 type AuthAction string
@@ -149,10 +155,12 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/providers", s.handleProviders)
 		r.Get("/session", s.handleSession)
 		r.Post("/logout", s.handleLogoutStart)
+		r.Get("/logout/start", s.handleLogoutStartGet)
+		r.Get("/logout/callback", s.handleLogout)
+		r.Get("/logout", s.handleLogoutLegacy)
 		r.Get("/login", s.handleLogin)
 		r.Get("/consent", s.handleConsent)
 		r.Post("/consent", s.handleConsentSubmit)
-		r.Get("/logout", s.handleLogout)
 	})
 
 	r.Route("/v1/admin", func(r chi.Router) {
@@ -165,11 +173,13 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/apps/{appID}/clients", s.handleListOIDCClients)
 		r.Post("/apps/{appID}/clients", s.handleCreateOIDCClient)
 		r.Get("/users", s.handleSearchIdentities)
-		r.Post("/users/{identityID}/disable", s.handleDisableIdentity)
-		r.Post("/users/{identityID}/enable", s.handleEnableIdentity)
-		r.Post("/users/{identityID}/revoke-sessions", s.handleRevokeIdentitySessions)
-		r.Delete("/users/{identityID}", s.handleDeleteIdentity)
-		r.Put("/identities/{identityID}/roles", s.handleSetIdentityRoles)
+		r.Patch("/users/{userRef}", s.handlePatchUser)
+		r.Put("/users/{userRef}/roles", s.handleSetIdentityRoles)
+		r.Post("/users/{userRef}/disable", s.handleDisableIdentity)
+		r.Post("/users/{userRef}/enable", s.handleEnableIdentity)
+		r.Post("/users/{userRef}/revoke-sessions", s.handleRevokeIdentitySessions)
+		r.Delete("/users/{userRef}", s.handleDeleteIdentity)
+		r.Put("/identities/{userRef}/roles", s.handleSetIdentityRolesDeprecated)
 		r.Get("/audit-logs", s.handleListAuditLogs)
 	})
 
@@ -216,10 +226,43 @@ func (s *server) handleSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, session)
 }
 
-func (s *server) handleLogoutStart(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"logout_url": strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout",
-	})
+func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
+	logoutURL := strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout"
+	if wantsJSON(r) {
+		writeJSON(w, http.StatusOK, map[string]string{"logout_url": logoutURL})
+		return
+	}
+	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
+}
+
+// handleLogoutStartGet is a browser-friendly GET alias for logout start.
+// Browsers can link or redirect to this URL directly without a form POST.
+func (s *server) handleLogoutStartGet(w http.ResponseWriter, r *http.Request) {
+	logoutURL := strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout"
+	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
+}
+
+// handleLogoutLegacy is a backwards-compatible shim for GET /v1/auth/logout.
+// The canonical path is now GET /v1/auth/logout/callback; this handler
+// delegates to it while advertising the deprecation via response headers.
+func (s *server) handleLogoutLegacy(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Deprecation", "true")
+	w.Header().Set("Sunset", "2027-05-01")
+	s.handleLogout(w, r)
+}
+
+// wantsJSON returns true when the caller expects a JSON response.
+// Defaults to true when Accept is absent or wildcard to preserve
+// backwards compatibility for programmatic clients that do not set Accept.
+func wantsJSON(r *http.Request) bool {
+	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+		return true
+	}
+	accept := r.Header.Get("Accept")
+	if accept == "" || accept == "*/*" {
+		return true
+	}
+	return strings.Contains(accept, "application/json")
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -326,26 +369,81 @@ func (s *server) handleCreateApp(w http.ResponseWriter, r *http.Request) {
 		Type        string `json:"type"`
 		PartyType   string `json:"party_type"`
 		Description string `json:"description"`
+		// Top-level shorthand: provide redirect_uris here to create an OIDC
+		// client inline without an explicit "client" block. client_type and
+		// name are inferred automatically from the app. Takes effect only when
+		// the "client" field is absent.
+		RedirectURIs           []string `json:"redirect_uris"`
+		PostLogoutRedirectURIs []string `json:"post_logout_redirect_uris"`
+		Scopes                 []string `json:"scopes"`
+		Client                 *struct {
+			Name                    string   `json:"name"`
+			ClientType              string   `json:"client_type"`
+			TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+			RedirectURIs            []string `json:"redirect_uris"`
+			PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
+			Scopes                  []string `json:"scopes"`
+		} `json:"client"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
 
+	actorID := adminActorIDFromContext(r.Context())
 	created, err := s.adminSvc.CreateApp(r.Context(), app.CreateAppInput{
 		Name:        req.Name,
 		Slug:        req.Slug,
 		Type:        app.AppType(req.Type),
 		PartyType:   app.PartyType(req.PartyType),
 		Description: req.Description,
-		ActorID:     adminActorIDFromContext(r.Context()),
+		ActorID:     actorID,
 	})
 	if err != nil {
 		writeDomainError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, created)
+	// Determine whether to create an inline OIDC client.
+	// Explicit "client" block takes precedence over top-level shorthand.
+	var clientInput *app.CreateOIDCClientInput
+	if req.Client != nil {
+		clientInput = &app.CreateOIDCClientInput{
+			Name:                    req.Client.Name,
+			ClientType:              app.ClientType(req.Client.ClientType),
+			TokenEndpointAuthMethod: req.Client.TokenEndpointAuthMethod,
+			RedirectURIs:            req.Client.RedirectURIs,
+			PostLogoutRedirectURIs:  req.Client.PostLogoutRedirectURIs,
+			Scopes:                  req.Client.Scopes,
+			ActorID:                 actorID,
+		}
+	} else if len(req.RedirectURIs) > 0 {
+		clientInput = &app.CreateOIDCClientInput{
+			RedirectURIs:           req.RedirectURIs,
+			PostLogoutRedirectURIs: req.PostLogoutRedirectURIs,
+			Scopes:                 req.Scopes,
+			ActorID:                actorID,
+		}
+	}
+
+	if clientInput == nil {
+		w.Header().Set("Location", "/v1/admin/apps/"+created.ID.String())
+		writeJSON(w, http.StatusCreated, created)
+		return
+	}
+
+	reg, err := s.adminSvc.CreateOIDCClient(r.Context(), created.ID, *clientInput)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
+	w.Header().Set("Location", "/v1/admin/apps/"+created.ID.String())
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"app":           created,
+		"client":        reg.Client,
+		"client_secret": reg.ClientSecret,
+	})
 }
 
 func (s *server) handleListApps(w http.ResponseWriter, r *http.Request) {
@@ -401,6 +499,7 @@ func (s *server) handleCreateOIDCClient(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	w.Header().Set("Location", "/v1/admin/apps/"+appID.String()+"/clients/"+created.Client.ID.String())
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"client":        created.Client,
 		"client_secret": created.ClientSecret,
@@ -427,15 +526,23 @@ func (s *server) handleListOIDCClients(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": clients})
 }
 
+// handleSetIdentityRolesDeprecated wraps handleSetIdentityRoles with deprecation
+// headers. Use PUT /v1/admin/users/{userRef}/roles instead.
+func (s *server) handleSetIdentityRolesDeprecated(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Deprecation", "true")
+	w.Header().Set("Sunset", "2027-05-01")
+	s.handleSetIdentityRoles(w, r)
+}
+
 func (s *server) handleSetIdentityRoles(w http.ResponseWriter, r *http.Request) {
 	if s.adminSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
 
-	identityID := chi.URLParam(r, "identityID")
-	if _, err := uuid.Parse(identityID); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid identity id")
+	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
+	if err != nil {
+		writeUserRefError(w, err)
 		return
 	}
 
@@ -495,9 +602,9 @@ func (s *server) handleDisableIdentity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := chi.URLParam(r, "identityID")
-	if _, err := uuid.Parse(identityID); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid identity id")
+	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
+	if err != nil {
+		writeUserRefError(w, err)
 		return
 	}
 	identity, err := s.adminSvc.DisableIdentity(r.Context(), admindomain.DisableIdentityInput{
@@ -516,9 +623,9 @@ func (s *server) handleDeleteIdentity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := chi.URLParam(r, "identityID")
-	if _, err := uuid.Parse(identityID); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid identity id")
+	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
+	if err != nil {
+		writeUserRefError(w, err)
 		return
 	}
 	if err := s.adminSvc.DeleteIdentity(r.Context(), admindomain.DeleteIdentityInput{
@@ -536,9 +643,9 @@ func (s *server) handleEnableIdentity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := chi.URLParam(r, "identityID")
-	if _, err := uuid.Parse(identityID); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid identity id")
+	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
+	if err != nil {
+		writeUserRefError(w, err)
 		return
 	}
 	identity, err := s.adminSvc.EnableIdentity(r.Context(), admindomain.EnableIdentityInput{
@@ -557,9 +664,9 @@ func (s *server) handleRevokeIdentitySessions(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
 		return
 	}
-	identityID := chi.URLParam(r, "identityID")
-	if _, err := uuid.Parse(identityID); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid identity id")
+	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
+	if err != nil {
+		writeUserRefError(w, err)
 		return
 	}
 	if err := s.adminSvc.RevokeIdentitySessions(r.Context(), admindomain.RevokeIdentitySessionsInput{
@@ -570,6 +677,89 @@ func (s *server) handleRevokeIdentitySessions(w http.ResponseWriter, r *http.Req
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) handlePatchUser(w http.ResponseWriter, r *http.Request) {
+	if s.adminSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
+		return
+	}
+	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
+	if err != nil {
+		writeUserRefError(w, err)
+		return
+	}
+
+	var req struct {
+		State string    `json:"state"`
+		Roles *[]string `json:"roles"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	if req.State == "" && req.Roles == nil {
+		writeError(w, http.StatusBadRequest, "at least one of 'state' or 'roles' is required")
+		return
+	}
+
+	actorID := adminActorIDFromContext(r.Context())
+
+	var identity admindomain.Identity
+	var hasIdentity bool
+
+	if req.State != "" {
+		switch req.State {
+		case string(admindomain.IdentityStateActive):
+			identity, err = s.adminSvc.EnableIdentity(r.Context(), admindomain.EnableIdentityInput{
+				IdentityID: identityID,
+				ActorID:    actorID,
+			})
+			if err != nil {
+				writeError(w, http.StatusBadGateway, "failed to enable identity")
+				return
+			}
+			hasIdentity = true
+		case string(admindomain.IdentityStateInactive):
+			identity, err = s.adminSvc.DisableIdentity(r.Context(), admindomain.DisableIdentityInput{
+				IdentityID: identityID,
+				ActorID:    actorID,
+			})
+			if err != nil {
+				writeError(w, http.StatusBadGateway, "failed to disable identity")
+				return
+			}
+			hasIdentity = true
+		default:
+			writeError(w, http.StatusBadRequest, "state must be 'active' or 'inactive'")
+			return
+		}
+	}
+
+	if req.Roles != nil {
+		roles, err := s.adminSvc.SetIdentityRoles(r.Context(), admindomain.SetIdentityRolesInput{
+			IdentityID: identityID,
+			Roles:      *req.Roles,
+			ActorID:    actorID,
+		})
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "failed to update identity roles")
+			return
+		}
+		if hasIdentity {
+			identity.Roles = roles
+			writeJSON(w, http.StatusOK, identity)
+		} else {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"identity_id": identityID,
+				"roles":       roles,
+			})
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, identity)
 }
 
 func (s *server) handleListAuditLogs(w http.ResponseWriter, r *http.Request) {
@@ -771,37 +961,125 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Authorize Application</title>
   <style>
-    body { margin: 0; font-family: Georgia, serif; background: linear-gradient(160deg, #f7efe6, #dbe8ef); color: #1b2c36; }
-    main { max-width: 760px; margin: 48px auto; padding: 32px; background: rgba(255,255,255,0.9); border-radius: 24px; box-shadow: 0 24px 60px rgba(27,44,54,0.14); }
-    h1 { margin-top: 0; }
-    ul { padding-left: 20px; }
-    .meta { color: #49606c; font-size: 14px; }
-    .actions { display: flex; gap: 12px; margin-top: 28px; }
-    button { border: 0; border-radius: 12px; padding: 14px 18px; font-size: 16px; cursor: pointer; }
-    .allow { background: #155e75; color: #fff; }
-    .deny { background: #e2e8f0; color: #1b2c36; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0a0c12;
+      background-image: radial-gradient(ellipse at 30% 40%, rgba(108,99,255,0.07) 0%, transparent 55%);
+      color: #e8eaf0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #13161f;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 36px;
+    }
+    .app-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .app-icon {
+      width: 44px;
+      height: 44px;
+      background: rgba(108,99,255,0.14);
+      border: 1px solid rgba(108,99,255,0.28);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .app-name { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+    .app-id { font-size: 12px; color: #7c8394; margin-top: 2px; font-family: monospace; }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #7c8394;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 10px;
+    }
+    p { margin: 0 0 24px; font-size: 14px; color: #9aa3b0; line-height: 1.6; }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    li::before { content: '◉'; color: #6c63ff; font-size: 9px; flex-shrink: 0; }
+    .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 4px 0 24px; }
+    .actions { display: flex; flex-direction: column; gap: 10px; }
+    button {
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 13px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      width: 100%;
+      letter-spacing: 0.01em;
+    }
+    button:active { transform: scale(0.99); }
+    .allow { background: #6c63ff; color: white; }
+    .allow:hover { opacity: 0.88; }
+    .deny {
+      background: rgba(255,255,255,0.05);
+      color: #9aa3b0;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .deny:hover { background: rgba(255,255,255,0.09); color: #e8eaf0; }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Authorize {{ .DisplayName }}</h1>
-    <p class="meta">Client ID: {{ .ClientID }}</p>
+  <div class="card">
+    <div class="app-row">
+      <div class="app-icon">◈</div>
+      <div>
+        <div class="app-name">{{ .DisplayName }}</div>
+        <div class="app-id">{{ .ClientID }}</div>
+      </div>
+    </div>
     <p>This application is requesting access to your shared account.</p>
-    <h2>Requested scopes</h2>
+    <div class="section-label">Requested scopes</div>
     <ul>{{ range .RequestedScope }}<li>{{ . }}</li>{{ end }}</ul>
     {{ if .RequestedAudience }}
-    <h2>Requested API audiences</h2>
-	    <ul>{{ range .RequestedAudience }}<li>{{ . }}</li>{{ end }}</ul>
-	    {{ end }}
-	    <form method="post" action="/v1/auth/consent">
-	      <input type="hidden" name="consent_challenge" value="{{ .Challenge }}">
-	      <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
-	      <div class="actions">
-	        <button class="allow" type="submit" name="action" value="accept">Allow access</button>
-	        <button class="deny" type="submit" name="action" value="deny">Deny</button>
-	      </div>
-	    </form>
-  </main>
+    <div class="section-label">Requested audiences</div>
+    <ul>{{ range .RequestedAudience }}<li>{{ . }}</li>{{ end }}</ul>
+    {{ end }}
+    <hr class="divider">
+    <form method="post" action="/v1/auth/consent">
+      <input type="hidden" name="consent_challenge" value="{{ .Challenge }}">
+      <input type="hidden" name="csrf_token" value="{{ .CSRFToken }}">
+      <div class="actions">
+        <button class="allow" type="submit" name="action" value="accept">Allow access</button>
+        <button class="deny" type="submit" name="action" value="deny">Deny</button>
+      </div>
+    </form>
+  </div>
 </body>
 </html>`
 	displayName := prompt.ClientName
@@ -926,5 +1204,38 @@ func adminMutationRequiresBootstrapToken(method string) bool {
 		return false
 	default:
 		return true
+	}
+}
+
+// resolveUserRef accepts either a UUID or an email/identifier string.
+// UUIDs are passed through directly; other values trigger a Kratos identity search.
+func (s *server) resolveUserRef(ctx context.Context, ref string) (string, error) {
+	if _, err := uuid.Parse(ref); err == nil {
+		return ref, nil
+	}
+	identities, err := s.adminSvc.SearchIdentities(ctx, admindomain.SearchIdentitiesInput{
+		CredentialsIdentifier: ref,
+	})
+	if err != nil {
+		return "", fmt.Errorf("search identity: %w", err)
+	}
+	switch len(identities) {
+	case 0:
+		return "", errUserNotFound
+	case 1:
+		return identities[0].ID, nil
+	default:
+		return "", errAmbiguousUserRef
+	}
+}
+
+func writeUserRefError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errUserNotFound):
+		writeError(w, http.StatusNotFound, "user not found")
+	case errors.Is(err, errAmbiguousUserRef):
+		writeError(w, http.StatusBadRequest, err.Error())
+	default:
+		writeError(w, http.StatusBadGateway, "failed to resolve user")
 	}
 }

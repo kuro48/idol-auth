@@ -129,11 +129,15 @@ func (s *Service) CreateApp(ctx context.Context, input CreateAppInput) (App, err
 	}
 
 	slug := strings.TrimSpace(strings.ToLower(input.Slug))
+	if slug == "" {
+		slug = slugifyName(name)
+	}
 	if !slugPattern.MatchString(slug) {
 		return App{}, ErrInvalidAppSlug
 	}
 
-	if !isValidAppType(input.Type) {
+	appType := normalizeAppType(input.Type)
+	if !isValidAppType(appType) {
 		return App{}, ErrInvalidAppType
 	}
 	if !isValidPartyType(input.PartyType) {
@@ -145,7 +149,7 @@ func (s *Service) CreateApp(ctx context.Context, input CreateAppInput) (App, err
 		ID:          uuid.New(),
 		Name:        name,
 		Slug:        slug,
-		Type:        input.Type,
+		Type:        appType,
 		PartyType:   input.PartyType,
 		Status:      AppStatusActive,
 		Description: strings.TrimSpace(input.Description),
@@ -213,7 +217,7 @@ func (s *Service) CreateOIDCClient(ctx context.Context, appID uuid.UUID, input C
 		Result:     audit.ResultSuccess,
 		Metadata: marshalAuditMetadata(auditMetadata{
 			AppSlug:    parentApp.Slug,
-			ClientName: input.Name,
+			ClientName: spec.Name,
 		}),
 		OccurredAt: s.now().UTC(),
 	})
@@ -233,10 +237,18 @@ func (s *Service) ListOIDCClients(ctx context.Context, appID uuid.UUID) ([]OIDCC
 
 func (s *Service) buildClient(parentApp App, input CreateOIDCClientInput) (ClientProvisionSpec, OIDCClient, error) {
 	name := strings.TrimSpace(input.Name)
-	if name == "" || len(name) > 100 {
+	if name == "" {
+		name = parentApp.Name
+	}
+	if len(name) > 100 {
 		return ClientProvisionSpec{}, OIDCClient{}, ErrInvalidClientName
 	}
-	if !isValidClientType(input.ClientType) {
+
+	clientType := input.ClientType
+	if clientType == "" {
+		clientType = defaultClientType(parentApp.Type)
+	}
+	if !isValidClientType(clientType) {
 		return ClientProvisionSpec{}, OIDCClient{}, ErrInvalidClientType
 	}
 
@@ -253,7 +265,7 @@ func (s *Service) buildClient(parentApp App, input CreateOIDCClientInput) (Clien
 		scopes = []string{"openid"}
 	}
 
-	authMethod, pkceRequired, grantTypes, responseTypes, err := s.resolveClientPolicy(parentApp.Type, input.ClientType, input.TokenEndpointAuthMethod, redirectURIs, scopes)
+	authMethod, pkceRequired, grantTypes, responseTypes, err := s.resolveClientPolicy(parentApp.Type, clientType, input.TokenEndpointAuthMethod, redirectURIs, scopes)
 	if err != nil {
 		return ClientProvisionSpec{}, OIDCClient{}, err
 	}
@@ -264,7 +276,7 @@ func (s *Service) buildClient(parentApp App, input CreateOIDCClientInput) (Clien
 		ID:                      uuid.New(),
 		HydraClientID:           hydraClientID,
 		AppID:                   parentApp.ID,
-		ClientType:              input.ClientType,
+		ClientType:              clientType,
 		Status:                  ClientStatusActive,
 		TokenEndpointAuthMethod: authMethod,
 		PKCERequired:            pkceRequired,
@@ -433,6 +445,34 @@ func isValidClientType(value ClientType) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// normalizeAppType maps common aliases to canonical AppType values so callers
+// don't need to memorise exact enum strings.
+func normalizeAppType(value AppType) AppType {
+	switch value {
+	case "webapp", "server":
+		return AppTypeWeb
+	case "single-page", "single_page":
+		return AppTypeSPA
+	case "mobile":
+		return AppTypeNative
+	default:
+		return value
+	}
+}
+
+// defaultClientType infers the most appropriate ClientType for a given AppType
+// when the caller does not specify one explicitly.
+// SPA and native apps default to public (PKCE-only, no client secret).
+// Web server and M2M apps default to confidential.
+func defaultClientType(appType AppType) ClientType {
+	switch appType {
+	case AppTypeSPA, AppTypeNative:
+		return ClientTypePublic
+	default:
+		return ClientTypeConfidential
 	}
 }
 

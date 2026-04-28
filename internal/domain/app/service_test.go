@@ -442,6 +442,151 @@ func timeNow() time.Time {
 	return time.Date(2026, 4, 23, 0, 0, 0, 0, time.UTC)
 }
 
+func TestSlugifyName(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"My SPA", "my-spa"},
+		{"  Hello  World!  ", "hello-world"},
+		{"UPPERCASE", "uppercase"},
+		{"already-slug", "already-slug"},
+		{"123 App", "123-app"},
+		{"  !@#$%  ", "app"},
+		{"Hello_World", "hello-world"},
+		{"Café & Bar", "caf-bar"},
+	}
+	for _, tc := range cases {
+		if got := slugifyName(tc.input); got != tc.want {
+			t.Errorf("slugifyName(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestServiceCreateAppDerivesSlugFromName(t *testing.T) {
+	repo := &stubAppRepository{}
+	svc := NewService(repo, &stubOIDCClientRepository{}, &stubAuditRepository{}, &stubProvisioner{}, timeNow)
+
+	created, err := svc.CreateApp(context.Background(), CreateAppInput{
+		Name:      "My Web App",
+		Type:      AppTypeWeb,
+		PartyType: PartyTypeFirst,
+		ActorID:   "bootstrap-admin",
+	})
+	if err != nil {
+		t.Fatalf("CreateApp() error = %v", err)
+	}
+	if created.Slug != "my-web-app" {
+		t.Fatalf("expected slug %q, got %q", "my-web-app", created.Slug)
+	}
+}
+
+func TestServiceCreateAppExplicitSlugTakesPrecedence(t *testing.T) {
+	repo := &stubAppRepository{}
+	svc := NewService(repo, &stubOIDCClientRepository{}, &stubAuditRepository{}, &stubProvisioner{}, timeNow)
+
+	created, err := svc.CreateApp(context.Background(), CreateAppInput{
+		Name:      "My Web App",
+		Slug:      "custom-slug",
+		Type:      AppTypeWeb,
+		PartyType: PartyTypeFirst,
+		ActorID:   "bootstrap-admin",
+	})
+	if err != nil {
+		t.Fatalf("CreateApp() error = %v", err)
+	}
+	if created.Slug != "custom-slug" {
+		t.Fatalf("expected slug %q, got %q", "custom-slug", created.Slug)
+	}
+}
+
+func TestServiceCreateAppAcceptsTypeAlias(t *testing.T) {
+	cases := []struct {
+		alias    AppType
+		expected AppType
+	}{
+		{"webapp", AppTypeWeb},
+		{"server", AppTypeWeb},
+		{"single-page", AppTypeSPA},
+		{"single_page", AppTypeSPA},
+		{"mobile", AppTypeNative},
+	}
+	for _, tc := range cases {
+		repo := &stubAppRepository{}
+		svc := NewService(repo, &stubOIDCClientRepository{}, &stubAuditRepository{}, &stubProvisioner{}, timeNow)
+		created, err := svc.CreateApp(context.Background(), CreateAppInput{
+			Name:      "App",
+			Slug:      "app",
+			Type:      tc.alias,
+			PartyType: PartyTypeFirst,
+			ActorID:   "bootstrap-admin",
+		})
+		if err != nil {
+			t.Fatalf("CreateApp() with type alias %q error = %v", tc.alias, err)
+		}
+		if created.Type != tc.expected {
+			t.Fatalf("expected type %q for alias %q, got %q", tc.expected, tc.alias, created.Type)
+		}
+	}
+}
+
+func TestServiceCreateOIDCClientDefaultsClientTypeForSPA(t *testing.T) {
+	appID := uuid.New()
+	appRepo := &stubAppRepository{
+		apps: []App{{ID: appID, Name: "My SPA", Slug: "my-spa", Type: AppTypeSPA, PartyType: PartyTypeFirst, Status: AppStatusActive}},
+	}
+	svc := NewService(appRepo, &stubOIDCClientRepository{}, &stubAuditRepository{}, &stubProvisioner{}, timeNow)
+
+	created, err := svc.CreateOIDCClient(context.Background(), appID, CreateOIDCClientInput{
+		RedirectURIs: []string{"https://example.com/callback"},
+		Scopes:       []string{"openid"},
+		ActorID:      "bootstrap-admin",
+	})
+	if err != nil {
+		t.Fatalf("CreateOIDCClient() without client_type error = %v", err)
+	}
+	if created.Client.ClientType != ClientTypePublic {
+		t.Fatalf("expected public client type for SPA, got %q", created.Client.ClientType)
+	}
+}
+
+func TestServiceCreateOIDCClientDefaultsClientTypeForM2M(t *testing.T) {
+	appID := uuid.New()
+	appRepo := &stubAppRepository{
+		apps: []App{{ID: appID, Name: "My API", Slug: "my-api", Type: AppTypeM2M, PartyType: PartyTypeFirst, Status: AppStatusActive}},
+	}
+	svc := NewService(appRepo, &stubOIDCClientRepository{}, &stubAuditRepository{}, &stubProvisioner{}, timeNow)
+
+	_, err := svc.CreateOIDCClient(context.Background(), appID, CreateOIDCClientInput{
+		Scopes:  []string{"openid"},
+		ActorID: "bootstrap-admin",
+	})
+	if err != nil {
+		t.Fatalf("CreateOIDCClient() M2M without client_type error = %v", err)
+	}
+}
+
+func TestServiceCreateOIDCClientDefaultsNameFromApp(t *testing.T) {
+	appID := uuid.New()
+	appRepo := &stubAppRepository{
+		apps: []App{{ID: appID, Name: "Idol Platform", Slug: "idol-platform", Type: AppTypeSPA, PartyType: PartyTypeFirst, Status: AppStatusActive}},
+	}
+	provisioner := &stubProvisioner{result: ProvisionedClient{HydraClientID: "test-client"}}
+	svc := NewService(appRepo, &stubOIDCClientRepository{}, &stubAuditRepository{}, provisioner, timeNow)
+
+	_, err := svc.CreateOIDCClient(context.Background(), appID, CreateOIDCClientInput{
+		RedirectURIs: []string{"https://example.com/callback"},
+		Scopes:       []string{"openid"},
+		ActorID:      "bootstrap-admin",
+	})
+	if err != nil {
+		t.Fatalf("CreateOIDCClient() without name error = %v", err)
+	}
+	if provisioner.lastSpec.Name != "Idol Platform" {
+		t.Fatalf("expected client name %q (from app), got %q", "Idol Platform", provisioner.lastSpec.Name)
+	}
+}
+
 func TestAuditMetadataJSONRoundTrip(t *testing.T) {
 	meta := auditMetadata{AppSlug: "idol-web", ClientName: "Idol SPA"}
 	b, err := json.Marshal(meta)
