@@ -385,7 +385,7 @@ func (s *server) handleCreateApp(w http.ResponseWriter, r *http.Request) {
 			Scopes                  []string `json:"scopes"`
 		} `json:"client"`
 	}
-	if err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
@@ -480,7 +480,7 @@ func (s *server) handleCreateOIDCClient(w http.ResponseWriter, r *http.Request) 
 		PostLogoutRedirectURIs  []string `json:"post_logout_redirect_uris"`
 		Scopes                  []string `json:"scopes"`
 	}
-	if err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
@@ -549,7 +549,7 @@ func (s *server) handleSetIdentityRoles(w http.ResponseWriter, r *http.Request) 
 	var req struct {
 		Roles []string `json:"roles"`
 	}
-	if err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
@@ -694,7 +694,7 @@ func (s *server) handlePatchUser(w http.ResponseWriter, r *http.Request) {
 		State string    `json:"state"`
 		Roles *[]string `json:"roles"`
 	}
-	if err := decodeJSON(r, &req); err != nil {
+	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
@@ -902,7 +902,10 @@ func roleAllowed(allowed []string, roles []string) bool {
 	return false
 }
 
-func decodeJSON(r *http.Request, dst any) error {
+const maxRequestBodyBytes = 1 << 20 // 1 MiB
+
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	return decoder.Decode(dst)
