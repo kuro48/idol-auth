@@ -107,4 +107,9 @@ func TestRenderPageRendersTOTPImageAndSecretText(t *testing.T) {
 	if !strings.Contains(body, "data:image/png;base64,abc") || !strings.Contains(body, "ABC123") {
 		t.Fatalf("expected qr src and secret in body, got %s", body)
 	}
+	for _, fragment := range []string{"ホーム", "ログイン", "新規登録", "復旧", "確認", "設定"} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected nav label %q, got %s", fragment, body)
+		}
+	}
 }

@@ -5,7 +5,7 @@ APP_URL="${APP_URL:-http://localhost:3002}"
 AUTH_URL="${AUTH_URL:-http://localhost:8080}"
 KRATOS_BROWSER_URL="${KRATOS_BROWSER_URL:-http://localhost:4433}"
 MAILPIT_URL="${MAILPIT_URL:-http://localhost:8025}"
-ADMIN_TOKEN="${ADMIN_TOKEN:-bootstrap-token}"
+ADMIN_TOKEN="${ADMIN_TOKEN:-dev-bootstrap-token-0123456789abcdef0123456789abcdef}"
 WORKDIR="$(mktemp -d)"
 COOKIE_JAR="$WORKDIR/cookies.txt"
 PASSWORD="${PASSWORD:-CorrectHorseBatteryStaple123!}"
@@ -153,11 +153,11 @@ printf '%s' "$WHOAMI_JSON" | grep -q '"method":"totp"'
 
 echo "==> First-party OIDC login"
 curl -sS -L -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$APP_URL/oauth/start" >"$WORKDIR/oidc-first-party.html"
-grep -q 'OIDC Callback Complete' "$WORKDIR/oidc-first-party.html"
+grep -q 'OIDC コールバックが完了しました' "$WORKDIR/oidc-first-party.html"
 
 echo "==> Partner OIDC login"
 curl -sS -L -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$APP_URL/oauth/start?app=partner" >"$WORKDIR/oidc-partner-consent.html"
-grep -q 'Authorize Idol Partner Demo Client' "$WORKDIR/oidc-partner-consent.html"
+grep -q 'Idol Partner Demo Client' "$WORKDIR/oidc-partner-consent.html"
 CHALLENGE="$(extract_attr "$WORKDIR/oidc-partner-consent.html" "consent_challenge")"
 CSRF="$(extract_attr "$WORKDIR/oidc-partner-consent.html" "csrf_token")"
 
@@ -165,7 +165,7 @@ curl -sS -L -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$AUTH_URL/v1/auth/consent
   --data-urlencode "consent_challenge=$CHALLENGE" \
   --data-urlencode "csrf_token=$CSRF" \
   --data-urlencode "action=accept" >"$WORKDIR/oidc-partner-result.html"
-grep -q 'OIDC Callback Complete' "$WORKDIR/oidc-partner-result.html"
+grep -q 'OIDC コールバックが完了しました' "$WORKDIR/oidc-partner-result.html"
 
 echo "==> Mailpit status"
 curl -sS "$MAILPIT_URL/api/v1/messages"

@@ -204,6 +204,22 @@ func TestAuthServiceHandleConsentAutoSkipsWhenHydraIndicatesSkip(t *testing.T) {
 	}
 }
 
+func TestAuthServiceHandleConsentAutoSkipFailsOnSessionSubjectMismatch(t *testing.T) {
+	svc := NewAuthService("http://localhost:8080", &stubHydraAuthClient{
+		consentRequest: HydraConsentRequest{
+			Skip:    true,
+			Subject: "identity-other",
+		},
+	}, &stubKratosAuthClient{
+		session: KratosSession{Active: true, IdentityID: "identity-123", AuthenticatorAssuranceLevel: "aal2", Methods: []string{"password", "totp"}},
+	})
+
+	_, err := svc.HandleConsent(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil), "challenge-1")
+	if !errors.Is(err, ErrConsentSessionMismatch) {
+		t.Fatalf("expected ErrConsentSessionMismatch, got %v", err)
+	}
+}
+
 func TestAuthServiceHandleConsentAutoSkipsForFirstPartyClient(t *testing.T) {
 	svc := NewAuthService("http://localhost:8080", &stubHydraAuthClient{
 		consentRequest: HydraConsentRequest{
@@ -318,6 +334,22 @@ func TestAuthServiceSubmitConsentAutoAcceptsWhenSkip(t *testing.T) {
 	}
 	if result.RedirectTo != "http://hydra/auth?consent_verifier=auto" {
 		t.Fatalf("expected auto-accept redirect, got %q", result.RedirectTo)
+	}
+}
+
+func TestAuthServiceSubmitConsentAutoAcceptFailsOnSessionSubjectMismatch(t *testing.T) {
+	svc := NewAuthService("http://localhost:8080", &stubHydraAuthClient{
+		consentRequest: HydraConsentRequest{
+			Skip:    true,
+			Subject: "identity-other",
+		},
+	}, &stubKratosAuthClient{
+		session: KratosSession{Active: true, IdentityID: "identity-123", AuthenticatorAssuranceLevel: "aal2", Methods: []string{"password", "totp"}},
+	})
+
+	_, err := svc.SubmitConsent(context.Background(), httptest.NewRequest(http.MethodPost, "/", nil), "challenge-1", ConsentDecisionInput{Accept: true})
+	if !errors.Is(err, ErrConsentSessionMismatch) {
+		t.Fatalf("expected ErrConsentSessionMismatch, got %v", err)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ryunosukekurokawa/idol-auth/internal/demo"
@@ -54,5 +55,41 @@ func TestExchangeCodeUsesHydraPublicURL(t *testing.T) {
 	}
 	if tokenResp["access_token"] != "x" {
 		t.Fatalf("unexpected token response: %#v", tokenResp)
+	}
+}
+
+func TestRenderHomeRendersJapaneseLabels(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	renderHome(rec, &demo.Config{})
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		"Idol Auth",
+		"ファーストパーティでログイン",
+		"パートナーアプリでログイン",
+		"アカウントを作成",
+		"ログイン画面を開く",
+		"セキュリティ設定",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected %q in body, got %s", fragment, body)
+		}
+	}
+}
+
+func TestRenderTokenRendersJapaneseLabels(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	renderToken(rec, map[string]any{"token_type": "bearer"})
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		"OIDC コールバック完了",
+		"デモのホームに戻る",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected %q in body, got %s", fragment, body)
+		}
 	}
 }

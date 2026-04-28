@@ -1,7 +1,7 @@
 POSTGRES_PASSWORD ?= postgrespass
 REDIS_PASSWORD ?= redispass
 HYDRA_SYSTEM_SECRET ?= 0123456789abcdef0123456789abcdef
-ADMIN_BOOTSTRAP_TOKEN ?= bootstrap-token
+ADMIN_BOOTSTRAP_TOKEN ?= dev-bootstrap-token-0123456789abcdef0123456789abcdef
 DEMO_PORT ?= 3002
 DEMO_APP_URL ?= http://localhost:3002
 CORS_ALLOWED_ORIGINS ?= http://localhost:3002

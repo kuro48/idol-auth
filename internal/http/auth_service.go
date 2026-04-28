@@ -153,6 +153,9 @@ func (s *authService) HandleConsent(ctx context.Context, r *http.Request, consen
 		return ConsentFlowResult{}, fmt.Errorf("get hydra consent request: %w", err)
 	}
 	if consentRequest.Skip || consentRequest.Client.SkipConsent {
+		if err := s.validateConsentSessionSubject(ctx, r, consentRequest.Subject); err != nil {
+			return ConsentFlowResult{}, err
+		}
 		claims := s.buildConsentSessionClaims(ctx, r)
 		redirectTo, err := s.hydra.AcceptConsentRequest(ctx, consentChallenge, consentRequest.RequestedScope, consentRequest.RequestedAccessTokenAudience, claims)
 		if err != nil {
@@ -204,6 +207,9 @@ func (s *authService) SubmitConsent(ctx context.Context, r *http.Request, consen
 		return AuthFlowResult{}, fmt.Errorf("get hydra consent request: %w", err)
 	}
 	if consentRequest.Skip || consentRequest.Client.SkipConsent {
+		if err := s.validateConsentSessionSubject(ctx, r, consentRequest.Subject); err != nil {
+			return AuthFlowResult{}, err
+		}
 		claims := s.buildConsentSessionClaims(ctx, r)
 		redirectTo, err := s.hydra.AcceptConsentRequest(ctx, consentChallenge, consentRequest.RequestedScope, consentRequest.RequestedAccessTokenAudience, claims)
 		if err != nil {
@@ -320,6 +326,20 @@ func (s *authService) buildConsentSessionClaims(ctx context.Context, r *http.Req
 		AccessToken: map[string]any{"roles": roles},
 		IDToken:     map[string]any{"roles": roles},
 	}
+}
+
+func (s *authService) validateConsentSessionSubject(ctx context.Context, r *http.Request, subject string) error {
+	if strings.TrimSpace(subject) == "" {
+		return nil
+	}
+	session, err := s.kratos.ToSession(ctx, r)
+	if err != nil || !session.Active {
+		return nil
+	}
+	if session.IdentityID != subject {
+		return ErrConsentSessionMismatch
+	}
+	return nil
 }
 
 func sessionMFASatisfied(session KratosSession) bool {

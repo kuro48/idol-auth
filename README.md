@@ -4,82 +4,90 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](go.mod)
 
-**OAuth2/OIDC 認証基盤** — Ory Hydra + Kratos をベースに、複数アプリが 1 つの ID プールを共有するマルチテナント認証サーバー。
+**OAuth2/OIDC 認証基盤**。Ory Hydra + Kratos を使い、複数アプリで 1 つの ID プールを共有するための認証サーバーです。
 
-アプリ登録・OIDC クライアント発行・ロール管理・監査ログを一元管理するコントロールプレーン API と、
-Hydra の login/consent/logout フローを処理するブリッジサーバーを提供する。
+このリポジトリには次の 2 つが入っています。
+
+- Hydra の login / consent / logout を処理する認証ブリッジ API
+- アプリ登録、OIDC クライアント発行、ロール管理、監査ログ取得を行う Admin API
+
+## 開発者向け概要
+
+- 言語: Go
+- 主要依存: `chi`, `pgx`, Ory Hydra, Ory Kratos
+- ローカル起動: `docker compose` または `make up`
+- 本番想定: `Caddy + Docker Compose`
 
 ## クイックスタート
 
+前提:
+
+- Docker / Docker Compose
+- Go 1.25+（ローカルで `go test` する場合）
+
+起動:
+
 ```bash
-cp .env.example .env        # シークレットを編集
-docker compose up --build   # Postgres / Redis / Kratos / Hydra / App / Demo を起動
+cp .env.example .env
+make up
+make wait
 ```
+
+主要 URL:
 
 | サービス | URL |
 |---------|-----|
-| アプリ API | http://localhost:8080 |
+| API | http://localhost:8080 |
 | Demo UI | http://localhost:3002 |
-| Mailpit (メール確認) | http://localhost:8025 |
-| Hydra (public) | http://localhost:4444 |
-| Kratos (public) | http://localhost:4433 |
+| Kratos public | http://localhost:4433 |
+| Hydra public | http://localhost:4444 |
+| Mailpit | http://localhost:8025 |
 
-## コマンド一覧
-
-<!-- AUTO-GENERATED from cmd/ -->
-| コマンド | 用途 | 実行タイミング |
-|---------|------|--------------|
-| `go run ./cmd/server` | HTTP サーバー起動 | 常時稼働 |
-| `go run ./cmd/migrate` | DB マイグレーション実行 | デプロイ時 1 回 |
-| `go run ./cmd/adminctl set-roles` | ID にロールを付与する CLI | 管理者が随時 |
-| `go run ./cmd/demo` | OIDC デモクライアント + Kratos UI | 開発・ステージング |
-| `go run ./cmd/portal` | 本番向け Kratos self-service UI | 常時稼働 |
-| `go run ./cmd/configcheck` | 設定バリデーションのみ実行 | CI / startupProbe |
-<!-- /AUTO-GENERATED -->
-
-## テスト
+ローカル smoke:
 
 ```bash
+./scripts/smoke-local-auth.sh
+```
+
+停止:
+
+```bash
+make down
+```
+
+## よく使うコマンド
+
+```bash
+make up
+make wait
 go test ./...
 go test -race ./...
+go vet ./...
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+go run ./cmd/configcheck
 ```
 
-## Nix
+## リポジトリの見方
 
-`Nix` で開発ツールと運用 CLI を固定できる。
-
-```bash
-nix --extra-experimental-features "nix-command flakes" develop
-make test
-```
-
-本番系の操作も `nix run` で実行できる。
-
-```bash
-nix --extra-experimental-features "nix-command flakes" run .#render-production-config
-nix --extra-experimental-features "nix-command flakes" run .#config-check
-nix --extra-experimental-features "nix-command flakes" run .#deploy-production -- .env.production
-```
-
-`Ubuntu on Sakura VPS` では、初回だけ `root` で provisioning script を実行し、その後は `run-nix-app.sh` に寄せる。
-
-```bash
-sudo ./scripts/provision-sakura-vps.sh
-./scripts/run-nix-app.sh deploy-production .env.production
-```
+- `cmd/server`: メイン API
+- `cmd/demo`: ローカル開発用デモクライアント
+- `cmd/portal`: 本番向け Kratos self-service UI
+- `internal/http`: HTTP ルーティングと auth/admin フロー
+- `internal/domain`: アプリ登録、管理操作、監査ログのドメイン
+- `internal/infra`: DB、Hydra、Kratos 連携
+- `integration`: E2E 相当の統合テスト
 
 ## ドキュメント
 
-- [アーキテクチャ詳細](docs/ARCHITECTURE.md)
-- [運用手順](docs/operations.md)
-- [Nix on Sakura VPS](docs/nix-vps.md)
-- [リリースチェックリスト](docs/release-checklist.md)
+- [API リファレンス](docs/API.md)
+- [アーキテクチャ](docs/ARCHITECTURE.md)
+- [デプロイと運用](docs/deployment.md)
 - [セキュリティポリシー](SECURITY.md)
 - [ライセンス](LICENSE)
 
-## Production
+## 本番デプロイ
 
-本番用の Ory 設定は開発用ファイルと分離している。
+本番用の Ory 設定はテンプレートから生成します。
 
 ```bash
 cp .env.production.example .env.production
@@ -89,20 +97,4 @@ make config-check
 docker compose -f docker-compose.production.yml up -d --build
 ```
 
-`Nix` を使う場合は、同じ操作を `nix run` に置き換えられる。
-
-```bash
-cp .env.production.example .env.production
-set -a; . ./.env.production; set +a
-nix --extra-experimental-features "nix-command flakes" run .#render-production-config
-nix --extra-experimental-features "nix-command flakes" run .#config-check
-nix --extra-experimental-features "nix-command flakes" run .#deploy-production -- .env.production
-```
-
-`docker-compose.production.yml` は `portal` を含み、`demo` や `mailpit` は含まない。  
-`dist/kratos/kratos.yml` と `dist/hydra/hydra.yml` は `scripts/render-production-config.sh` で生成する。
-
-個人開発向けの本番構成は `Caddy + Docker Compose` を前提にしている。  
-公開ポートは `80/443` のみで、`deploy/caddy/Caddyfile` が `app` / `portal` / `hydra public` へ中継する。
-
-運用手順は [docs/operations.md](docs/operations.md) を参照。
+`Nix` を使う場合は `./scripts/run-nix-app.sh` か `nix run` に置き換えられます。詳細は [docs/deployment.md](docs/deployment.md) を参照してください。

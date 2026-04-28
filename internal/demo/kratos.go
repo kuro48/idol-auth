@@ -113,39 +113,163 @@ type PageData struct {
 func RenderPage(w http.ResponseWriter, data PageData) error {
 	const tmpl = `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ .Title }}</title>
+  <title>{{ .Title }} — Idol Auth</title>
   <style>
-    body { font-family: Georgia, serif; background: linear-gradient(135deg, #f7f1e8, #d7e5f0); color: #1f2933; margin: 0; }
-    main { max-width: 720px; margin: 40px auto; background: rgba(255,255,255,0.88); padding: 32px; border-radius: 20px; box-shadow: 0 24px 60px rgba(31,41,51,0.12); }
-    h1 { margin-top: 0; }
-    form { display: grid; gap: 16px; }
-    label { display: block; font-weight: 600; margin-bottom: 6px; }
-    input, button { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #c7d2da; font-size: 16px; }
-    button, input[type="submit"] { background: #1f6f8b; color: white; border: 0; cursor: pointer; }
-    .message { padding: 12px; border-radius: 10px; background: #f9e2d2; margin-bottom: 12px; }
-    .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
-    .links a { color: #1f6f8b; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0a0c12;
+      background-image: radial-gradient(ellipse at 20% 50%, rgba(108,99,255,0.08) 0%, transparent 60%),
+                        radial-gradient(ellipse at 80% 20%, rgba(99,179,237,0.05) 0%, transparent 50%);
+      color: #e8eaf0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #13161f;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 40px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: #6c63ff;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      color: white;
+    }
+    .brand-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #7c8394;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+    .description { color: #7c8394; margin: 0 0 28px; font-size: 14px; line-height: 1.6; }
+    .alert {
+      padding: 11px 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .alert-error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #fca5a5;
+    }
+    .alert-info {
+      background: rgba(99,179,237,0.1);
+      border: 1px solid rgba(99,179,237,0.2);
+      color: #93c5fd;
+    }
+    form { display: flex; flex-direction: column; gap: 18px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #7c8394;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    input:not([type=hidden]):not([type=submit]) {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 8px;
+      color: #e8eaf0;
+      font-size: 15px;
+      padding: 11px 13px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      width: 100%;
+    }
+    input:not([type=hidden]):not([type=submit]):focus {
+      border-color: rgba(108,99,255,0.55);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.12);
+    }
+    input[readonly] { opacity: 0.55; cursor: default; }
+    button, input[type=submit] {
+      background: #6c63ff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      width: 100%;
+      letter-spacing: 0.01em;
+    }
+    button:hover, input[type=submit]:hover { opacity: 0.88; }
+    button:active, input[type=submit]:active { transform: scale(0.99); }
+    .qr-wrap img {
+      border-radius: 10px;
+      background: white;
+      padding: 12px;
+      max-width: 200px;
+    }
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 0;
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .nav a {
+      font-size: 13px;
+      color: #7c8394;
+      text-decoration: none;
+      padding: 2px 0;
+      transition: color 0.15s;
+    }
+    .nav a:hover { color: #e8eaf0; }
+    .nav a:not(:last-child)::after { content: '·'; margin: 0 10px; color: rgba(255,255,255,0.15); }
   </style>
 </head>
 <body>
-  <main>
+  <div class="card">
+    <div class="brand">
+      <div class="brand-icon">✦</div>
+      <span class="brand-name">Idol Auth</span>
+    </div>
     <h1>{{ .Title }}</h1>
-    <p>{{ .Description }}</p>
-    {{ range .Flow.Messages }}<div class="message">{{ .Text }}</div>{{ end }}
+    <p class="description">{{ .Description }}</p>
+    {{ range .Flow.Messages }}
+      <div class="alert {{ if eq .Type "error" }}alert-error{{ else }}alert-info{{ end }}">{{ .Text }}</div>
+    {{ end }}
     <form action="{{ .Flow.UI.Action }}" method="{{ .Flow.UI.Method }}">
       {{ range .Flow.UI.Nodes }}
-        {{ range .Messages }}<div class="message">{{ .Text }}</div>{{ end }}
+        {{ range .Messages }}<div class="alert alert-error">{{ .Text }}</div>{{ end }}
         {{ if eq .Type "img" }}
-          <div>
+          <div class="field qr-wrap">
             <label>{{ nodeLabel . }}</label>
-            <img src="{{ imageSrc . }}" alt="{{ nodeLabel . }}" style="max-width: 256px; border-radius: 12px; border: 1px solid #c7d2da; background: white; padding: 12px;">
+            <img src="{{ imageSrc . }}" alt="{{ nodeLabel . }}">
           </div>
         {{ else if eq .Type "text" }}
-          <div>
+          <div class="field">
             <label>{{ nodeLabel . }}</label>
             <input type="text" value="{{ textValue . }}" readonly>
           </div>
@@ -154,22 +278,22 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         {{ else if eq .Attributes.Type "submit" }}
           <button type="submit" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">{{ nodeLabel . }}</button>
         {{ else }}
-          <div>
+          <div class="field">
             <label for="{{ .Attributes.Name }}">{{ nodeLabel . }}</label>
             <input id="{{ .Attributes.Name }}" name="{{ .Attributes.Name }}" type="{{ inputType .Attributes.Type }}" value="{{ .Attributes.Value }}" {{ if .Attributes.Required }}required{{ end }} {{ if .Attributes.Disabled }}disabled{{ end }}>
           </div>
         {{ end }}
       {{ end }}
     </form>
-    <div class="links">
-      <a href="/">Home</a>
-      <a href="/login">Login</a>
-      <a href="/registration">Registration</a>
-      <a href="/recovery">Recovery</a>
-      <a href="/verification">Verification</a>
-      <a href="/settings">Settings</a>
-    </div>
-  </main>
+    <nav class="nav">
+      <a href="/">ホーム</a>
+      <a href="/login">ログイン</a>
+      <a href="/registration">新規登録</a>
+      <a href="/recovery">復旧</a>
+      <a href="/verification">確認</a>
+      <a href="/settings">設定</a>
+    </nav>
+  </div>
 </body>
 </html>`
 

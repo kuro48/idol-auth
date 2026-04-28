@@ -47,7 +47,7 @@ func run() error {
 		spec := selectedAppSpec(cfg, r.URL.Query().Get("app"))
 		clientID, err := controlPlane.EnsureDemoClient(r.Context(), cfg, spec)
 		if err != nil {
-			http.Error(w, "bootstrap demo client: "+err.Error(), http.StatusBadGateway)
+			http.Error(w, "デモクライアントの初期化に失敗しました: "+err.Error(), http.StatusBadGateway)
 			return
 		}
 		verifier, err := demo.GeneratePKCEVerifier()
@@ -82,17 +82,17 @@ func run() error {
 	})
 	mux.HandleFunc("/oauth/callback", func(w http.ResponseWriter, r *http.Request) {
 		if errValue := r.URL.Query().Get("error"); errValue != "" {
-			http.Error(w, "oauth error: "+errValue, http.StatusBadRequest)
+			http.Error(w, "OAuth エラー: "+errValue, http.StatusBadRequest)
 			return
 		}
 		stateCookie, err := r.Cookie(stateCookieName)
 		if err != nil || stateCookie.Value == "" || stateCookie.Value != r.URL.Query().Get("state") {
-			http.Error(w, "invalid oauth state", http.StatusBadRequest)
+			http.Error(w, "OAuth の state が不正です", http.StatusBadRequest)
 			return
 		}
 		verifierCookie, err := r.Cookie(verifierCookieName)
 		if err != nil || verifierCookie.Value == "" {
-			http.Error(w, "missing pkce verifier", http.StatusBadRequest)
+			http.Error(w, "PKCE verifier がありません", http.StatusBadRequest)
 			return
 		}
 		clientKind := ""
@@ -102,7 +102,7 @@ func run() error {
 
 		clientID, err := controlPlane.EnsureDemoClient(r.Context(), cfg, selectedAppSpec(cfg, clientKind))
 		if err != nil {
-			http.Error(w, "bootstrap demo client: "+err.Error(), http.StatusBadGateway)
+			http.Error(w, "デモクライアントの初期化に失敗しました: "+err.Error(), http.StatusBadGateway)
 			return
 		}
 
@@ -117,11 +117,11 @@ func run() error {
 		renderToken(w, tokenResp)
 	})
 
-	registerFlow(mux, kratosClient, "login", "Login", "Sign in with the shared account.")
-	registerFlow(mux, kratosClient, "registration", "Registration", "Create a shared account.")
-	registerFlow(mux, kratosClient, "recovery", "Recovery", "Recover your account.")
-	registerFlow(mux, kratosClient, "verification", "Verification", "Verify your identifier.")
-	registerFlow(mux, kratosClient, "settings", "Settings", "Manage security settings and MFA.")
+	registerFlow(mux, kratosClient, "login", "ログイン", "共有アカウントでサインインします。")
+	registerFlow(mux, kratosClient, "registration", "新規登録", "共有アカウントを作成します。")
+	registerFlow(mux, kratosClient, "recovery", "アカウント復旧", "アカウント復旧フローを開始します。")
+	registerFlow(mux, kratosClient, "verification", "確認", "メールアドレスや識別子を確認します。")
+	registerFlow(mux, kratosClient, "settings", "セキュリティ設定", "セキュリティ設定や MFA を管理します。")
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
@@ -158,27 +158,94 @@ func registerFlow(mux *http.ServeMux, kratosClient *demo.KratosFlowClient, flowT
 func renderHome(w http.ResponseWriter, cfg *demo.Config) {
 	const tpl = `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Idol Demo Client</title>
+  <title>Idol Auth — デモ</title>
   <style>
-    body { margin: 0; font-family: Georgia, serif; background: radial-gradient(circle at top left, #f4d9c6, #dbe8ef 55%, #eef3f6); color: #14232e; }
-    main { max-width: 900px; margin: 48px auto; padding: 32px; background: rgba(255,255,255,0.88); border-radius: 24px; box-shadow: 0 24px 60px rgba(20,35,46,0.14); }
-    a.button { display: inline-block; background: #155e75; color: white; padding: 14px 18px; border-radius: 12px; text-decoration: none; margin-right: 12px; margin-bottom: 12px; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0a0c12;
+      background-image: radial-gradient(ellipse at 20% 50%, rgba(108,99,255,0.08) 0%, transparent 60%),
+                        radial-gradient(ellipse at 80% 20%, rgba(99,179,237,0.05) 0%, transparent 50%);
+      color: #e8eaf0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      padding: 56px 24px;
+    }
+    .container { max-width: 560px; margin: 0 auto; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(108,99,255,0.12);
+      border: 1px solid rgba(108,99,255,0.25);
+      border-radius: 100px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a5b4fc;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    h1 { margin: 0 0 12px; font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; }
+    .subtitle { color: #7c8394; font-size: 15px; line-height: 1.7; margin: 0 0 40px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .card {
+      background: #13161f;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 20px;
+      text-decoration: none;
+      color: #e8eaf0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .card:hover { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.07); }
+    .card-icon { font-size: 18px; margin-bottom: 4px; }
+    .card-title { font-size: 14px; font-weight: 600; }
+    .card-desc { font-size: 13px; color: #7c8394; line-height: 1.5; }
+    .card-primary { border-color: rgba(108,99,255,0.3); background: rgba(108,99,255,0.09); }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Idol Shared Account Demo</h1>
-    <p>This app acts as both a local OIDC demo client and the minimal Kratos UI needed to exercise browser flows.</p>
-    <a class="button" href="/oauth/start">Start First-Party Login</a>
-    <a class="button" href="/oauth/start?app=partner">Start Partner Login</a>
-    <a class="button" href="/registration">Create Account</a>
-    <a class="button" href="/login">Open Login UI</a>
-    <a class="button" href="/settings">Security Settings</a>
-  </main>
+  <div class="container">
+    <div class="tag">✦ Demo</div>
+    <h1>Idol Auth</h1>
+    <p class="subtitle">ローカル OIDC デモクライアントと Kratos ブラウザフロー確認用の最小 UI。</p>
+    <div class="grid">
+      <a class="card card-primary" href="/oauth/start">
+        <div class="card-icon">→</div>
+        <div class="card-title">ファーストパーティでログイン</div>
+        <div class="card-desc">メインアプリで OAuth2 フローを開始</div>
+      </a>
+      <a class="card" href="/oauth/start?app=partner">
+        <div class="card-icon">⇄</div>
+        <div class="card-title">パートナーアプリでログイン</div>
+        <div class="card-desc">パートナー用クライアントでフローを開始</div>
+      </a>
+      <a class="card" href="/registration">
+        <div class="card-icon">+</div>
+        <div class="card-title">アカウントを作成</div>
+        <div class="card-desc">新規ユーザー登録フロー</div>
+      </a>
+      <a class="card" href="/login">
+        <div class="card-icon">◉</div>
+        <div class="card-title">ログイン画面を開く</div>
+        <div class="card-desc">Kratos ブラウザログインフロー</div>
+      </a>
+      <a class="card" href="/settings">
+        <div class="card-icon">◈</div>
+        <div class="card-title">セキュリティ設定</div>
+        <div class="card-desc">MFA・パスワード設定</div>
+      </a>
+    </div>
+  </div>
 </body>
 </html>`
 	t := template.Must(template.New("home").Parse(tpl))
@@ -228,12 +295,69 @@ func exchangeCode(ctx context.Context, cfg *demo.Config, clientID, verifier, cod
 func renderToken(w http.ResponseWriter, tokenResp map[string]any) {
 	const tpl = `
 <!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>OIDC Tokens</title></head>
-<body style="font-family: monospace; background: #0f172a; color: #e2e8f0; margin: 0; padding: 24px;">
-<h1>OIDC Callback Complete</h1>
-<p><a href="/" style="color:#7dd3fc">Back to demo home</a></p>
-<pre style="white-space: pre-wrap; word-break: break-word;">{{ . }}</pre>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OIDC トークン — Idol Auth</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0a0c12;
+      color: #e8eaf0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      padding: 48px 24px;
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.25);
+      border-radius: 100px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #86efac;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+    .back {
+      display: inline-block;
+      color: #7c8394;
+      font-size: 14px;
+      text-decoration: none;
+      margin-bottom: 32px;
+      transition: color 0.15s;
+    }
+    .back:hover { color: #e8eaf0; }
+    pre {
+      background: #13161f;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 24px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #a5f3fc;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">✓ 認証完了</div>
+    <h1>OIDC コールバック完了</h1>
+    <a class="back" href="/">← デモのホームに戻る</a>
+    <pre>{{ . }}</pre>
+  </div>
 </body>
 </html>`
 	b, _ := json.MarshalIndent(sanitizeTokenResponse(tokenResp), "", "  ")
