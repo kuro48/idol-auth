@@ -13,6 +13,7 @@ import (
 	"time"
 
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
+	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
 )
 
 type AdminClient struct {
@@ -33,6 +34,21 @@ func (c *AdminClient) SetIdentityRoles(ctx context.Context, identityID string, r
 		return err
 	}
 	metadata["roles"] = roles
+
+	return c.replaceMetadataPublic(ctx, identityID, metadata)
+}
+
+func (c *AdminClient) SetIdentityOshiColor(ctx context.Context, identityID, color string) error {
+	metadata, err := c.getMetadataPublic(ctx, identityID)
+	if err != nil {
+		return err
+	}
+	metadata[oshi.MetadataPublicKey] = color
+
+	return c.replaceMetadataPublic(ctx, identityID, metadata)
+}
+
+func (c *AdminClient) replaceMetadataPublic(ctx context.Context, identityID string, metadata map[string]any) error {
 
 	payload, err := json.Marshal([]map[string]any{{
 		"op":    "add",

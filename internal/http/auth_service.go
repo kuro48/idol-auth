@@ -7,9 +7,16 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
 )
 
 var ErrNoActiveSession = errors.New("no active session")
+
+var (
+	ErrInvalidOshiColor          = errors.New("invalid oshi color")
+	ErrThemePreferenceUnavailable = errors.New("theme preference unavailable")
+)
 
 type HydraLoginRequest struct {
 	Skip    bool
@@ -39,6 +46,7 @@ type KratosSession struct {
 	IdentityID                  string
 	Email                       string
 	Roles                       []string
+	OshiColor                   string
 	Methods                     []string
 	AuthenticatorAssuranceLevel string
 }
@@ -66,10 +74,15 @@ type KratosAuthClient interface {
 	BrowserSettingsURL(returnTo string) string
 }
 
+type ThemePreferenceUpdater interface {
+	SetIdentityOshiColor(ctx context.Context, identityID, color string) error
+}
+
 type authService struct {
-	baseURL string
-	hydra   HydraAuthClient
-	kratos  KratosAuthClient
+	baseURL      string
+	hydra        HydraAuthClient
+	kratos       KratosAuthClient
+	themeUpdater ThemePreferenceUpdater
 }
 
 func normalizeRoles(roles []string) []string {
@@ -89,12 +102,50 @@ func normalizeRoles(roles []string) []string {
 	return out
 }
 
-func NewAuthService(baseURL string, hydra HydraAuthClient, kratos KratosAuthClient) AuthService {
-	return &authService{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		hydra:   hydra,
-		kratos:  kratos,
+func NewAuthService(baseURL string, hydra HydraAuthClient, kratos KratosAuthClient, themeUpdaters ...ThemePreferenceUpdater) AuthService {
+	var themeUpdater ThemePreferenceUpdater
+	if len(themeUpdaters) > 0 {
+		themeUpdater = themeUpdaters[0]
 	}
+	return &authService{
+		baseURL:      strings.TrimRight(baseURL, "/"),
+		hydra:        hydra,
+		kratos:       kratos,
+		themeUpdater: themeUpdater,
+	}
+}
+
+func (s *authService) UpdateThemePreference(ctx context.Context, r *http.Request, color string) (SessionView, error) {
+	if s.themeUpdater == nil {
+		return SessionView{}, ErrThemePreferenceUnavailable
+	}
+	normalizedColor := oshi.NormalizeColor(color)
+	if normalizedColor == "" {
+		return SessionView{}, ErrInvalidOshiColor
+	}
+
+	session, err := s.kratos.ToSession(ctx, r)
+	if err != nil {
+		return SessionView{}, err
+	}
+	if !session.Active || strings.TrimSpace(session.IdentityID) == "" {
+		return SessionView{}, ErrNoActiveSession
+	}
+	if err := s.themeUpdater.SetIdentityOshiColor(ctx, session.IdentityID, normalizedColor); err != nil {
+		return SessionView{}, fmt.Errorf("persist oshi color: %w", err)
+	}
+	session.OshiColor = normalizedColor
+
+	return SessionView{
+		Authenticated:               true,
+		Subject:                     session.IdentityID,
+		IdentityID:                  session.IdentityID,
+		Email:                       session.Email,
+		Roles:                       normalizeRoles(session.Roles),
+		OshiColor:                   normalizedColor,
+		Methods:                     session.Methods,
+		AuthenticatorAssuranceLevel: session.AuthenticatorAssuranceLevel,
+	}, nil
 }
 
 func (s *authService) HandleLogin(ctx context.Context, r *http.Request, loginChallenge string) (LoginFlowResult, error) {
@@ -192,6 +243,7 @@ func (s *authService) HandleConsent(ctx context.Context, r *http.Request, consen
 			Challenge:                    consentChallenge,
 			ClientID:                     consentRequest.Client.ClientID,
 			ClientName:                   consentRequest.Client.ClientName,
+			OshiColor:                    oshi.NormalizeColor(session.OshiColor),
 			RequestedScope:               consentRequest.RequestedScope,
 			RequestedAccessTokenAudience: consentRequest.RequestedAccessTokenAudience,
 		},
@@ -289,6 +341,7 @@ func (s *authService) CurrentSession(ctx context.Context, r *http.Request) (Sess
 		IdentityID:                  session.IdentityID,
 		Email:                       session.Email,
 		Roles:                       normalizeRoles(session.Roles),
+		OshiColor:                   oshi.NormalizeColor(session.OshiColor),
 		Methods:                     session.Methods,
 		AuthenticatorAssuranceLevel: session.AuthenticatorAssuranceLevel,
 	}, nil

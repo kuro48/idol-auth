@@ -98,6 +98,11 @@ func TestConsentChallengeRendersInteractivePrompt(t *testing.T) {
 	if !strings.Contains(body, "Third Party App") || !strings.Contains(body, "profile") {
 		t.Fatalf("unexpected body: %s", body)
 	}
+	for _, fragment := range []string{"推しメンカラー", "#ffb2b2", "アクセスを許可"} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected themed consent fragment %q, got %s", fragment, body)
+		}
+	}
 	if !strings.Contains(body, `name="csrf_token"`) {
 		t.Fatalf("expected csrf token in consent form, got %s", body)
 	}
@@ -106,6 +111,9 @@ func TestConsentChallengeRendersInteractivePrompt(t *testing.T) {
 	}
 	if got := w.Header().Get("Content-Security-Policy"); !strings.Contains(got, "frame-ancestors 'none'") {
 		t.Fatalf("expected consent CSP header, got %q", got)
+	}
+	if got := w.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'unsafe-inline'") {
+		t.Fatalf("expected consent CSP script allowance, got %q", got)
 	}
 	foundCSRFCookie := false
 	for _, cookie := range w.Result().Cookies() {
@@ -178,6 +186,7 @@ func TestSessionReturnsAuthenticatedPrincipal(t *testing.T) {
 			IdentityID:    "identity-123",
 			Email:         "user@example.com",
 			Roles:         []string{"admin"},
+			OshiColor:     "#ffb2d8",
 			Methods:       []string{"password", "totp"},
 		},
 	}
@@ -191,8 +200,50 @@ func TestSessionReturnsAuthenticatedPrincipal(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
 	body := w.Body.String()
-	if !strings.Contains(body, `"authenticated":true`) || !strings.Contains(body, `"subject":"user-123"`) || !strings.Contains(body, `"email":"user@example.com"`) || !strings.Contains(body, `"roles":["admin"]`) {
+	if !strings.Contains(body, `"authenticated":true`) || !strings.Contains(body, `"subject":"user-123"`) || !strings.Contains(body, `"email":"user@example.com"`) || !strings.Contains(body, `"roles":["admin"]`) || !strings.Contains(body, `"oshi_color":"#ffb2d8"`) {
 		t.Fatalf("unexpected body: %s", body)
+	}
+}
+
+func TestThemePreferencePersistsOshiColor(t *testing.T) {
+	authn := &stubThemeAuthService{
+		stubAuthService: stubAuthService{
+			session: apphttp.SessionView{
+				Authenticated: true,
+				IdentityID:    "identity-123",
+				OshiColor:     "#b2ffd8",
+			},
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn)
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/theme", strings.NewReader(`{"oshi_color":"#b2ffd8"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	if authn.updatedColor != "#b2ffd8" {
+		t.Fatalf("expected updated color to be forwarded, got %q", authn.updatedColor)
+	}
+	if !strings.Contains(w.Body.String(), `"oshi_color":"#b2ffd8"`) {
+		t.Fatalf("unexpected body: %s", w.Body.String())
+	}
+}
+
+func TestThemePreferenceRejectsInvalidColor(t *testing.T) {
+	authn := &stubThemeAuthService{err: apphttp.ErrInvalidOshiColor}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn)
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/theme", strings.NewReader(`{"oshi_color":"#123456"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 }
 
@@ -409,6 +460,12 @@ type stubAuthService struct {
 	sessionErr          error
 }
 
+type stubThemeAuthService struct {
+	stubAuthService
+	updatedColor string
+	err          error
+}
+
 func (s *stubAuthService) HandleLogin(_ context.Context, _ *http.Request, _ string) (apphttp.LoginFlowResult, error) {
 	return s.loginResult, s.loginErr
 }
@@ -431,6 +488,16 @@ func (s *stubAuthService) CurrentSession(_ context.Context, _ *http.Request) (ap
 		return apphttp.SessionView{}, s.sessionErr
 	}
 	return s.session, nil
+}
+
+func (s *stubThemeAuthService) UpdateThemePreference(_ context.Context, _ *http.Request, color string) (apphttp.SessionView, error) {
+	s.updatedColor = color
+	if s.err != nil {
+		return apphttp.SessionView{}, s.err
+	}
+	session := s.session
+	session.OshiColor = color
+	return session, nil
 }
 
 func testConfig() apphttp.RouterConfig {

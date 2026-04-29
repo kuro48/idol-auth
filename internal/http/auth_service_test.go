@@ -444,6 +444,7 @@ func TestAuthServiceCurrentSessionReturnsAuthenticatedView(t *testing.T) {
 			IdentityID:                  "identity-123",
 			Email:                       "user@example.com",
 			Roles:                       []string{"Admin", "admin"},
+			OshiColor:                   "#ffb2d8",
 			AuthenticatorAssuranceLevel: "aal2",
 			Methods:                     []string{"password"},
 		},
@@ -464,6 +465,9 @@ func TestAuthServiceCurrentSessionReturnsAuthenticatedView(t *testing.T) {
 	}
 	if len(view.Roles) != 1 || view.Roles[0] != "admin" {
 		t.Fatalf("expected deduplicated roles [admin], got %v", view.Roles)
+	}
+	if view.OshiColor != "#ffb2d8" {
+		t.Fatalf("expected oshi color, got %q", view.OshiColor)
 	}
 }
 
@@ -504,6 +508,40 @@ func TestAuthServiceCurrentSessionForwardsUpstreamError(t *testing.T) {
 	_, err := svc.CurrentSession(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil))
 	if !errors.Is(err, upstreamErr) {
 		t.Fatalf("expected upstream error, got %v", err)
+	}
+}
+
+func TestAuthServiceUpdateThemePreferencePersistsOshiColor(t *testing.T) {
+	updater := &stubThemePreferenceUpdater{}
+	svc := NewAuthService("http://localhost:8080", &stubHydraAuthClient{}, &stubKratosAuthClient{
+		session: KratosSession{
+			Active:                      true,
+			IdentityID:                  "identity-123",
+			Email:                       "user@example.com",
+			Roles:                       []string{"admin"},
+			AuthenticatorAssuranceLevel: "aal2",
+			Methods:                     []string{"password"},
+		},
+	}, updater)
+
+	view, err := svc.(*authService).UpdateThemePreference(context.Background(), httptest.NewRequest(http.MethodPost, "/", nil), "#b2ffd8")
+	if err != nil {
+		t.Fatalf("UpdateThemePreference() error = %v", err)
+	}
+	if updater.identityID != "identity-123" || updater.color != "#b2ffd8" {
+		t.Fatalf("expected persisted identity/color, got %q %q", updater.identityID, updater.color)
+	}
+	if view.OshiColor != "#b2ffd8" {
+		t.Fatalf("expected updated view color, got %q", view.OshiColor)
+	}
+}
+
+func TestAuthServiceUpdateThemePreferenceRejectsInvalidColor(t *testing.T) {
+	svc := NewAuthService("http://localhost:8080", &stubHydraAuthClient{}, &stubKratosAuthClient{}, &stubThemePreferenceUpdater{})
+
+	_, err := svc.(*authService).UpdateThemePreference(context.Background(), httptest.NewRequest(http.MethodPost, "/", nil), "#123456")
+	if !errors.Is(err, ErrInvalidOshiColor) {
+		t.Fatalf("expected ErrInvalidOshiColor, got %v", err)
 	}
 }
 
@@ -652,6 +690,11 @@ type stubKratosAuthClient struct {
 	sessionErr error
 }
 
+type stubThemePreferenceUpdater struct {
+	identityID string
+	color      string
+}
+
 func (s *stubKratosAuthClient) ToSession(_ context.Context, _ *http.Request) (KratosSession, error) {
 	if s.sessionErr != nil {
 		return KratosSession{}, s.sessionErr
@@ -665,4 +708,10 @@ func (s *stubKratosAuthClient) BrowserLoginURL(returnTo string) string {
 
 func (s *stubKratosAuthClient) BrowserSettingsURL(returnTo string) string {
 	return "http://kratos/settings?return_to=" + returnTo
+}
+
+func (s *stubThemePreferenceUpdater) SetIdentityOshiColor(_ context.Context, identityID, color string) error {
+	s.identityID = identityID
+	s.color = color
+	return nil
 }

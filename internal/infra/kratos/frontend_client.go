@@ -12,6 +12,7 @@ import (
 	"time"
 
 	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
+	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
 )
 
 type FrontendClient struct {
@@ -65,7 +66,8 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 				Email string `json:"email"`
 			} `json:"traits"`
 			MetadataPublic struct {
-				Roles []string `json:"roles"`
+				Roles     []string `json:"roles"`
+				OshiColor string   `json:"oshi_color"`
 			} `json:"metadata_public"`
 		} `json:"identity"`
 	}
@@ -83,6 +85,7 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 		IdentityID:                  decoded.Identity.ID,
 		Email:                       decoded.Identity.Traits.Email,
 		Roles:                       decoded.Identity.MetadataPublic.Roles,
+		OshiColor:                   oshi.NormalizeColor(decoded.Identity.MetadataPublic.OshiColor),
 		Methods:                     methods,
 		AuthenticatorAssuranceLevel: decoded.AuthenticatorAssuranceLevel,
 	}, nil

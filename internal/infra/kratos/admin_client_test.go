@@ -159,3 +159,50 @@ func TestAdminClientRevokeIdentitySessionsCallsDeleteEndpoint(t *testing.T) {
 		t.Fatalf("RevokeIdentitySessions() error = %v", err)
 	}
 }
+
+func TestAdminClientSetIdentityOshiColorPatchesMetadataPublic(t *testing.T) {
+	requestCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if r.URL.Path != "/admin/identities/identity-123" {
+			t.Fatalf("unexpected path %q", r.URL.Path)
+		}
+		switch requestCount {
+		case 1:
+			if r.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", r.Method)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"metadata_public": map[string]any{
+					"roles": []string{"admin"},
+				},
+			})
+		case 2:
+			if r.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", r.Method)
+			}
+			body, _ := io.ReadAll(r.Body)
+			var patch []map[string]any
+			if err := json.Unmarshal(body, &patch); err != nil {
+				t.Fatalf("unmarshal patch: %v", err)
+			}
+			value, ok := patch[0]["value"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected metadata_public patch value, got %T", patch[0]["value"])
+			}
+			if value["oshi_color"] != "#ffb2d8" {
+				t.Fatalf("expected oshi_color to be set, got %#v", value["oshi_color"])
+			}
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewAdminClient(srv.URL)
+	if err := client.SetIdentityOshiColor(context.Background(), "identity-123", "#ffb2d8"); err != nil {
+		t.Fatalf("SetIdentityOshiColor() error = %v", err)
+	}
+}

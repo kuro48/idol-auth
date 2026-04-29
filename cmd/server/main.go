@@ -60,6 +60,7 @@ func run() error {
 		cfg.App.BaseURL,
 		hydra.NewFlowClient(cfg.Ory.HydraAdminURL),
 		kratos.NewFrontendClient(cfg.Ory.KratosPublicURL, cfg.Ory.KratosBrowserURL),
+		kratos.NewAdminClient(cfg.Ory.KratosAdminURL),
 	)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)
 	router := apphttp.NewRouter(apphttp.RouterConfig{
