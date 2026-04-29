@@ -1223,14 +1223,6 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
       raw=(raw||'').trim().toLowerCase();
       return OSHI.indexOf(raw)>=0?raw:'';
     }
-    function storedOshi(){
-      var raw=(localStorage.getItem('idol_auth_oshi')||'').trim().toLowerCase();
-      if(/^\d+$/.test(raw)){
-        var idx=parseInt(raw,10);
-        if(idx>=0&&idx<OSHI.length) return OSHI[idx];
-      }
-      return normalizeOshi(raw);
-    }
     function oshiRgb(hex){return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
     function oshiHex(r,g,b){return'#'+[r,g,b].map(function(v){return Math.min(255,Math.max(0,v)).toString(16).padStart(2,'0');}).join('');}
     function applyOshi(color){
@@ -1248,9 +1240,8 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
         body:JSON.stringify({oshi_color:color})
       }).catch(function(){});
     }
-    var _oshi=normalizeOshi({{ printf "%q" .OshiColor }})||storedOshi()||OSHI[4];
+    var _oshi=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[4];
     applyOshi(_oshi);
-    localStorage.setItem('idol_auth_oshi', _oshi);
   </script>
 </head>
 <body>
@@ -1288,7 +1279,7 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
     (function(){
       var sw=document.getElementById('oshi-swatches');
       var toggle=document.getElementById('oshi-toggle');
-      var current=normalizeOshi({{ printf "%q" .OshiColor }})||storedOshi()||OSHI[4];
+      var current=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[4];
       OSHI.forEach(function(color){
         var btn=document.createElement('button');
         btn.type='button';
@@ -1297,7 +1288,6 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
         btn.title='推しメンカラー '+(OSHI.indexOf(color)+1);
         btn.addEventListener('click', function(){
           applyOshi(color);
-          localStorage.setItem('idol_auth_oshi', color);
           persistOshi(color);
           document.querySelectorAll('.swatch').forEach(function(node){
             node.classList.toggle('active', node===btn);

@@ -385,14 +385,6 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
       raw=(raw||'').trim().toLowerCase();
       return OSHI.indexOf(raw)>=0?raw:'';
     }
-    function storedOshi(){
-      var raw=(localStorage.getItem('idol_auth_oshi')||'').trim().toLowerCase();
-      if(/^\d+$/.test(raw)){
-        var idx=parseInt(raw,10);
-        if(idx>=0&&idx<OSHI.length) return OSHI[idx];
-      }
-      return normalizeOshi(raw);
-    }
     function oshiRgb(hex){return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
     function oshiHex(r,g,b){return'#'+[r,g,b].map(function(v){return Math.min(255,Math.max(0,v)).toString(16).padStart(2,'0');}).join('');}
     function applyOshi(color){
@@ -410,9 +402,8 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
         body:JSON.stringify({oshi_color:color})
       }).catch(function(){});
     }
-    var _oshi=normalizeOshi({{ printf "%q" .OshiColor }})||storedOshi()||OSHI[4];
+    var _oshi=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[4];
     applyOshi(_oshi);
-    localStorage.setItem('idol_auth_oshi', _oshi);
   </script>
 </head>
 <body>
@@ -483,7 +474,7 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
         <div class="card-desc">メールアドレスや識別子の確認と検証を行います。</div>
       </a>
     </div>
-    <div class="note">推しメンカラーは右下の <strong>✦</strong> から切り替えられます。選択した色はログイン・設定など各フロー画面にも引き継がれます。</div>
+    <div class="note">推しメンカラーは右下の <strong>✦</strong> から切り替えられます。ログイン中は選択した色がアカウントに保存され、次回アクセス時も自動で引き継がれます。</div>
   </div>
   <div id="oshi-picker">
     <div id="oshi-swatches" aria-label="推しメンカラーパレット"></div>
@@ -493,7 +484,7 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
     (function(){
       var sw=document.getElementById('oshi-swatches');
       var toggle=document.getElementById('oshi-toggle');
-      var current=normalizeOshi({{ printf "%q" .OshiColor }})||storedOshi()||OSHI[4];
+      var current=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[4];
       OSHI.forEach(function(color){
         var btn=document.createElement('button');
         btn.type='button';
@@ -502,7 +493,6 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
         btn.title='推しメンカラー '+(OSHI.indexOf(color)+1);
         btn.addEventListener('click', function(){
           applyOshi(color);
-          localStorage.setItem('idol_auth_oshi', color);
           persistOshi(color);
           document.querySelectorAll('.swatch').forEach(function(node){
             node.classList.toggle('active', node===btn);

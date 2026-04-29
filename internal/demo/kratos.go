@@ -495,14 +495,6 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       raw=(raw||'').trim().toLowerCase();
       return OSHI.indexOf(raw)>=0?raw:'';
     }
-    function storedOshi(){
-      var raw=(localStorage.getItem('idol_auth_oshi')||'').trim().toLowerCase();
-      if(/^\d+$/.test(raw)){
-        var idx=parseInt(raw,10);
-        if(idx>=0&&idx<OSHI.length) return OSHI[idx];
-      }
-      return normalizeOshi(raw);
-    }
     function phx(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
     function thx(r,g,b){return'#'+[r,g,b].map(function(v){return Math.min(255,Math.max(0,v)).toString(16).padStart(2,'0');}).join('');}
     function applyOshi(color){
@@ -521,9 +513,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         body:JSON.stringify({oshi_color:color})
       }).catch(function(){});
     }
-    var _os=normalizeOshi({{ printf "%q" .OshiColor }})||storedOshi()||OSHI[4];
+    var _os=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[4];
     applyOshi(_os);
-    localStorage.setItem('idol_auth_oshi',_os);
   </script>
 </head>
 <body>
@@ -754,7 +745,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       }
       var sw=document.getElementById('oshi-swatches');
       var tog=document.getElementById('oshi-toggle');
-      var cur=normalizeOshi({{ printf "%q" .OshiColor }})||storedOshi()||OSHI[4];
+      var cur=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[4];
       OSHI.forEach(function(c){
         var btn=document.createElement('button');
         btn.type='button';
@@ -763,7 +754,6 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         btn.title='推しメンカラー '+(OSHI.indexOf(c)+1);
         btn.addEventListener('click',function(){
           applyOshi(c);
-          localStorage.setItem('idol_auth_oshi',c);
           persistOshi(c);
           document.querySelectorAll('.swatch').forEach(function(s){s.classList.toggle('active',s===btn);});
         });
