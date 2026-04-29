@@ -9,6 +9,10 @@
 /out/
 /dist/
 /server
+/portal
+/demo
+/migrate
+/adminctl
 
 # Runtime generated
 /backups/
