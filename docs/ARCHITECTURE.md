@@ -114,10 +114,11 @@ Hydra → /v1/auth/consent?consent_challenge=...
 | GET | `/v1/auth/providers` | Kratos / Hydra の各ブラウザフロー URL を返す |
 | GET | `/v1/auth/session` | 現在の Kratos セッション情報を返す |
 | POST | `/v1/auth/logout` | Hydra logout URL を返す |
+| GET | `/v1/auth/logout/start` | Hydra logout URL へブラウザリダイレクト |
+| GET | `/v1/auth/logout/callback` | Hydra logout_challenge を処理してリダイレクト |
 | GET | `/v1/auth/login` | Hydra login_challenge を処理してリダイレクト |
 | GET | `/v1/auth/consent` | Hydra consent_challenge を処理（確認画面またはリダイレクト） |
 | POST | `/v1/auth/consent` | コンセント確認フォームの送信（action=accept\|deny） |
-| GET | `/v1/auth/logout` | Hydra logout_challenge を処理してリダイレクト |
 
 ### Admin API (`/v1/admin/*`)
 

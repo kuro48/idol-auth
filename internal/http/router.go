@@ -164,7 +164,6 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/logout", s.handleLogoutStart)
 		r.Get("/logout/start", s.handleLogoutStartGet)
 		r.Get("/logout/callback", s.handleLogout)
-		r.Get("/logout", s.handleLogoutLegacy)
 		r.Get("/login", s.handleLogin)
 		r.Get("/consent", s.handleConsent)
 		r.Post("/consent", s.handleConsentSubmit)
@@ -283,15 +282,6 @@ func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleLogoutStartGet(w http.ResponseWriter, r *http.Request) {
 	logoutURL := strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout"
 	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
-}
-
-// handleLogoutLegacy is a backwards-compatible shim for GET /v1/auth/logout.
-// The canonical path is now GET /v1/auth/logout/callback; this handler
-// delegates to it while advertising the deprecation via response headers.
-func (s *server) handleLogoutLegacy(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Deprecation", "true")
-	w.Header().Set("Sunset", "2027-05-01")
-	s.handleLogout(w, r)
 }
 
 // wantsJSON returns true when the caller expects a JSON response.
