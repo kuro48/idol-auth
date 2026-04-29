@@ -310,7 +310,7 @@ DATABASE_URL=postgres://idol:change_me_postgres@localhost:5432/idol_auth \
   KRATOS_ADMIN_URL=http://localhost:4434 \
   HYDRA_PUBLIC_URL=http://localhost:4444 \
   HYDRA_ADMIN_URL=http://localhost:4445 \
-  ADMIN_BOOTSTRAP_TOKEN=dev-bootstrap-token-0123456789abcdef0123456789abcdef \
+  ADMIN_BOOTSTRAP_TOKEN=<dev-bootstrap-token> \
   go run ./cmd/server
 
 # マイグレーション単体実行

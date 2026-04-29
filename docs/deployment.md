@@ -55,23 +55,11 @@ docker compose -f docker-compose.production.yml config
 
 ## 3. デプロイする
 
-Compose で直接デプロイ:
-
 ```bash
 docker compose -f docker-compose.production.yml up -d --build
 ```
 
-`Nix` を使う場合:
-
-```bash
-./scripts/run-nix-app.sh deploy-production .env.production
-```
-
-初回に VPS を整える必要がある場合だけ:
-
-```bash
-sudo ./scripts/provision-sakura-vps.sh
-```
+初回に Linux VPS を整える必要がある場合は、リポジトリ内のプロビジョニングスクリプトを参照してください。
 
 ## 4. 公開前に確認すること
 
@@ -146,13 +134,13 @@ go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 ```bash
 git pull
-./scripts/run-nix-app.sh deploy-production .env.production
+ENV_FILE=.env.production ./scripts/deploy-production.sh
 ```
 
 ### バックアップ
 
 ```bash
-./scripts/run-nix-app.sh backup-postgres .env.production
+./scripts/backup-postgres.sh .env.production
 ```
 
 systemd unit:

@@ -97,4 +97,4 @@ make config-check
 docker compose -f docker-compose.production.yml up -d --build
 ```
 
-`Nix` を使う場合は `./scripts/run-nix-app.sh` か `nix run` に置き換えられます。詳細は [docs/deployment.md](docs/deployment.md) を参照してください。
+詳細は [docs/deployment.md](docs/deployment.md) を参照してください。
