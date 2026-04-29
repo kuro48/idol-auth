@@ -11,6 +11,7 @@ type Config struct {
 	AppURL                string `env:"DEMO_APP_URL" envDefault:"http://localhost:3002"`
 	AuthInternalURL       string `env:"DEMO_AUTH_INTERNAL_URL,required"`
 	KratosPublicURL       string `env:"DEMO_KRATOS_PUBLIC_URL" envDefault:"http://localhost:4433"`
+	KratosAdminURL        string `env:"DEMO_KRATOS_ADMIN_URL,required"`
 	KratosBrowserURL      string `env:"DEMO_KRATOS_BROWSER_URL,required"`
 	HydraPublicURL        string `env:"DEMO_HYDRA_PUBLIC_URL" envDefault:"http://localhost:4444"`
 	HydraBrowserURL       string `env:"DEMO_HYDRA_BROWSER_URL,required"`
@@ -27,6 +28,7 @@ type PortalConfig struct {
 	Port             int    `env:"PORTAL_PORT" envDefault:"3003"`
 	AppURL           string `env:"PORTAL_APP_URL,required"`
 	KratosPublicURL  string `env:"PORTAL_KRATOS_PUBLIC_URL" envDefault:"http://localhost:4433"`
+	KratosAdminURL   string `env:"PORTAL_KRATOS_ADMIN_URL,required"`
 	KratosBrowserURL string `env:"PORTAL_KRATOS_BROWSER_URL,required"`
 }
 

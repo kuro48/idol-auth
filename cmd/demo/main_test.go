@@ -61,7 +61,7 @@ func TestExchangeCodeUsesHydraPublicURL(t *testing.T) {
 func TestRenderHomeRendersJapaneseLabels(t *testing.T) {
 	rec := httptest.NewRecorder()
 
-	renderHome(rec, &demo.Config{})
+	renderHome(rec, &demo.Config{}, "#ffb2d8")
 
 	body := rec.Body.String()
 	for _, fragment := range []string{
@@ -71,6 +71,8 @@ func TestRenderHomeRendersJapaneseLabels(t *testing.T) {
 		"アカウントを作成",
 		"ログイン画面を開く",
 		"セキュリティ設定",
+		"推しメンカラー",
+		"#ffb2b2",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected %q in body, got %s", fragment, body)
@@ -81,12 +83,13 @@ func TestRenderHomeRendersJapaneseLabels(t *testing.T) {
 func TestRenderTokenRendersJapaneseLabels(t *testing.T) {
 	rec := httptest.NewRecorder()
 
-	renderToken(rec, map[string]any{"token_type": "bearer"})
+	renderToken(rec, map[string]any{"token_type": "bearer"}, "#ffb2d8")
 
 	body := rec.Body.String()
 	for _, fragment := range []string{
 		"OIDC コールバック完了",
 		"デモのホームに戻る",
+		"推しメンカラー",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected %q in body, got %s", fragment, body)
