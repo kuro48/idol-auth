@@ -19,7 +19,7 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$PRODUCTION_HOST" \
-            "cd /opt/idol-auth && git pull origin main && ENV_FILE=.env.production ./scripts/deploy-production.sh"
+            "cd /opt/idol-auth && git pull origin main && ./scripts/run-nix-app.sh deploy-production .env.production"
         env:
           SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
           PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}

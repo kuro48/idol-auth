@@ -91,10 +91,11 @@ go run ./cmd/configcheck
 
 ```bash
 cp .env.production.example .env.production
-set -a; . ./.env.production; set +a
-make render-production-config
-make config-check
-docker compose -f docker-compose.production.yml up -d --build
+# 設定生成・検証
+make nix-render-production-config
+make nix-config-check
+# デプロイ
+make nix-deploy-production
 ```
 
 詳細は [docs/deployment.md](docs/deployment.md) を参照してください。

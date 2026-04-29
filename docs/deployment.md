@@ -45,9 +45,8 @@ cp .env.production.example .env.production
 ## 2. 本番用 Ory 設定を生成する
 
 ```bash
-set -a; . ./.env.production; set +a
-make render-production-config
-make config-check
+make nix-render-production-config
+make nix-config-check
 docker compose -f docker-compose.production.yml config
 ```
 
@@ -56,7 +55,7 @@ docker compose -f docker-compose.production.yml config
 ## 3. デプロイする
 
 ```bash
-docker compose -f docker-compose.production.yml up -d --build
+make nix-deploy-production
 ```
 
 初回に Linux VPS を整える必要がある場合は、リポジトリ内のプロビジョニングスクリプトを参照してください。
@@ -134,13 +133,13 @@ go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 ```bash
 git pull
-ENV_FILE=.env.production ./scripts/deploy-production.sh
+./scripts/run-nix-app.sh deploy-production .env.production
 ```
 
 ### バックアップ
 
 ```bash
-./scripts/backup-postgres.sh .env.production
+./scripts/run-nix-app.sh backup-postgres .env.production
 ```
 
 systemd unit:
