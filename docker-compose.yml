@@ -139,6 +139,7 @@ services:
       DEMO_APP_URL: ${DEMO_APP_URL:-http://localhost:3002}
       DEMO_AUTH_INTERNAL_URL: http://app:8080
       DEMO_KRATOS_PUBLIC_URL: http://kratos:4433
+      DEMO_KRATOS_ADMIN_URL: http://kratos:4434
       DEMO_KRATOS_BROWSER_URL: http://localhost:4433
       DEMO_HYDRA_PUBLIC_URL: http://hydra:4444
       DEMO_HYDRA_BROWSER_URL: http://localhost:4444

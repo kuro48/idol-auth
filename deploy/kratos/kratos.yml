@@ -35,7 +35,7 @@ selfservice:
       enabled: true
       config:
         haveibeenpwned_enabled: true
-        min_password_length: 12
+        min_password_length: 8
         identifier_similarity_check_enabled: true
     totp:
       enabled: true
