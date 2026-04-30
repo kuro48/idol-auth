@@ -131,9 +131,38 @@ func (r *AccountRepository) UpdateStatus(ctx context.Context, appID uuid.UUID, i
 		return fmt.Errorf("update app membership status: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return app.ErrAppNotFound
+		return account.ErrMembershipNotFound
 	}
 	return nil
+}
+
+func (r *AccountRepository) GetByAppAndIdentity(ctx context.Context, appID uuid.UUID, identityID string) (account.AppMembership, error) {
+	var membership account.AppMembership
+	if err := r.pool.QueryRow(ctx, `
+		SELECT m.id, m.app_id, a.slug, a.name, a.party_type, m.identity_id, m.status, m.profile, m.created_at, m.updated_at, m.created_by, m.updated_by
+		FROM app_user_memberships m
+		JOIN apps a ON a.id = m.app_id
+		WHERE m.app_id = $1 AND m.identity_id = $2
+	`, appID, strings.TrimSpace(identityID)).Scan(
+		&membership.ID,
+		&membership.AppID,
+		&membership.AppSlug,
+		&membership.AppName,
+		&membership.PartyType,
+		&membership.IdentityID,
+		&membership.Status,
+		&membership.Profile,
+		&membership.CreatedAt,
+		&membership.UpdatedAt,
+		&membership.CreatedBy,
+		&membership.UpdatedBy,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return account.AppMembership{}, account.ErrMembershipNotFound
+		}
+		return account.AppMembership{}, fmt.Errorf("get app membership: %w", err)
+	}
+	return membership, nil
 }
 
 func (r *AccountRepository) UpdateStatusByIdentity(ctx context.Context, identityID string, status account.MembershipStatus, actorID string, now time.Time) error {

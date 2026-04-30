@@ -86,6 +86,7 @@ func run() error {
 		accountRepo,
 		appService,
 		kratosAdmin,
+		kratosAdmin,
 		tokenRepo,
 		auditRepo,
 		time.Now,

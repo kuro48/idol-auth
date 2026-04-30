@@ -22,6 +22,7 @@ import (
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
 )
 
 var (
@@ -39,11 +40,12 @@ type AuthAction string
 const AuthActionRedirect AuthAction = "redirect"
 
 type RouterConfig struct {
-	App      config.AppConfig
-	Admin    config.AdminConfig
-	Ory      config.OryConfig
-	Security config.SecurityConfig
-	Limiter  RateLimiter // optional; nil disables rate limiting
+	App        config.AppConfig
+	Admin      config.AdminConfig
+	Ory        config.OryConfig
+	Security   config.SecurityConfig
+	Limiter    RateLimiter    // optional; nil disables rate limiting
+	ProfileSvc ProfileService // optional; nil disables profile endpoints
 }
 
 type LoginFlowResult struct {
@@ -125,6 +127,13 @@ type AccountService interface {
 	CancelDeletion(ctx context.Context, identityID, actorID string) error
 	GetDeletionRequest(ctx context.Context, identityID string) (*account.DeletionRequest, error)
 	ResolveAppByToken(ctx context.Context, rawToken string) (app.App, error)
+	RegisterIdentityForApp(ctx context.Context, appEntity app.App, input account.RegisterIdentityInput, actorID string) (account.RegisterForAppResult, error)
+	GetMembershipForApp(ctx context.Context, appID uuid.UUID, identityID string) (account.AppMembership, error)
+}
+
+type ProfileService interface {
+	GetProfile(ctx context.Context, identityID string) (profile.Profile, error)
+	UpdateProfile(ctx context.Context, identityID string, input profile.UpdateInput) (profile.Profile, error)
 }
 
 type themePreferenceService interface {
@@ -140,6 +149,7 @@ type server struct {
 	adminSvc           AdminService
 	authSvc            AuthService
 	accountSvc         AccountService
+	profileSvc         ProfileService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 }
@@ -162,6 +172,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		adminSvc:           adminSvc,
 		authSvc:            authSvc,
 		accountSvc:         accountSvc,
+		profileSvc:         cfg.ProfileSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 	}
@@ -218,6 +229,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/deletion", s.handleGetDeletionRequest)
 		r.Post("/deletion", s.handleScheduleDeletion)
 		r.Delete("/deletion", s.handleCancelDeletion)
+		r.Get("/profile", s.handleGetProfile)
+		r.Patch("/profile", s.handlePatchProfile)
 	})
 
 	r.Route("/v1/apps/self", func(r chi.Router) {
@@ -226,7 +239,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		r.Use(s.appTokenAuth)
 		r.Get("/users", s.handleListAppUsers)
+		r.Post("/users", s.handleRegisterAppUser)
 		r.Delete("/users/{identityID}", s.handleRevokeAppUser)
+		r.Get("/users/{identityID}/profile", s.handleGetAppUserProfile)
 	})
 
 	r.Route("/admin-ui", func(r chi.Router) {
@@ -982,6 +997,70 @@ func (s *server) handleRevokeAppUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) handleRegisterAppUser(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	appActor, ok := appActorFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "app authorization required")
+		return
+	}
+	var req struct {
+		Email       string `json:"email"`
+		DisplayName string `json:"display_name"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	if strings.TrimSpace(req.Email) == "" {
+		writeError(w, http.StatusBadRequest, "email is required")
+		return
+	}
+	result, err := s.accountSvc.RegisterIdentityForApp(r.Context(), appActor, account.RegisterIdentityInput{
+		Email:       req.Email,
+		DisplayName: req.DisplayName,
+	}, appActor.ID.String())
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to register user")
+		return
+	}
+	writeJSON(w, http.StatusCreated, result)
+}
+
+func (s *server) handleGetAppUserProfile(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil || s.profileSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "service unavailable")
+		return
+	}
+	appActor, ok := appActorFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "app authorization required")
+		return
+	}
+	identityID := strings.TrimSpace(chi.URLParam(r, "identityID"))
+	if identityID == "" {
+		writeError(w, http.StatusBadRequest, "identity id is required")
+		return
+	}
+	if _, err := s.accountSvc.GetMembershipForApp(r.Context(), appActor.ID, identityID); err != nil {
+		if errors.Is(err, account.ErrMembershipNotFound) {
+			writeError(w, http.StatusNotFound, "user not found in this app")
+			return
+		}
+		writeError(w, http.StatusBadGateway, "failed to verify membership")
+		return
+	}
+	p, err := s.profileSvc.GetProfile(r.Context(), identityID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to load profile")
+		return
+	}
+	writeJSON(w, http.StatusOK, p.PublicView())
 }
 
 func (s *server) adminAuth(next http.Handler) http.Handler {

@@ -16,6 +16,7 @@ import (
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
+	profiledomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
 	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
 )
 
@@ -1075,4 +1076,104 @@ func (s *stubAccountService) ResolveAppByToken(_ context.Context, _ string) (app
 		return app.App{}, app.ErrAppNotFound
 	}
 	return s.resolvedApp, nil
+}
+
+func (s *stubAccountService) RegisterIdentityForApp(_ context.Context, _ app.App, _ account.RegisterIdentityInput, _ string) (account.RegisterForAppResult, error) {
+	return account.RegisterForAppResult{IdentityID: "new-identity-id", CreatedSharedAccount: true, RecoveryLink: "https://auth.example.com/recovery?token=test"}, nil
+}
+
+func (s *stubAccountService) GetMembershipForApp(_ context.Context, _ uuid.UUID, _ string) (account.AppMembership, error) {
+	return account.AppMembership{}, nil
+}
+
+func TestRegisterAppUser_RequiresAppToken(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"email":"u@example.com"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusUnauthorized, w.Code, w.Body.String())
+	}
+}
+
+func TestRegisterAppUser_RejectsMissingEmail(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web"}}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"display_name":"Test"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+}
+
+func TestRegisterAppUser_ReturnsCreatedWithRecoveryLink(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web"}}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	body, _ := json.Marshal(map[string]string{"email": "user@example.com", "display_name": "Test User"})
+	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"identity_id"`) {
+		t.Fatalf("expected identity_id in response, got %s", w.Body.String())
+	}
+}
+
+func TestGetAppUserProfile_RequiresAppToken(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users/identity-123/profile", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected %d, got %d", http.StatusUnauthorized, w.Code)
+	}
+}
+
+func TestGetAppUserProfile_ReturnsPublicProfileForMember(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web"}}
+	profileSvc := &stubProfileService{
+		profile: profiledomain.Profile{
+			IdentityID:  "identity-123",
+			DisplayName: "推し活太郎",
+			OshiColor:   "#ffb2d8",
+			Email:       "user@example.com",
+		},
+	}
+	cfg := testConfig()
+	cfg.ProfileSvc = profileSvc
+	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users/identity-123/profile", nil)
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"user@example.com"`) {
+		t.Fatal("email (PII) must not appear in public profile response")
+	}
+	if !strings.Contains(w.Body.String(), "推し活太郎") {
+		t.Fatalf("expected display_name in response, got %s", w.Body.String())
+	}
 }

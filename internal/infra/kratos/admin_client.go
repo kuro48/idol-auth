@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
 	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
@@ -37,6 +38,92 @@ func NewAdminClient(baseURL string) *AdminClient {
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 	}
+}
+
+func (c *AdminClient) CreateSharedAccount(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error) {
+	payload, err := json.Marshal(map[string]any{
+		"schema_id": "default",
+		"traits": map[string]any{
+			"email":                   strings.TrimSpace(input.Email),
+			"display_name":            strings.TrimSpace(input.DisplayName),
+			"primary_identifier_type": "email",
+		},
+	})
+	if err != nil {
+		return account.CreatedIdentityResult{}, fmt.Errorf("marshal create identity request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/admin/identities", bytes.NewReader(payload))
+	if err != nil {
+		return account.CreatedIdentityResult{}, fmt.Errorf("build kratos create identity request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return account.CreatedIdentityResult{}, fmt.Errorf("call kratos create identity: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusConflict {
+		identities, err := c.SearchIdentities(ctx, admindomain.SearchIdentitiesInput{
+			CredentialsIdentifier: strings.TrimSpace(input.Email),
+		})
+		if err != nil || len(identities) == 0 {
+			return account.CreatedIdentityResult{}, account.ErrSharedAccountAlreadyExists
+		}
+		return account.CreatedIdentityResult{IdentityID: identities[0].ID, IsNew: false}, nil
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "create identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return account.CreatedIdentityResult{}, fmt.Errorf("kratos create identity returned status %d", resp.StatusCode)
+	}
+
+	var decoded struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return account.CreatedIdentityResult{}, fmt.Errorf("decode kratos create identity response: %w", err)
+	}
+	return account.CreatedIdentityResult{IdentityID: decoded.ID, IsNew: true}, nil
+}
+
+func (c *AdminClient) CreateRecoveryLink(ctx context.Context, identityID string) (string, error) {
+	payload, err := json.Marshal(map[string]any{
+		"identity_id": strings.TrimSpace(identityID),
+		"expires_in":  "72h",
+	})
+	if err != nil {
+		return "", fmt.Errorf("marshal create recovery link request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/admin/recovery/link", bytes.NewReader(payload))
+	if err != nil {
+		return "", fmt.Errorf("build kratos create recovery link request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("call kratos create recovery link: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "create recovery link", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return "", fmt.Errorf("kratos create recovery link returned status %d", resp.StatusCode)
+	}
+
+	var decoded struct {
+		RecoveryLink string `json:"recovery_link"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return "", fmt.Errorf("decode kratos create recovery link response: %w", err)
+	}
+	return decoded.RecoveryLink, nil
 }
 
 func (c *AdminClient) SetIdentityRoles(ctx context.Context, identityID string, roles []string) error {

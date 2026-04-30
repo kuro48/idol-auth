@@ -18,6 +18,7 @@ type mockMembershipRepo struct {
 	upsertFn                 func(ctx context.Context, m account.AppMembership) (account.AppMembership, error)
 	listByIdentityFn         func(ctx context.Context, id string) ([]account.AppMembership, error)
 	listByAppIDFn            func(ctx context.Context, appID uuid.UUID) ([]account.AppMembership, error)
+	getByAppAndIdentityFn    func(ctx context.Context, appID uuid.UUID, identityID string) (account.AppMembership, error)
 	updateStatusFn           func(ctx context.Context, appID uuid.UUID, identityID string, status account.MembershipStatus, actorID string, now time.Time) error
 	updateStatusByIdentityFn func(ctx context.Context, identityID string, status account.MembershipStatus, actorID string, now time.Time) error
 }
@@ -39,6 +40,12 @@ func (m *mockMembershipRepo) ListByAppID(ctx context.Context, appID uuid.UUID) (
 		return m.listByAppIDFn(ctx, appID)
 	}
 	return nil, nil
+}
+func (m *mockMembershipRepo) GetByAppAndIdentity(ctx context.Context, appID uuid.UUID, identityID string) (account.AppMembership, error) {
+	if m.getByAppAndIdentityFn != nil {
+		return m.getByAppAndIdentityFn(ctx, appID, identityID)
+	}
+	return account.AppMembership{}, account.ErrMembershipNotFound
 }
 func (m *mockMembershipRepo) UpdateStatus(ctx context.Context, appID uuid.UUID, identityID string, status account.MembershipStatus, actorID string, now time.Time) error {
 	if m.updateStatusFn != nil {
@@ -139,6 +146,25 @@ func (m *mockTokenResolver) ResolveAppByToken(ctx context.Context, rawToken stri
 	return app.App{}, errors.New("token not found")
 }
 
+type mockIdentityCreator struct {
+	createFn      func(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error)
+	recoveryLinkFn func(ctx context.Context, identityID string) (string, error)
+}
+
+func (m *mockIdentityCreator) CreateSharedAccount(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, input)
+	}
+	return account.CreatedIdentityResult{IdentityID: "new-identity-id", IsNew: true}, nil
+}
+
+func (m *mockIdentityCreator) CreateRecoveryLink(ctx context.Context, identityID string) (string, error) {
+	if m.recoveryLinkFn != nil {
+		return m.recoveryLinkFn(ctx, identityID)
+	}
+	return "https://auth.example.com/recovery?token=test", nil
+}
+
 type mockAuditRepo struct {
 	logs []audit.Log
 }
@@ -168,7 +194,11 @@ func sampleApp() app.App {
 }
 
 func newService(memberships *mockMembershipRepo, deletions *mockDeletionRepo, apps *mockAppDirectory, identities *mockIdentityLifecycle, tokens *mockTokenResolver, auditLogs *mockAuditRepo) *account.Service {
-	return account.NewService(memberships, deletions, apps, identities, tokens, auditLogs, fixedClock, 7*24*time.Hour)
+	return account.NewService(memberships, deletions, apps, identities, nil, tokens, auditLogs, fixedClock, 7*24*time.Hour)
+}
+
+func newServiceWithCreator(memberships *mockMembershipRepo, deletions *mockDeletionRepo, apps *mockAppDirectory, identities *mockIdentityLifecycle, creator *mockIdentityCreator, tokens *mockTokenResolver, auditLogs *mockAuditRepo) *account.Service {
+	return account.NewService(memberships, deletions, apps, identities, creator, tokens, auditLogs, fixedClock, 7*24*time.Hour)
 }
 
 // ---- tests ----
@@ -272,7 +302,7 @@ func TestResolveAppByToken_DelegatesToResolver(t *testing.T) {
 }
 
 func TestResolveAppByToken_NilResolverReturnsError(t *testing.T) {
-	svc := account.NewService(&mockMembershipRepo{}, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, nil, &mockAuditRepo{}, fixedClock, 0)
+	svc := account.NewService(&mockMembershipRepo{}, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, nil, nil, &mockAuditRepo{}, fixedClock, 0)
 	_, err := svc.ResolveAppByToken(context.Background(), "any-token")
 	if err == nil {
 		t.Fatal("expected error for nil token resolver")
@@ -387,7 +417,7 @@ func TestScheduleDeletion_SetsGracePeriodAndWritesAudit(t *testing.T) {
 		},
 	}
 	auditRepo := &mockAuditRepo{}
-	svc := account.NewService(&mockMembershipRepo{}, deletions, &mockAppDirectory{}, &mockIdentityLifecycle{}, &mockTokenResolver{}, auditRepo, fixedClock, gracePeriod)
+	svc := account.NewService(&mockMembershipRepo{}, deletions, &mockAppDirectory{}, &mockIdentityLifecycle{}, nil, &mockTokenResolver{}, auditRepo, fixedClock, gracePeriod)
 
 	result, err := svc.ScheduleDeletion(context.Background(), "  identity-1  ", "identity-1", "some reason")
 	if err != nil {
@@ -567,10 +597,147 @@ func TestProcessDueDeletionRequests_SkipsBlankIdentityIDs(t *testing.T) {
 }
 
 func TestProcessDueDeletionRequests_NilDependenciesAreNoOp(t *testing.T) {
-	svc := account.NewService(nil, nil, nil, nil, nil, nil, fixedClock, 0)
+	svc := account.NewService(nil, nil, nil, nil, nil, nil, nil, fixedClock, 0)
 	err := svc.ProcessDueDeletionRequests(context.Background(), 10)
 	if err != nil {
 		t.Fatalf("unexpected error with nil dependencies: %v", err)
+	}
+}
+
+func TestRevokeAppUser_IsIdempotentWhenMembershipNotFound(t *testing.T) {
+	memberships := &mockMembershipRepo{
+		updateStatusFn: func(_ context.Context, _ uuid.UUID, _ string, _ account.MembershipStatus, _ string, _ time.Time) error {
+			return account.ErrMembershipNotFound
+		},
+	}
+	auditRepo := &mockAuditRepo{}
+	svc := newService(memberships, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, &mockTokenResolver{}, auditRepo)
+
+	err := svc.RevokeAppUser(context.Background(), uuid.New(), "identity-1", "app-actor")
+	if err != nil {
+		t.Fatalf("expected nil (idempotent), got %v", err)
+	}
+}
+
+func TestRevokeAppUser_PropagatesNonMembershipErrors(t *testing.T) {
+	memberships := &mockMembershipRepo{
+		updateStatusFn: func(_ context.Context, _ uuid.UUID, _ string, _ account.MembershipStatus, _ string, _ time.Time) error {
+			return errors.New("db error")
+		},
+	}
+	svc := newService(memberships, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, &mockTokenResolver{}, &mockAuditRepo{})
+
+	err := svc.RevokeAppUser(context.Background(), uuid.New(), "identity-1", "app-actor")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestRegisterIdentityForApp_CreatesNewAccountAndMembership(t *testing.T) {
+	appEntity := sampleApp()
+	creator := &mockIdentityCreator{
+		createFn: func(_ context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error) {
+			if input.Email != "user@example.com" {
+				t.Errorf("expected email user@example.com, got %q", input.Email)
+			}
+			return account.CreatedIdentityResult{IdentityID: "new-identity-id", IsNew: true}, nil
+		},
+		recoveryLinkFn: func(_ context.Context, identityID string) (string, error) {
+			if identityID != "new-identity-id" {
+				t.Errorf("expected identity id new-identity-id, got %q", identityID)
+			}
+			return "https://auth.example.com/recovery?token=abc", nil
+		},
+	}
+	var upsertedMembership account.AppMembership
+	memberships := &mockMembershipRepo{
+		upsertFn: func(_ context.Context, m account.AppMembership) (account.AppMembership, error) {
+			upsertedMembership = m
+			return m, nil
+		},
+	}
+	auditRepo := &mockAuditRepo{}
+	svc := newServiceWithCreator(memberships, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, creator, &mockTokenResolver{}, auditRepo)
+
+	result, err := svc.RegisterIdentityForApp(context.Background(), appEntity, account.RegisterIdentityInput{
+		Email:       "user@example.com",
+		DisplayName: "Test User",
+	}, "app-actor")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IdentityID != "new-identity-id" {
+		t.Errorf("expected identity id new-identity-id, got %q", result.IdentityID)
+	}
+	if !result.CreatedSharedAccount {
+		t.Error("expected created_shared_account=true for new identity")
+	}
+	if result.RecoveryLink != "https://auth.example.com/recovery?token=abc" {
+		t.Errorf("expected recovery link, got %q", result.RecoveryLink)
+	}
+	if upsertedMembership.IdentityID != "new-identity-id" {
+		t.Errorf("expected membership for new-identity-id, got %q", upsertedMembership.IdentityID)
+	}
+	if upsertedMembership.AppID != appEntity.ID {
+		t.Errorf("expected membership AppID %v, got %v", appEntity.ID, upsertedMembership.AppID)
+	}
+	if len(auditRepo.logs) != 1 || auditRepo.logs[0].EventType != "app.user.registered" {
+		t.Errorf("expected audit log app.user.registered, got %v", auditRepo.logs)
+	}
+}
+
+func TestRegisterIdentityForApp_ExistingAccountNoRecoveryLink(t *testing.T) {
+	appEntity := sampleApp()
+	creator := &mockIdentityCreator{
+		createFn: func(_ context.Context, _ account.RegisterIdentityInput) (account.CreatedIdentityResult, error) {
+			return account.CreatedIdentityResult{IdentityID: "existing-identity-id", IsNew: false}, nil
+		},
+		recoveryLinkFn: func(_ context.Context, _ string) (string, error) {
+			return "", errors.New("should not be called")
+		},
+	}
+	recoveryLinkCalled := false
+	creator.recoveryLinkFn = func(_ context.Context, _ string) (string, error) {
+		recoveryLinkCalled = true
+		return "", nil
+	}
+	svc := newServiceWithCreator(&mockMembershipRepo{}, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, creator, &mockTokenResolver{}, &mockAuditRepo{})
+
+	result, err := svc.RegisterIdentityForApp(context.Background(), appEntity, account.RegisterIdentityInput{Email: "user@example.com"}, "app-actor")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.CreatedSharedAccount {
+		t.Error("expected created_shared_account=false for existing identity")
+	}
+	if result.RecoveryLink != "" {
+		t.Errorf("expected no recovery link for existing identity, got %q", result.RecoveryLink)
+	}
+	if recoveryLinkCalled {
+		t.Error("expected CreateRecoveryLink NOT to be called for existing identity")
+	}
+}
+
+func TestRegisterIdentityForApp_PropagatesCreatorError(t *testing.T) {
+	creator := &mockIdentityCreator{
+		createFn: func(_ context.Context, _ account.RegisterIdentityInput) (account.CreatedIdentityResult, error) {
+			return account.CreatedIdentityResult{}, errors.New("kratos error")
+		},
+	}
+	svc := newServiceWithCreator(&mockMembershipRepo{}, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, creator, &mockTokenResolver{}, &mockAuditRepo{})
+
+	_, err := svc.RegisterIdentityForApp(context.Background(), sampleApp(), account.RegisterIdentityInput{Email: "user@example.com"}, "actor")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestRegisterIdentityForApp_NilCreatorReturnsError(t *testing.T) {
+	svc := newService(&mockMembershipRepo{}, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, &mockTokenResolver{}, &mockAuditRepo{})
+
+	_, err := svc.RegisterIdentityForApp(context.Background(), sampleApp(), account.RegisterIdentityInput{Email: "user@example.com"}, "actor")
+	if err == nil {
+		t.Fatal("expected error when creator is nil, got nil")
 	}
 }
 
@@ -583,7 +750,7 @@ func TestNewService_DefaultsGracePeriodTo7Days(t *testing.T) {
 		},
 	}
 	// gracePeriod=0 should default to 7 days
-	svc := account.NewService(&mockMembershipRepo{}, deletions, &mockAppDirectory{}, &mockIdentityLifecycle{}, &mockTokenResolver{}, &mockAuditRepo{}, fixedClock, 0)
+	svc := account.NewService(&mockMembershipRepo{}, deletions, &mockAppDirectory{}, &mockIdentityLifecycle{}, nil, &mockTokenResolver{}, &mockAuditRepo{}, fixedClock, 0)
 
 	_, err := svc.ScheduleDeletion(context.Background(), "identity-1", "actor", "")
 	if err != nil {

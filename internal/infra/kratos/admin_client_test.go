@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
 )
@@ -404,5 +405,106 @@ func TestAdminClientSetIdentityOshiColorPatchesMetadataPublic(t *testing.T) {
 	client := NewAdminClient(srv.URL)
 	if err := client.SetIdentityOshiColor(context.Background(), "identity-123", "#ffb2d8"); err != nil {
 		t.Fatalf("SetIdentityOshiColor() error = %v", err)
+	}
+}
+
+func TestAdminClientCreateSharedAccount_ReturnsNewIdentityOn201(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/admin/identities" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		traits, _ := body["traits"].(map[string]any)
+		if traits["email"] != "user@example.com" {
+			t.Fatalf("expected email user@example.com, got %v", traits["email"])
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "new-identity-id"})
+	}))
+	defer srv.Close()
+
+	client := NewAdminClient(srv.URL)
+	result, err := client.CreateSharedAccount(context.Background(), account.RegisterIdentityInput{
+		Email:       "user@example.com",
+		DisplayName: "Test User",
+	})
+	if err != nil {
+		t.Fatalf("CreateSharedAccount() error = %v", err)
+	}
+	if result.IdentityID != "new-identity-id" {
+		t.Errorf("expected identity id new-identity-id, got %q", result.IdentityID)
+	}
+	if !result.IsNew {
+		t.Error("expected IsNew=true for 201 response")
+	}
+}
+
+func TestAdminClientCreateSharedAccount_ReturnsExistingIdentityOn409(t *testing.T) {
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		if callCount == 1 {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		if r.Method != http.MethodGet || r.URL.Path != "/admin/identities" {
+			t.Fatalf("unexpected %s %s on call %d", r.Method, r.URL.Path, callCount)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]map[string]any{{
+			"id":    "existing-identity-id",
+			"state": "active",
+			"traits": map[string]any{
+				"email": "user@example.com",
+			},
+		}})
+	}))
+	defer srv.Close()
+
+	client := NewAdminClient(srv.URL)
+	result, err := client.CreateSharedAccount(context.Background(), account.RegisterIdentityInput{
+		Email: "user@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateSharedAccount() on 409 error = %v", err)
+	}
+	if result.IdentityID != "existing-identity-id" {
+		t.Errorf("expected existing-identity-id, got %q", result.IdentityID)
+	}
+	if result.IsNew {
+		t.Error("expected IsNew=false for existing identity")
+	}
+}
+
+func TestAdminClientCreateRecoveryLink_ReturnsLink(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/admin/recovery/link" {
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		if body["identity_id"] != "identity-123" {
+			t.Fatalf("expected identity_id identity-123, got %v", body["identity_id"])
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"recovery_link": "https://auth.example.com/self-service/recovery?token=abc123",
+		})
+	}))
+	defer srv.Close()
+
+	client := NewAdminClient(srv.URL)
+	link, err := client.CreateRecoveryLink(context.Background(), "identity-123")
+	if err != nil {
+		t.Fatalf("CreateRecoveryLink() error = %v", err)
+	}
+	if link != "https://auth.example.com/self-service/recovery?token=abc123" {
+		t.Errorf("unexpected recovery link: %q", link)
 	}
 }

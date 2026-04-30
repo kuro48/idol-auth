@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ const (
 )
 
 var ErrDeletionRequestNotFound = errors.New("deletion request not found")
+var ErrMembershipNotFound = errors.New("membership not found")
+var ErrSharedAccountAlreadyExists = errors.New("shared account already exists for this email")
 
 type AppMembership struct {
 	ID         uuid.UUID        `json:"id"`
@@ -57,8 +60,30 @@ type MembershipRepository interface {
 	Upsert(ctx context.Context, membership AppMembership) (AppMembership, error)
 	ListByIdentity(ctx context.Context, identityID string) ([]AppMembership, error)
 	ListByAppID(ctx context.Context, appID uuid.UUID) ([]AppMembership, error)
+	GetByAppAndIdentity(ctx context.Context, appID uuid.UUID, identityID string) (AppMembership, error)
 	UpdateStatus(ctx context.Context, appID uuid.UUID, identityID string, status MembershipStatus, actorID string, now time.Time) error
 	UpdateStatusByIdentity(ctx context.Context, identityID string, status MembershipStatus, actorID string, now time.Time) error
+}
+
+type RegisterIdentityInput struct {
+	Email       string
+	DisplayName string
+}
+
+type CreatedIdentityResult struct {
+	IdentityID string
+	IsNew      bool
+}
+
+type RegisterForAppResult struct {
+	IdentityID           string `json:"identity_id"`
+	CreatedSharedAccount bool   `json:"created_shared_account"`
+	RecoveryLink         string `json:"recovery_link,omitempty"`
+}
+
+type IdentityCreator interface {
+	CreateSharedAccount(ctx context.Context, input RegisterIdentityInput) (CreatedIdentityResult, error)
+	CreateRecoveryLink(ctx context.Context, identityID string) (string, error)
 }
 
 type DeletionRequestRepository interface {
@@ -88,13 +113,14 @@ type Service struct {
 	deletions   DeletionRequestRepository
 	apps        AppDirectory
 	identities  IdentityLifecycle
+	creator     IdentityCreator
 	tokens      AppTokenResolver
 	auditLogs   audit.Repository
 	now         func() time.Time
 	gracePeriod time.Duration
 }
 
-func NewService(memberships MembershipRepository, deletions DeletionRequestRepository, apps AppDirectory, identities IdentityLifecycle, tokens AppTokenResolver, auditLogs audit.Repository, now func() time.Time, gracePeriod time.Duration) *Service {
+func NewService(memberships MembershipRepository, deletions DeletionRequestRepository, apps AppDirectory, identities IdentityLifecycle, creator IdentityCreator, tokens AppTokenResolver, auditLogs audit.Repository, now func() time.Time, gracePeriod time.Duration) *Service {
 	if now == nil {
 		now = time.Now
 	}
@@ -106,6 +132,7 @@ func NewService(memberships MembershipRepository, deletions DeletionRequestRepos
 		deletions:   deletions,
 		apps:        apps,
 		identities:  identities,
+		creator:     creator,
 		tokens:      tokens,
 		auditLogs:   auditLogs,
 		now:         now,
@@ -180,6 +207,9 @@ func (s *Service) DisconnectIdentityFromApp(ctx context.Context, identityID stri
 func (s *Service) RevokeAppUser(ctx context.Context, appID uuid.UUID, identityID, actorID string) error {
 	now := s.now().UTC()
 	if err := s.memberships.UpdateStatus(ctx, appID, strings.TrimSpace(identityID), MembershipStatusRevoked, actorID, now); err != nil {
+		if errors.Is(err, ErrMembershipNotFound) {
+			return nil
+		}
 		return err
 	}
 	s.writeAudit(ctx, audit.Log{
@@ -291,6 +321,64 @@ func (s *Service) ProcessDueDeletionRequests(ctx context.Context, limit int) err
 		})
 	}
 	return nil
+}
+
+func (s *Service) RegisterIdentityForApp(ctx context.Context, appEntity app.App, input RegisterIdentityInput, actorID string) (RegisterForAppResult, error) {
+	if s.creator == nil {
+		return RegisterForAppResult{}, errors.New("identity creator unavailable")
+	}
+	created, err := s.creator.CreateSharedAccount(ctx, input)
+	if err != nil {
+		return RegisterForAppResult{}, fmt.Errorf("create shared account: %w", err)
+	}
+
+	var recoveryLink string
+	if created.IsNew {
+		link, err := s.creator.CreateRecoveryLink(ctx, created.IdentityID)
+		if err != nil {
+			return RegisterForAppResult{}, fmt.Errorf("create recovery link: %w", err)
+		}
+		recoveryLink = link
+	}
+
+	now := s.now().UTC()
+	if _, err := s.memberships.Upsert(ctx, AppMembership{
+		ID:         uuid.New(),
+		AppID:      appEntity.ID,
+		AppSlug:    appEntity.Slug,
+		AppName:    appEntity.Name,
+		PartyType:  appEntity.PartyType,
+		IdentityID: created.IdentityID,
+		Status:     MembershipStatusActive,
+		Profile:    json.RawMessage(`{}`),
+		CreatedAt:  now,
+		UpdatedAt:  now,
+		CreatedBy:  actorID,
+		UpdatedBy:  actorID,
+	}); err != nil {
+		return RegisterForAppResult{}, fmt.Errorf("upsert membership: %w", err)
+	}
+
+	s.writeAudit(ctx, audit.Log{
+		ID:         uuid.New(),
+		EventType:  "app.user.registered",
+		ActorType:  audit.ActorTypeAppClient,
+		ActorID:    actorID,
+		TargetType: audit.TargetTypeUser,
+		TargetID:   created.IdentityID,
+		Result:     audit.ResultSuccess,
+		OccurredAt: now,
+	})
+
+	return RegisterForAppResult{
+		IdentityID:           created.IdentityID,
+		CreatedSharedAccount: created.IsNew,
+		RecoveryLink:         recoveryLink,
+	}, nil
+}
+
+func (s *Service) GetMembershipForApp(ctx context.Context, appID uuid.UUID, identityID string) (AppMembership, error) {
+	return s.memberships.GetByAppAndIdentity(ctx, appID, strings.TrimSpace(identityID))
 }
 
 func (s *Service) writeAudit(ctx context.Context, entry audit.Log) {
