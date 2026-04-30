@@ -187,6 +187,10 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Get("/readyz", s.handleReadyz)
 	r.Get("/docs", s.handleDocsIndex)
 	r.Get("/docs/*", s.handleDocs)
+	r.Route("/account", func(r chi.Router) {
+		r.Use(s.accountUIAuth)
+		r.Get("/", s.handleAccountCenter)
+	})
 
 	r.Route("/v1/auth", func(r chi.Router) {
 		if s.config.Limiter != nil {
@@ -1026,6 +1030,10 @@ func (s *server) handleRegisterAppUser(w http.ResponseWriter, r *http.Request) {
 		DisplayName: req.DisplayName,
 	}, appActor.ID.String())
 	if err != nil {
+		if errors.Is(err, account.ErrSharedAccountAlreadyExists) {
+			writeError(w, http.StatusConflict, "shared account already exists; use the shared account sign-in flow")
+			return
+		}
 		writeError(w, http.StatusBadGateway, "failed to register user")
 		return
 	}

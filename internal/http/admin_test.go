@@ -1036,6 +1036,8 @@ type stubAccountService struct {
 	revokedAppID           uuid.UUID
 	disconnectedIdentityID string
 	disconnectedAppID      uuid.UUID
+	registerErr            error
+	membershipErr          error
 }
 
 func (s *stubAccountService) ListMembershipsForIdentity(_ context.Context, _ string) ([]account.AppMembership, error) {
@@ -1079,10 +1081,16 @@ func (s *stubAccountService) ResolveAppByToken(_ context.Context, _ string) (app
 }
 
 func (s *stubAccountService) RegisterIdentityForApp(_ context.Context, _ app.App, _ account.RegisterIdentityInput, _ string) (account.RegisterForAppResult, error) {
+	if s.registerErr != nil {
+		return account.RegisterForAppResult{}, s.registerErr
+	}
 	return account.RegisterForAppResult{IdentityID: "new-identity-id", CreatedSharedAccount: true, RecoveryLink: "https://auth.example.com/recovery?token=test"}, nil
 }
 
 func (s *stubAccountService) GetMembershipForApp(_ context.Context, _ uuid.UUID, _ string) (account.AppMembership, error) {
+	if s.membershipErr != nil {
+		return account.AppMembership{}, s.membershipErr
+	}
 	return account.AppMembership{}, nil
 }
 
@@ -1135,6 +1143,26 @@ func TestRegisterAppUser_ReturnsCreatedWithRecoveryLink(t *testing.T) {
 	}
 }
 
+func TestRegisterAppUser_ReturnsConflictForExistingSharedAccount(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{
+		resolvedApp: app.App{ID: appID, Slug: "idol-web"},
+		registerErr: account.ErrSharedAccountAlreadyExists,
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	body, _ := json.Marshal(map[string]string{"email": "user@example.com"})
+	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusConflict, w.Code, w.Body.String())
+	}
+}
+
 func TestGetAppUserProfile_RequiresAppToken(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users/identity-123/profile", nil)
@@ -1175,5 +1203,25 @@ func TestGetAppUserProfile_ReturnsPublicProfileForMember(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "推し活太郎") {
 		t.Fatalf("expected display_name in response, got %s", w.Body.String())
+	}
+}
+
+func TestGetAppUserProfile_ReturnsNotFoundWhenMembershipMissing(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{
+		resolvedApp:   app.App{ID: appID, Slug: "idol-web"},
+		membershipErr: account.ErrMembershipNotFound,
+	}
+	cfg := testConfig()
+	cfg.ProfileSvc = &stubProfileService{}
+	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users/identity-123/profile", nil)
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusNotFound, w.Code, w.Body.String())
 	}
 }

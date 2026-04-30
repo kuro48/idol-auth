@@ -3,6 +3,7 @@ package kratos
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -443,40 +444,18 @@ func TestAdminClientCreateSharedAccount_ReturnsNewIdentityOn201(t *testing.T) {
 	}
 }
 
-func TestAdminClientCreateSharedAccount_ReturnsExistingIdentityOn409(t *testing.T) {
-	callCount := 0
+func TestAdminClientCreateSharedAccount_ReturnsConflictOn409(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		if callCount == 1 {
-			w.WriteHeader(http.StatusConflict)
-			return
-		}
-		if r.Method != http.MethodGet || r.URL.Path != "/admin/identities" {
-			t.Fatalf("unexpected %s %s on call %d", r.Method, r.URL.Path, callCount)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode([]map[string]any{{
-			"id":    "existing-identity-id",
-			"state": "active",
-			"traits": map[string]any{
-				"email": "user@example.com",
-			},
-		}})
+		w.WriteHeader(http.StatusConflict)
 	}))
 	defer srv.Close()
 
 	client := NewAdminClient(srv.URL)
-	result, err := client.CreateSharedAccount(context.Background(), account.RegisterIdentityInput{
+	_, err := client.CreateSharedAccount(context.Background(), account.RegisterIdentityInput{
 		Email: "user@example.com",
 	})
-	if err != nil {
-		t.Fatalf("CreateSharedAccount() on 409 error = %v", err)
-	}
-	if result.IdentityID != "existing-identity-id" {
-		t.Errorf("expected existing-identity-id, got %q", result.IdentityID)
-	}
-	if result.IsNew {
-		t.Error("expected IsNew=false for existing identity")
+	if !errors.Is(err, account.ErrSharedAccountAlreadyExists) {
+		t.Fatalf("expected ErrSharedAccountAlreadyExists, got %v", err)
 	}
 }
 

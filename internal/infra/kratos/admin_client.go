@@ -66,13 +66,7 @@ func (c *AdminClient) CreateSharedAccount(ctx context.Context, input account.Reg
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
-		identities, err := c.SearchIdentities(ctx, admindomain.SearchIdentitiesInput{
-			CredentialsIdentifier: strings.TrimSpace(input.Email),
-		})
-		if err != nil || len(identities) == 0 {
-			return account.CreatedIdentityResult{}, account.ErrSharedAccountAlreadyExists
-		}
-		return account.CreatedIdentityResult{IdentityID: identities[0].ID, IsNew: false}, nil
+		return account.CreatedIdentityResult{}, account.ErrSharedAccountAlreadyExists
 	}
 
 	if resp.StatusCode != http.StatusCreated {
@@ -348,9 +342,9 @@ func (c *AdminClient) GetIdentity(ctx context.Context, identityID string) (Ident
 	}
 
 	var decoded struct {
-		ID       string `json:"id"`
-		SchemaID string `json:"schema_id"`
-		State    string `json:"state"`
+		ID             string `json:"id"`
+		SchemaID       string `json:"schema_id"`
+		State          string `json:"state"`
 		MetadataPublic struct {
 			Roles []string `json:"roles"`
 		} `json:"metadata_public"`

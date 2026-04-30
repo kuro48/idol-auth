@@ -39,6 +39,7 @@ make wait
 |---------|-----|
 | API | http://localhost:8080 |
 | API Docs (Swagger UI) | http://localhost:8080/docs |
+| Account Center | http://localhost:8080/account/ |
 | Demo UI | http://localhost:3002 |
 | Kratos public | http://localhost:4433 |
 | Hydra public | http://localhost:4444 |
@@ -94,6 +95,7 @@ go run ./cmd/configcheck
 - 各アプリの「削除」は `DELETE /v1/apps/self/users/{identityID}` で membership を無効化します。共有アカウント本体は残ります。
 - 共有アカウント本体の完全削除は `POST /v1/account/deletion` で中央管理します。
 - app-scoped API は app 作成時または `POST /v1/admin/apps/{appID}/management-token` で発行される `management_token` を使います。
+- 共有アカウント本人向けの画面は `http://localhost:8080/account/` です。プロフィール更新、連携 app の確認/解除、共有アカウント削除予約をここで行います。
 
 ## 本番デプロイ
 

@@ -147,7 +147,7 @@ func (m *mockTokenResolver) ResolveAppByToken(ctx context.Context, rawToken stri
 }
 
 type mockIdentityCreator struct {
-	createFn      func(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error)
+	createFn       func(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error)
 	recoveryLinkFn func(ctx context.Context, identityID string) (string, error)
 }
 
@@ -686,35 +686,28 @@ func TestRegisterIdentityForApp_CreatesNewAccountAndMembership(t *testing.T) {
 	}
 }
 
-func TestRegisterIdentityForApp_ExistingAccountNoRecoveryLink(t *testing.T) {
+func TestRegisterIdentityForApp_ExistingAccountReturnsConflict(t *testing.T) {
 	appEntity := sampleApp()
+	upsertCalled := false
 	creator := &mockIdentityCreator{
 		createFn: func(_ context.Context, _ account.RegisterIdentityInput) (account.CreatedIdentityResult, error) {
-			return account.CreatedIdentityResult{IdentityID: "existing-identity-id", IsNew: false}, nil
-		},
-		recoveryLinkFn: func(_ context.Context, _ string) (string, error) {
-			return "", errors.New("should not be called")
+			return account.CreatedIdentityResult{}, account.ErrSharedAccountAlreadyExists
 		},
 	}
-	recoveryLinkCalled := false
-	creator.recoveryLinkFn = func(_ context.Context, _ string) (string, error) {
-		recoveryLinkCalled = true
-		return "", nil
+	memberships := &mockMembershipRepo{
+		upsertFn: func(_ context.Context, _ account.AppMembership) (account.AppMembership, error) {
+			upsertCalled = true
+			return account.AppMembership{}, nil
+		},
 	}
-	svc := newServiceWithCreator(&mockMembershipRepo{}, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, creator, &mockTokenResolver{}, &mockAuditRepo{})
+	svc := newServiceWithCreator(memberships, &mockDeletionRepo{}, &mockAppDirectory{}, &mockIdentityLifecycle{}, creator, &mockTokenResolver{}, &mockAuditRepo{})
 
-	result, err := svc.RegisterIdentityForApp(context.Background(), appEntity, account.RegisterIdentityInput{Email: "user@example.com"}, "app-actor")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := svc.RegisterIdentityForApp(context.Background(), appEntity, account.RegisterIdentityInput{Email: "user@example.com"}, "app-actor")
+	if !errors.Is(err, account.ErrSharedAccountAlreadyExists) {
+		t.Fatalf("expected ErrSharedAccountAlreadyExists, got %v", err)
 	}
-	if result.CreatedSharedAccount {
-		t.Error("expected created_shared_account=false for existing identity")
-	}
-	if result.RecoveryLink != "" {
-		t.Errorf("expected no recovery link for existing identity, got %q", result.RecoveryLink)
-	}
-	if recoveryLinkCalled {
-		t.Error("expected CreateRecoveryLink NOT to be called for existing identity")
+	if upsertCalled {
+		t.Fatal("expected membership upsert not to be called on existing shared account")
 	}
 }
 

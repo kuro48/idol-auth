@@ -83,7 +83,7 @@ func (r *AccountRepository) ListByAppID(ctx context.Context, appID uuid.UUID) ([
 		SELECT m.id, m.app_id, a.slug, a.name, a.party_type, m.identity_id, m.status, m.profile, m.created_at, m.updated_at, m.created_by, m.updated_by
 		FROM app_user_memberships m
 		JOIN apps a ON a.id = m.app_id
-		WHERE m.app_id = $1
+		WHERE m.app_id = $1 AND m.status = 'active'
 		ORDER BY m.created_at ASC, m.id ASC
 	`, appID)
 }
@@ -142,7 +142,7 @@ func (r *AccountRepository) GetByAppAndIdentity(ctx context.Context, appID uuid.
 		SELECT m.id, m.app_id, a.slug, a.name, a.party_type, m.identity_id, m.status, m.profile, m.created_at, m.updated_at, m.created_by, m.updated_by
 		FROM app_user_memberships m
 		JOIN apps a ON a.id = m.app_id
-		WHERE m.app_id = $1 AND m.identity_id = $2
+		WHERE m.app_id = $1 AND m.identity_id = $2 AND m.status = 'active'
 	`, appID, strings.TrimSpace(identityID)).Scan(
 		&membership.ID,
 		&membership.AppID,

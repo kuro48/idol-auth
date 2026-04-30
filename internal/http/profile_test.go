@@ -67,6 +67,71 @@ func TestGetProfile_RequiresAuthenticatedSession(t *testing.T) {
 	}
 }
 
+func TestAccountCenter_RequiresAuthenticatedSession(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodGet, "/account/", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusSeeOther, w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Location"); !strings.Contains(got, "/self-service/login/browser") {
+		t.Fatalf("expected login redirect, got %q", got)
+	}
+}
+
+func TestAccountCenter_RendersAtBarePath(t *testing.T) {
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-1",
+			Email:         "user@example.com",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodGet, "/account", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "Account Center") {
+		t.Fatalf("expected account center body, got %s", w.Body.String())
+	}
+}
+
+func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-1",
+			Email:         "user@example.com",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodGet, "/account/", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
+		t.Fatalf("expected html content type, got %q", ct)
+	}
+	body := w.Body.String()
+	for _, fragment := range []string{"Account Center", "共有プロフィール", "連携中アプリ", "共有アカウント削除"} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected body to contain %q, got %s", fragment, body)
+		}
+	}
+}
+
 func TestGetProfile_ReturnsProfile_WhenAuthenticated(t *testing.T) {
 	svc := &stubProfileService{
 		profile: profiledomain.Profile{
