@@ -480,6 +480,15 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     }
     .swatch:hover { transform: scale(1.08); }
     .swatch.active { border-color: #1a1a2e; }
+    .identifier-hint {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
+      min-height: 16px;
+      display: block;
+      transition: color 0.15s;
+    }
+    .identifier-hint.is-email, .identifier-hint.is-phone { color: #047857; }
     @media (max-width: 640px) {
       .card { padding: 24px 20px; border-radius: 26px; }
       h1 { font-size: 26px; }
@@ -557,6 +566,15 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       </div>
     {{ end }}
     <form id="kratos-flow-form" action="{{ .Flow.UI.Action }}" method="{{ .Flow.UI.Method }}" data-flow-type="{{ .FlowType }}">
+      {{ if and (eq $.FlowType "registration") (hasBothIdentifiers $.Flow.UI.Nodes) }}
+        <div class="field" id="primary-identifier-field">
+          <label for="primary_identifier_display">メールアドレスまたは電話番号</label>
+          <input id="primary_identifier_display" name="primary_identifier_display" type="text" autocomplete="email" inputmode="email" placeholder="you@example.com または 09012345678" required>
+          <input type="hidden" name="traits.email" id="hidden-traits-email">
+          <input type="hidden" name="traits.phone" id="hidden-traits-phone">
+          <span id="identifier-type-hint" class="identifier-hint"></span>
+        </div>
+      {{ end }}
       {{ range .Flow.UI.Nodes }}
         {{ range .Messages }}<div class="alert alert-error">{{ .Text }}</div>{{ end }}
         {{ if eq .Type "img" }}
@@ -571,6 +589,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           </div>
         {{ else if eq .Attributes.Name "traits.primary_identifier_type" }}
           <input type="hidden" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">
+        {{ else if and (eq $.FlowType "registration") (isPrimaryIdentifierTrait .Attributes.Name) (hasBothIdentifiers $.Flow.UI.Nodes) }}
         {{ else if eq .Attributes.Type "hidden" }}
           <input type="hidden" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">
         {{ else if and (eq $.FlowType "registration") (eq .Attributes.Name "method") (eq .Attributes.Value "profile") }}
@@ -617,6 +636,9 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         }
         var email=form.querySelector('input[name="traits.email"]');
         var phone=form.querySelector('input[name="traits.phone"]');
+        var primaryInput=form.querySelector('#primary_identifier_display');
+        var hiddenEmailField=form.querySelector('#hidden-traits-email');
+        var hiddenPhoneField=form.querySelector('#hidden-traits-phone');
         var passwordField=form.querySelector('input[name="password"]');
         var passwordStrengthPanel=document.getElementById('password-strength-panel');
         var lastIdentifierType='';
@@ -656,21 +678,45 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             label:label
           };
         }
+        function detectIdentifierType(v){
+          if(!v)return null;
+          if(v.indexOf('@')>=0)return 'email';
+          var cleaned=v.replace(/[\s\-()+]/g,'');
+          if(/^[0-9+]/.test(v)&&/^[0-9\s\-().+]+$/.test(v)&&cleaned.length>=7)return 'phone';
+          return null;
+        }
+        function syncCombinedIdentifier(){
+          var val=(primaryInput.value||'').trim();
+          var type=detectIdentifierType(val);
+          var hint=document.getElementById('identifier-type-hint');
+          if(type==='email'){
+            hiddenEmailField.value=val;
+            hiddenPhoneField.value='';
+            hidden.value='email';
+            primaryInput.setAttribute('autocomplete','email');
+            primaryInput.setAttribute('inputmode','email');
+            if(hint){hint.textContent='メールアドレスとして登録されます';hint.className='identifier-hint is-email';}
+          }else if(type==='phone'){
+            hiddenEmailField.value='';
+            hiddenPhoneField.value=val;
+            hidden.value='phone';
+            primaryInput.setAttribute('autocomplete','tel');
+            primaryInput.setAttribute('inputmode','tel');
+            if(hint){hint.textContent='電話番号として登録されます';hint.className='identifier-hint is-phone';}
+          }else{
+            hiddenEmailField.value=val;
+            hiddenPhoneField.value='';
+            hidden.value=val?'email':'';
+            if(hint){hint.textContent='';hint.className='identifier-hint';}
+          }
+        }
         function syncPrimaryIdentifierType(){
+          if(primaryInput&&hiddenEmailField&&hiddenPhoneField){syncCombinedIdentifier();return;}
           var emailValue=email&&email.value.trim();
           var phoneValue=phone&&phone.value.trim();
-          if(emailValue && !phoneValue){
-            hidden.value='email';
-            return;
-          }
-          if(phoneValue && !emailValue){
-            hidden.value='phone';
-            return;
-          }
-          if(emailValue && phoneValue){
-            hidden.value=lastIdentifierType||hidden.value||'email';
-            return;
-          }
+          if(emailValue&&!phoneValue){hidden.value='email';return;}
+          if(phoneValue&&!emailValue){hidden.value='phone';return;}
+          if(emailValue&&phoneValue){hidden.value=lastIdentifierType||hidden.value||'email';return;}
           hidden.value='';
         }
         function syncPasswordStrength(){
@@ -706,13 +752,15 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           passwordField.setCustomValidity(state.valid||passwordField.value.length===0?'':'パスワードは8文字以上で、英大文字・英小文字・数字・記号のうち3種類以上を含めてください。');
           return state.valid||passwordField.value.length===0;
         }
-        if(email){
-          email.autocomplete='email';
-          email.placeholder='you@example.com';
-        }
-        if(phone){
-          phone.autocomplete='tel';
-          phone.placeholder='09012345678';
+        if(!primaryInput){
+          if(email){
+            email.autocomplete='email';
+            email.placeholder='you@example.com';
+          }
+          if(phone){
+            phone.autocomplete='tel';
+            phone.placeholder='09012345678';
+          }
         }
         if(passwordField){
           passwordField.autocomplete='new-password';
@@ -725,17 +773,21 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           passwordField.addEventListener('blur',syncPasswordStrength);
           syncPasswordStrength();
         }
-        if(email){
-          email.addEventListener('input',function(){
-            lastIdentifierType='email';
-            syncPrimaryIdentifierType();
-          });
-        }
-        if(phone){
-          phone.addEventListener('input',function(){
-            lastIdentifierType='phone';
-            syncPrimaryIdentifierType();
-          });
+        if(primaryInput){
+          primaryInput.addEventListener('input',syncPrimaryIdentifierType);
+        }else{
+          if(email){
+            email.addEventListener('input',function(){
+              lastIdentifierType='email';
+              syncPrimaryIdentifierType();
+            });
+          }
+          if(phone){
+            phone.addEventListener('input',function(){
+              lastIdentifierType='phone';
+              syncPrimaryIdentifierType();
+            });
+          }
         }
         form.addEventListener('submit',function(){
           syncPrimaryIdentifierType();
@@ -779,6 +831,21 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 				return "text"
 			}
 			return inputType
+		},
+		"hasBothIdentifiers": func(nodes []KratosNode) bool {
+			hasEmail, hasPhone := false, false
+			for _, n := range nodes {
+				if n.Attributes.Name == "traits.email" {
+					hasEmail = true
+				}
+				if n.Attributes.Name == "traits.phone" {
+					hasPhone = true
+				}
+			}
+			return hasEmail && hasPhone
+		},
+		"isPrimaryIdentifierTrait": func(name string) bool {
+			return name == "traits.email" || name == "traits.phone"
 		},
 		"hasPasswordNode": func(nodes []KratosNode) bool {
 			for _, node := range nodes {
