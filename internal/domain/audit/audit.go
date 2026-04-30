@@ -15,11 +15,14 @@ type Result string
 
 const (
 	ActorTypeAdminClient ActorType = "admin_client"
+	ActorTypeAppClient   ActorType = "app_client"
+	ActorTypeIdentity    ActorType = "identity"
 	ActorTypeSystem      ActorType = "system"
 
-	TargetTypeApp    TargetType = "app"
-	TargetTypeClient TargetType = "client"
-	TargetTypeUser   TargetType = "user"
+	TargetTypeApp           TargetType = "app"
+	TargetTypeClient        TargetType = "client"
+	TargetTypeUser          TargetType = "user"
+	TargetTypeAppMembership TargetType = "app_membership"
 
 	ResultSuccess Result = "success"
 	ResultFailure Result = "failure"
