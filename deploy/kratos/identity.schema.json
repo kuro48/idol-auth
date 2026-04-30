@@ -44,6 +44,11 @@
               }
             }
           }
+        },
+        "display_name": {
+          "type": "string",
+          "title": "Display Name",
+          "maxLength": 50
         }
       },
       "additionalProperties": false
