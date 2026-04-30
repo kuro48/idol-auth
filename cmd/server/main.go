@@ -17,6 +17,7 @@ import (
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
 	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
 	"github.com/ryunosukekurokawa/idol-auth/internal/infra/db"
 	"github.com/ryunosukekurokawa/idol-auth/internal/infra/hydra"
@@ -97,13 +98,15 @@ func run() error {
 		accountService,
 		kratosAdmin,
 	)
+	profileService := profile.NewService(kratosAdmin)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)
 	router := apphttp.NewRouter(apphttp.RouterConfig{
-		App:      cfg.App,
-		Admin:    cfg.Admin,
-		Ory:      cfg.Ory,
-		Security: cfg.Security,
-		Limiter:  limiter,
+		App:        cfg.App,
+		Admin:      cfg.Admin,
+		Ory:        cfg.Ory,
+		Security:   cfg.Security,
+		Limiter:    limiter,
+		ProfileSvc: profileService,
 	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{
