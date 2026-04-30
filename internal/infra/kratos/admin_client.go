@@ -21,6 +21,16 @@ type AdminClient struct {
 	httpClient *http.Client
 }
 
+type IdentityDetails struct {
+	ID                    string
+	SchemaID              string
+	State                 admindomain.IdentityState
+	Email                 string
+	Phone                 string
+	PrimaryIdentifierType string
+	Roles                 []string
+}
+
 func NewAdminClient(baseURL string) *AdminClient {
 	return &AdminClient{
 		baseURL:    strings.TrimRight(baseURL, "/"),
@@ -141,6 +151,52 @@ func (c *AdminClient) SearchIdentities(ctx context.Context, input admindomain.Se
 		})
 	}
 	return identities, nil
+}
+
+func (c *AdminClient) GetIdentity(ctx context.Context, identityID string) (IdentityDetails, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), nil)
+	if err != nil {
+		return IdentityDetails{}, fmt.Errorf("build kratos get identity request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return IdentityDetails{}, fmt.Errorf("call kratos get identity: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get identity", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return IdentityDetails{}, fmt.Errorf("kratos get identity returned status %d", resp.StatusCode)
+	}
+
+	var decoded struct {
+		ID       string `json:"id"`
+		SchemaID string `json:"schema_id"`
+		State    string `json:"state"`
+		MetadataPublic struct {
+			Roles []string `json:"roles"`
+		} `json:"metadata_public"`
+		Traits struct {
+			PrimaryIdentifierType string `json:"primary_identifier_type"`
+			Email                 string `json:"email"`
+			Phone                 string `json:"phone"`
+		} `json:"traits"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return IdentityDetails{}, fmt.Errorf("decode kratos get identity response: %w", err)
+	}
+
+	return IdentityDetails{
+		ID:                    decoded.ID,
+		SchemaID:              decoded.SchemaID,
+		State:                 admindomain.IdentityState(decoded.State),
+		Email:                 decoded.Traits.Email,
+		Phone:                 decoded.Traits.Phone,
+		PrimaryIdentifierType: decoded.Traits.PrimaryIdentifierType,
+		Roles:                 append([]string(nil), decoded.MetadataPublic.Roles...),
+	}, nil
 }
 
 func (c *AdminClient) DisableIdentity(ctx context.Context, input admindomain.DisableIdentityInput) (admindomain.Identity, error) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ryunosukekurokawa/idol-auth/internal/config"
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
@@ -52,6 +53,9 @@ func TestAdminCreateAppReturnsCreated(t *testing.T) {
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"management_token":"mgmt-secret"`) {
+		t.Fatalf("expected management token in response, got %s", w.Body.String())
 	}
 }
 
@@ -123,32 +127,6 @@ func TestAdminCreateAppRejectsNonAdminSession(t *testing.T) {
 	}
 }
 
-func TestAdminSetIdentityRolesReturnsUpdatedRoles(t *testing.T) {
-	adminSvc := &stubAdminService{rolesResult: []string{"admin", "platform-operator"}}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, adminSvc, nil, &stubAuthService{})
-	req := httptest.NewRequest(http.MethodPut, "/v1/admin/identities/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81/roles", bytes.NewBufferString(`{"roles":["Admin","platform-operator","admin"]}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer secret")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
-	}
-	if adminSvc.lastIdentityID != "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81" {
-		t.Fatalf("expected identity id to be forwarded, got %q", adminSvc.lastIdentityID)
-	}
-	if adminSvc.lastActorID != "bootstrap-admin" {
-		t.Fatalf("expected actor id to use bootstrap actor, got %q", adminSvc.lastActorID)
-	}
-	if got := strings.TrimSpace(w.Body.String()); !strings.Contains(got, `"roles":["admin","platform-operator"]`) {
-		t.Fatalf("unexpected body: %s", got)
-	}
-}
-
 func TestAdminSearchUsersReturnsItems(t *testing.T) {
 	adminSvc := &stubAdminService{
 		searchResult: []admindomain.Identity{
@@ -190,30 +168,6 @@ func TestAdminSearchUsersRejectsInvalidState(t *testing.T) {
 	}
 }
 
-func TestAdminDisableUserReturnsUpdatedIdentity(t *testing.T) {
-	adminSvc := &stubAdminService{
-		disableResult: admindomain.Identity{ID: "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81", State: admindomain.IdentityStateInactive},
-	}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, adminSvc, nil, &stubAuthService{})
-	req := httptest.NewRequest(http.MethodPost, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81/disable", nil)
-	req.Header.Set("Authorization", "Bearer secret")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
-	}
-	if adminSvc.lastIdentityID != "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81" {
-		t.Fatalf("expected identity id to be forwarded, got %q", adminSvc.lastIdentityID)
-	}
-	if !strings.Contains(w.Body.String(), `"state":"inactive"`) {
-		t.Fatalf("unexpected body: %s", w.Body.String())
-	}
-}
-
 func TestAdminDeleteUserReturnsNoContent(t *testing.T) {
 	adminSvc := &stubAdminService{}
 	router := apphttp.NewRouter(apphttp.RouterConfig{
@@ -230,30 +184,6 @@ func TestAdminDeleteUserReturnsNoContent(t *testing.T) {
 	}
 	if adminSvc.deletedIdentityID != "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81" {
 		t.Fatalf("expected deleted identity id to be forwarded, got %q", adminSvc.deletedIdentityID)
-	}
-}
-
-func TestAdminEnableUserReturnsUpdatedIdentity(t *testing.T) {
-	adminSvc := &stubAdminService{
-		enableResult: admindomain.Identity{ID: "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81", State: admindomain.IdentityStateActive},
-	}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, adminSvc, nil, &stubAuthService{})
-	req := httptest.NewRequest(http.MethodPost, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81/enable", nil)
-	req.Header.Set("Authorization", "Bearer secret")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
-	}
-	if adminSvc.lastIdentityID != "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81" {
-		t.Fatalf("expected identity id to be forwarded, got %q", adminSvc.lastIdentityID)
-	}
-	if !strings.Contains(w.Body.String(), `"state":"active"`) {
-		t.Fatalf("unexpected body: %s", w.Body.String())
 	}
 }
 
@@ -335,6 +265,149 @@ func TestAdminListAppsReturnsOK(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"items"`) {
 		t.Fatalf("expected items key in response, got %s", w.Body.String())
+	}
+}
+
+func TestAdminIssueManagementTokenReturnsToken(t *testing.T) {
+	appID := uuid.New()
+	adminSvc := &stubAdminService{}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, adminSvc, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps/"+appID.String()+"/management-token", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if adminSvc.issuedManagementTokenAppID != appID {
+		t.Fatalf("expected app id %s, got %s", appID, adminSvc.issuedManagementTokenAppID)
+	}
+	if !strings.Contains(w.Body.String(), `"management_token":"mgmt-secret"`) {
+		t.Fatalf("expected management token body, got %s", w.Body.String())
+	}
+}
+
+func TestAccountOverviewReturnsMemberships(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{
+		membershipsForIdentity: []account.AppMembership{{
+			ID:         uuid.New(),
+			AppID:      appID,
+			AppSlug:    "idol-web",
+			AppName:    "Idol Web",
+			IdentityID: "identity-123",
+			Status:     account.MembershipStatusActive,
+		}},
+	}
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+			Email:         "user@example.com",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, accountSvc)
+	req := httptest.NewRequest(http.MethodGet, "/v1/account", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"memberships"`) || !strings.Contains(w.Body.String(), `"idol-web"`) {
+		t.Fatalf("unexpected body: %s", w.Body.String())
+	}
+}
+
+func TestAccountDeletionScheduleReturnsAccepted(t *testing.T) {
+	accountSvc := &stubAccountService{
+		scheduledDeletion: account.DeletionRequest{
+			ID:         uuid.New(),
+			IdentityID: "identity-123",
+			Status:     account.DeletionStatusScheduled,
+		},
+	}
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, accountSvc)
+	req := httptest.NewRequest(http.MethodPost, "/v1/account/deletion", bytes.NewBufferString(`{"reason":"user_requested"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusAccepted, w.Code, w.Body.String())
+	}
+	if accountSvc.lastDeletionReason != "user_requested" {
+		t.Fatalf("expected deletion reason to be forwarded, got %q", accountSvc.lastDeletionReason)
+	}
+}
+
+func TestAppScopedListUsersReturnsMemberships(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{
+		resolvedApp: app.App{
+			ID:   appID,
+			Slug: "idol-web",
+			Name: "Idol Web",
+		},
+		membershipsForApp: []account.AppMembership{{
+			ID:         uuid.New(),
+			AppID:      appID,
+			AppSlug:    "idol-web",
+			IdentityID: "identity-123",
+			Status:     account.MembershipStatusActive,
+		}},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users", nil)
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"idol-web"`) {
+		t.Fatalf("unexpected body: %s", w.Body.String())
+	}
+}
+
+func TestAppScopedDeleteUserRevokesMembership(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{
+		resolvedApp: app.App{
+			ID:   appID,
+			Slug: "idol-web",
+			Name: "Idol Web",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	req := httptest.NewRequest(http.MethodDelete, "/v1/apps/self/users/identity-123", nil)
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusNoContent, w.Code, w.Body.String())
+	}
+	if accountSvc.revokedIdentityID != "identity-123" {
+		t.Fatalf("expected revoked identity id to be forwarded, got %q", accountSvc.revokedIdentityID)
+	}
+	if accountSvc.revokedAppID != appID {
+		t.Fatalf("expected revoked app id %s, got %s", appID, accountSvc.revokedAppID)
 	}
 }
 
@@ -589,7 +662,7 @@ func TestAdminCreateAppWithClientReturnsCreatedWithSecret(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
-	for _, key := range []string{"app", "client", "client_secret"} {
+	for _, key := range []string{"app", "client", "client_secret", "management_token"} {
 		if _, ok := resp[key]; !ok {
 			t.Fatalf("expected %q in response, got %s", key, w.Body.String())
 		}
@@ -682,30 +755,6 @@ func TestAdminPatchUserStateRejectsInvalidState(t *testing.T) {
 	}
 }
 
-func TestAdminDisableUserByEmailResolvesIdentity(t *testing.T) {
-	targetID := "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81"
-	adminSvc := &stubAdminService{
-		searchResult: []admindomain.Identity{
-			{ID: targetID, Email: "user@example.com", State: admindomain.IdentityStateActive},
-		},
-	}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, adminSvc, nil, &stubAuthService{})
-	req := httptest.NewRequest(http.MethodPost, "/v1/admin/users/user%40example.com/disable", nil)
-	req.Header.Set("Authorization", "Bearer secret")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
-	}
-	if adminSvc.lastIdentityID != targetID {
-		t.Fatalf("expected resolved id %q, got %q", targetID, adminSvc.lastIdentityID)
-	}
-}
-
 func TestAdminPatchUserByEmailResolvesIdentity(t *testing.T) {
 	targetID := "f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81"
 	adminSvc := &stubAdminService{
@@ -733,12 +782,14 @@ func TestAdminPatchUserByEmailResolvesIdentity(t *testing.T) {
 	}
 }
 
-func TestAdminUserNotFoundForUnknownEmailRef(t *testing.T) {
+func TestAdminPatchUserUnknownEmailRefReturnsNotFound(t *testing.T) {
 	adminSvc := &stubAdminService{searchResult: nil}
 	router := apphttp.NewRouter(apphttp.RouterConfig{
 		Admin: config.AdminConfig{BootstrapToken: "secret"},
 	}, adminSvc, nil, &stubAuthService{})
-	req := httptest.NewRequest(http.MethodPost, "/v1/admin/users/unknown%40example.com/disable", nil)
+	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/unknown%40example.com",
+		bytes.NewBufferString(`{"state":"inactive"}`))
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer secret")
 	w := httptest.NewRecorder()
 
@@ -746,49 +797,6 @@ func TestAdminUserNotFoundForUnknownEmailRef(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected status %d, got %d; body=%s", http.StatusNotFound, w.Code, w.Body.String())
-	}
-}
-
-func TestAdminSetIdentityRolesViaUsersPath(t *testing.T) {
-	adminSvc := &stubAdminService{rolesResult: []string{"admin"}}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, adminSvc, nil, &stubAuthService{})
-	req := httptest.NewRequest(http.MethodPut, "/v1/admin/users/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81/roles", bytes.NewBufferString(`{"roles":["admin"]}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer secret")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
-	}
-	if dep := w.Header().Get("Deprecation"); dep != "" {
-		t.Fatalf("canonical /users/ path must not set Deprecation header, got %q", dep)
-	}
-}
-
-func TestAdminSetIdentityRolesDeprecatedPathHasHeaders(t *testing.T) {
-	adminSvc := &stubAdminService{rolesResult: []string{"admin"}}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, adminSvc, nil, &stubAuthService{})
-	req := httptest.NewRequest(http.MethodPut, "/v1/admin/identities/f17dc6e2-b3e1-4f1a-8a23-b0c73a1f9d81/roles", bytes.NewBufferString(`{"roles":["admin"]}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer secret")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
-	}
-	if got := w.Header().Get("Deprecation"); got != "true" {
-		t.Fatalf("expected Deprecation: true header, got %q", got)
-	}
-	if got := w.Header().Get("Sunset"); got == "" {
-		t.Fatal("expected Sunset header to be set")
 	}
 }
 
@@ -876,7 +884,7 @@ func TestAdminCreateAppWithTopLevelRedirectURIsReturnsAppAndClient(t *testing.T)
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
-	for _, key := range []string{"app", "client", "client_secret"} {
+	for _, key := range []string{"app", "client", "client_secret", "management_token"} {
 		if _, ok := resp[key]; !ok {
 			t.Fatalf("expected %q in response, got %s", key, w.Body.String())
 		}
@@ -913,20 +921,21 @@ func (s *stubReadinessChecker) Ready(_ context.Context) error {
 }
 
 type stubAdminService struct {
-	lastIdentityID    string
-	lastRoles         []string
-	lastActorID       string
-	rolesResult       []string
-	lastSearchFilter  admindomain.SearchIdentitiesInput
-	searchResult      []admindomain.Identity
-	disableResult     admindomain.Identity
-	enableResult      admindomain.Identity
-	revokedIdentityID string
-	lastAuditFilter   admindomain.ListAuditLogsInput
-	auditLogs         []admindomain.AuditLog
-	deletedIdentityID string
-	createAppErr      error
-	createClientErr   error
+	lastIdentityID             string
+	lastRoles                  []string
+	lastActorID                string
+	rolesResult                []string
+	lastSearchFilter           admindomain.SearchIdentitiesInput
+	searchResult               []admindomain.Identity
+	disableResult              admindomain.Identity
+	enableResult               admindomain.Identity
+	revokedIdentityID          string
+	lastAuditFilter            admindomain.ListAuditLogsInput
+	auditLogs                  []admindomain.AuditLog
+	deletedIdentityID          string
+	createAppErr               error
+	createClientErr            error
+	issuedManagementTokenAppID uuid.UUID
 }
 
 func (s *stubAdminService) CreateApp(_ context.Context, input app.CreateAppInput) (app.App, error) {
@@ -946,6 +955,12 @@ func (s *stubAdminService) CreateApp(_ context.Context, input app.CreateAppInput
 
 func (s *stubAdminService) ListApps(_ context.Context) ([]app.App, error) {
 	return nil, nil
+}
+
+func (s *stubAdminService) IssueManagementToken(_ context.Context, appID uuid.UUID, actorID string) (string, error) {
+	s.issuedManagementTokenAppID = appID
+	s.lastActorID = actorID
+	return "mgmt-secret", nil
 }
 
 func (s *stubAdminService) CreateOIDCClient(_ context.Context, _ uuid.UUID, _ app.CreateOIDCClientInput) (app.ClientRegistration, error) {
@@ -1007,4 +1022,57 @@ func (s *stubAdminService) DeleteIdentity(_ context.Context, input admindomain.D
 func (s *stubAdminService) ListAuditLogs(_ context.Context, input admindomain.ListAuditLogsInput) ([]admindomain.AuditLog, error) {
 	s.lastAuditFilter = input
 	return append([]audit.Log(nil), s.auditLogs...), nil
+}
+
+type stubAccountService struct {
+	resolvedApp            app.App
+	membershipsForIdentity []account.AppMembership
+	membershipsForApp      []account.AppMembership
+	scheduledDeletion      account.DeletionRequest
+	deletionRequest        *account.DeletionRequest
+	lastDeletionReason     string
+	revokedIdentityID      string
+	revokedAppID           uuid.UUID
+	disconnectedIdentityID string
+	disconnectedAppID      uuid.UUID
+}
+
+func (s *stubAccountService) ListMembershipsForIdentity(_ context.Context, _ string) ([]account.AppMembership, error) {
+	return append([]account.AppMembership(nil), s.membershipsForIdentity...), nil
+}
+
+func (s *stubAccountService) ListMembershipsForApp(_ context.Context, _ uuid.UUID) ([]account.AppMembership, error) {
+	return append([]account.AppMembership(nil), s.membershipsForApp...), nil
+}
+
+func (s *stubAccountService) DisconnectIdentityFromApp(_ context.Context, identityID string, appID uuid.UUID, _ string) error {
+	s.disconnectedIdentityID = identityID
+	s.disconnectedAppID = appID
+	return nil
+}
+
+func (s *stubAccountService) RevokeAppUser(_ context.Context, appID uuid.UUID, identityID, _ string) error {
+	s.revokedAppID = appID
+	s.revokedIdentityID = identityID
+	return nil
+}
+
+func (s *stubAccountService) ScheduleDeletion(_ context.Context, _ string, _ string, reason string) (account.DeletionRequest, error) {
+	s.lastDeletionReason = reason
+	return s.scheduledDeletion, nil
+}
+
+func (s *stubAccountService) CancelDeletion(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
+func (s *stubAccountService) GetDeletionRequest(_ context.Context, _ string) (*account.DeletionRequest, error) {
+	return s.deletionRequest, nil
+}
+
+func (s *stubAccountService) ResolveAppByToken(_ context.Context, _ string) (app.App, error) {
+	if s.resolvedApp.ID == uuid.Nil {
+		return app.App{}, app.ErrAppNotFound
+	}
+	return s.resolvedApp, nil
 }

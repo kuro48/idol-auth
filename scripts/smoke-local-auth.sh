@@ -179,11 +179,11 @@ if [[ "$SEARCH_IDENTITY_ID" != "$IDENTITY_ID" ]]; then
   exit 1
 fi
 
-DISABLE_JSON="$(curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" -X POST "$AUTH_URL/v1/admin/users/$IDENTITY_ID/disable")"
+DISABLE_JSON="$(curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" -X PATCH "$AUTH_URL/v1/admin/users/$IDENTITY_ID" -d '{"state":"inactive"}')"
 printf '%s\n' "$DISABLE_JSON"
 printf '%s' "$DISABLE_JSON" | grep -q '"state":"inactive"'
 
-ENABLE_JSON="$(curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" -X POST "$AUTH_URL/v1/admin/users/$IDENTITY_ID/enable")"
+ENABLE_JSON="$(curl -sS -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" -X PATCH "$AUTH_URL/v1/admin/users/$IDENTITY_ID" -d '{"state":"active"}')"
 printf '%s\n' "$ENABLE_JSON"
 printf '%s' "$ENABLE_JSON" | grep -q '"state":"active"'
 

@@ -3,6 +3,7 @@ package http_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ryunosukekurokawa/idol-auth/internal/config"
@@ -54,6 +55,83 @@ func TestHandleReadyz(t *testing.T) {
 	const want = "{\"status\":\"ok\"}\n"
 	if got := w.Body.String(); got != want {
 		t.Errorf("expected body %q, got %q", want, got)
+	}
+}
+
+func TestHandleDocs(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/docs/index.html", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
+		t.Fatalf("expected Content-Type %q, got %q", "text/html; charset=utf-8", ct)
+	}
+	if csp := w.Header().Get("Content-Security-Policy"); csp == "" {
+		t.Fatal("expected docs handler to set Content-Security-Policy")
+	}
+	body := w.Body.String()
+	for _, fragment := range []string{
+		`<title>Swagger UI</title>`,
+		`swagger-ui.css`,
+		`SwaggerUIBundle`,
+		`doc.json`,
+		`StandaloneLayout`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected body to contain %q", fragment)
+		}
+	}
+}
+
+func TestHandleDocsIndexRedirects(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/docs", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMovedPermanently {
+		t.Fatalf("expected status %d, got %d", http.StatusMovedPermanently, w.Code)
+	}
+	if got := w.Header().Get("Location"); got != "/docs/index.html" {
+		t.Fatalf("expected redirect location %q, got %q", "/docs/index.html", got)
+	}
+}
+
+func TestHandleSwaggerDocJSON(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/docs/doc.json", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json; charset=utf-8" {
+		t.Fatalf("expected Content-Type %q, got %q", "application/json; charset=utf-8", ct)
+	}
+	body := w.Body.String()
+	for _, fragment := range []string{
+		`"swagger": "2.0"`,
+		`idol-auth API`,
+		`"/v1/admin/apps"`,
+		`"/v1/account"`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected spec to contain %q", fragment)
+		}
 	}
 }
 

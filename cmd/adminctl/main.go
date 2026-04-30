@@ -85,7 +85,7 @@ func setRoles(ctx context.Context, baseURL, token, identityID string, roles []st
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, strings.TrimRight(baseURL, "/")+"/v1/admin/identities/"+identityID+"/roles", bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, strings.TrimRight(baseURL, "/")+"/v1/admin/users/"+identityID, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}

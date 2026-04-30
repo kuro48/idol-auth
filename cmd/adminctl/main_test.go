@@ -28,10 +28,10 @@ func TestRunSetRoles(t *testing.T) {
 	var body map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader = r.Header.Get("Authorization")
-		if r.Method != http.MethodPut {
-			t.Fatalf("expected PUT, got %s", r.Method)
+		if r.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", r.Method)
 		}
-		if r.URL.Path != "/v1/admin/identities/identity-123/roles" {
+		if r.URL.Path != "/v1/admin/users/identity-123" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {

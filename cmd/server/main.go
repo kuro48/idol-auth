@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	swaggerdocs "github.com/ryunosukekurokawa/idol-auth/docs/swagger"
 	"github.com/ryunosukekurokawa/idol-auth/internal/config"
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
 	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
@@ -21,7 +24,19 @@ import (
 )
 
 const shutdownTimeout = 10 * time.Second
+const deletionWorkerInterval = time.Minute
 
+// @title idol-auth API
+// @version 1.0.0
+// @description Ory Kratos / Hydra をバックエンドにした認証・認可プラットフォームの API です。
+// @description
+// @description - Auth API: Hydra login / consent / logout を仲介するブラウザ向け API
+// @description - Admin API: アプリ登録、OIDC クライアント発行、ユーザー管理、監査ログ取得 API
+// @BasePath /
+// @schemes http https
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	if err := run(); err != nil {
 		slog.Error("server exited with error", "error", err)
@@ -34,6 +49,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+	configureSwagger(cfg.App.BaseURL)
 
 	setupLogger(cfg.Log.Level)
 
@@ -43,24 +59,43 @@ func run() error {
 	}
 	defer dbPool.Close()
 
+	auditRepo := db.NewAuditRepository(dbPool)
+	oidcRepo := db.NewOIDCClientRepository(dbPool)
+	tokenRepo := db.NewAppManagementTokenRepository(dbPool)
+	accountRepo := db.NewAccountRepository(dbPool)
+	kratosAdmin := kratos.NewAdminClient(cfg.Ory.KratosAdminURL)
+	hydraAdmin := hydra.NewAdminClient(cfg.Ory.HydraAdminURL)
+
 	appService := app.NewService(
 		db.NewAppRepository(dbPool),
-		db.NewOIDCClientRepository(dbPool),
-		db.NewAuditRepository(dbPool),
-		hydra.NewAdminClient(cfg.Ory.HydraAdminURL),
+		oidcRepo,
+		auditRepo,
+		hydraAdmin,
 		time.Now,
+		tokenRepo,
 	)
 	adminService := admindomain.NewService(
 		appService,
-		kratos.NewAdminClient(cfg.Ory.KratosAdminURL),
-		db.NewAuditRepository(dbPool),
+		kratosAdmin,
+		auditRepo,
 		time.Now,
 	)
-	authService := apphttp.NewAuthService(
+	accountService := account.NewService(
+		accountRepo,
+		accountRepo,
+		appService,
+		kratosAdmin,
+		tokenRepo,
+		auditRepo,
+		time.Now,
+		0,
+	)
+	authService := apphttp.NewAuthServiceWithOptions(
 		cfg.App.BaseURL,
 		hydra.NewFlowClient(cfg.Ory.HydraAdminURL),
 		kratos.NewFrontendClient(cfg.Ory.KratosPublicURL, cfg.Ory.KratosBrowserURL),
-		kratos.NewAdminClient(cfg.Ory.KratosAdminURL),
+		accountService,
+		kratosAdmin,
 	)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)
 	router := apphttp.NewRouter(apphttp.RouterConfig{
@@ -69,7 +104,7 @@ func run() error {
 		Ory:      cfg.Ory,
 		Security: cfg.Security,
 		Limiter:  limiter,
-	}, adminService, db.NewReadinessChecker(dbPool), authService)
+	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
@@ -90,6 +125,8 @@ func run() error {
 		}
 	}()
 
+	go runDeletionWorker(ctx, accountService)
+
 	<-ctx.Done()
 	slog.Info("shutdown signal received")
 
@@ -102,6 +139,38 @@ func run() error {
 
 	slog.Info("server stopped")
 	return nil
+}
+
+func runDeletionWorker(ctx context.Context, accountSvc *account.Service) {
+	if accountSvc == nil {
+		return
+	}
+	ticker := time.NewTicker(deletionWorkerInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := accountSvc.ProcessDueDeletionRequests(ctx, 50); err != nil {
+				slog.Error("account deletion worker failed", "error", err)
+			}
+		}
+	}
+}
+
+func configureSwagger(baseURL string) {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return
+	}
+	if u.Host != "" {
+		swaggerdocs.SwaggerInfo.Host = u.Host
+	}
+	if u.Scheme != "" {
+		swaggerdocs.SwaggerInfo.Schemes = []string{u.Scheme}
+	}
+	swaggerdocs.SwaggerInfo.BasePath = "/"
 }
 
 func setupLogger(level string) {

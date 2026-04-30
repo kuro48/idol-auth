@@ -19,6 +19,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/ryunosukekurokawa/idol-auth/internal/config"
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
 	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
 )
@@ -95,6 +96,7 @@ type ProviderView struct {
 type AdminService interface {
 	CreateApp(ctx context.Context, input app.CreateAppInput) (app.App, error)
 	ListApps(ctx context.Context) ([]app.App, error)
+	IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error)
 	CreateOIDCClient(ctx context.Context, appID uuid.UUID, input app.CreateOIDCClientInput) (app.ClientRegistration, error)
 	ListOIDCClients(ctx context.Context, appID uuid.UUID) ([]app.OIDCClient, error)
 	SetIdentityRoles(ctx context.Context, input admindomain.SetIdentityRolesInput) ([]string, error)
@@ -114,6 +116,17 @@ type AuthService interface {
 	CurrentSession(ctx context.Context, r *http.Request) (SessionView, error)
 }
 
+type AccountService interface {
+	ListMembershipsForIdentity(ctx context.Context, identityID string) ([]account.AppMembership, error)
+	ListMembershipsForApp(ctx context.Context, appID uuid.UUID) ([]account.AppMembership, error)
+	DisconnectIdentityFromApp(ctx context.Context, identityID string, appID uuid.UUID, actorID string) error
+	RevokeAppUser(ctx context.Context, appID uuid.UUID, identityID, actorID string) error
+	ScheduleDeletion(ctx context.Context, identityID, actorID, reason string) (account.DeletionRequest, error)
+	CancelDeletion(ctx context.Context, identityID, actorID string) error
+	GetDeletionRequest(ctx context.Context, identityID string) (*account.DeletionRequest, error)
+	ResolveAppByToken(ctx context.Context, rawToken string) (app.App, error)
+}
+
 type themePreferenceService interface {
 	UpdateThemePreference(ctx context.Context, r *http.Request, color string) (SessionView, error)
 }
@@ -126,6 +139,7 @@ type server struct {
 	config             RouterConfig
 	adminSvc           AdminService
 	authSvc            AuthService
+	accountSvc         AccountService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 }
@@ -133,14 +147,21 @@ type server struct {
 type contextKey string
 
 const adminActorIDKey contextKey = "admin_actor_id"
+const appActorKey contextKey = "app_actor"
+const accountIdentityIDKey contextKey = "account_identity_id"
 
 const consentCSRFCookieName = "idol_auth_consent_csrf"
 
-func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessChecker, authSvc AuthService) http.Handler {
+func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessChecker, authSvc AuthService, accountSvcs ...AccountService) http.Handler {
+	var accountSvc AccountService
+	if len(accountSvcs) > 0 {
+		accountSvc = accountSvcs[0]
+	}
 	s := &server{
 		config:             cfg,
 		adminSvc:           adminSvc,
 		authSvc:            authSvc,
+		accountSvc:         accountSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 	}
@@ -153,6 +174,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
+	r.Get("/docs", s.handleDocsIndex)
+	r.Get("/docs/*", s.handleDocs)
 
 	r.Route("/v1/auth", func(r chi.Router) {
 		if s.config.Limiter != nil {
@@ -162,8 +185,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/session", s.handleSession)
 		r.Post("/theme", s.handleThemePreference)
 		r.Post("/logout", s.handleLogoutStart)
-		r.Get("/logout/start", s.handleLogoutStartGet)
-		r.Get("/logout/callback", s.handleLogout)
+		r.Get("/logout", s.handleLogout)
 		r.Get("/login", s.handleLogin)
 		r.Get("/consent", s.handleConsent)
 		r.Post("/consent", s.handleConsentSubmit)
@@ -176,17 +198,43 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Use(s.adminAuth)
 		r.Get("/apps", s.handleListApps)
 		r.Post("/apps", s.handleCreateApp)
+		r.Post("/apps/{appID}/management-token", s.handleIssueManagementToken)
 		r.Get("/apps/{appID}/clients", s.handleListOIDCClients)
 		r.Post("/apps/{appID}/clients", s.handleCreateOIDCClient)
 		r.Get("/users", s.handleSearchIdentities)
 		r.Patch("/users/{userRef}", s.handlePatchUser)
-		r.Put("/users/{userRef}/roles", s.handleSetIdentityRoles)
-		r.Post("/users/{userRef}/disable", s.handleDisableIdentity)
-		r.Post("/users/{userRef}/enable", s.handleEnableIdentity)
 		r.Post("/users/{userRef}/revoke-sessions", s.handleRevokeIdentitySessions)
 		r.Delete("/users/{userRef}", s.handleDeleteIdentity)
-		r.Put("/identities/{userRef}/roles", s.handleSetIdentityRolesDeprecated)
 		r.Get("/audit-logs", s.handleListAuditLogs)
+	})
+
+	r.Route("/v1/account", func(r chi.Router) {
+		if s.config.Limiter != nil {
+			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
+		}
+		r.Use(s.accountAuth)
+		r.Get("/", s.handleAccountOverview)
+		r.Delete("/apps/{appID}", s.handleDisconnectAccountApp)
+		r.Get("/deletion", s.handleGetDeletionRequest)
+		r.Post("/deletion", s.handleScheduleDeletion)
+		r.Delete("/deletion", s.handleCancelDeletion)
+	})
+
+	r.Route("/v1/apps/self", func(r chi.Router) {
+		if s.config.Limiter != nil {
+			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
+		}
+		r.Use(s.appTokenAuth)
+		r.Get("/users", s.handleListAppUsers)
+		r.Delete("/users/{identityID}", s.handleRevokeAppUser)
+	})
+
+	r.Route("/admin-ui", func(r chi.Router) {
+		r.Use(s.adminUIAuth)
+		r.Get("/", s.handleAdminUIOverview)
+		r.Get("/apps", s.handleAdminUIApps)
+		r.Get("/users", s.handleAdminUIUsers)
+		r.Get("/audit-logs", s.handleAdminUIAuditLogs)
 	})
 
 	return r
@@ -274,13 +322,6 @@ func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"logout_url": logoutURL})
 		return
 	}
-	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
-}
-
-// handleLogoutStartGet is a browser-friendly GET alias for logout start.
-// Browsers can link or redirect to this URL directly without a form POST.
-func (s *server) handleLogoutStartGet(w http.ResponseWriter, r *http.Request) {
-	logoutURL := strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout"
 	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
 }
 
@@ -374,6 +415,10 @@ func (s *server) handleConsentSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSpace(r.URL.Query().Get("logout_challenge")) == "" {
+		s.handleLogoutStart(w, r)
+		return
+	}
 	if s.authSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "auth service unavailable")
 		return
@@ -461,7 +506,15 @@ func (s *server) handleCreateApp(w http.ResponseWriter, r *http.Request) {
 
 	if clientInput == nil {
 		w.Header().Set("Location", "/v1/admin/apps/"+created.ID.String())
-		writeJSON(w, http.StatusCreated, created)
+		token, err := s.adminSvc.IssueManagementToken(r.Context(), created.ID, actorID)
+		if err != nil {
+			writeDomainError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"app":              created,
+			"management_token": token,
+		})
 		return
 	}
 
@@ -471,11 +524,18 @@ func (s *server) handleCreateApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := s.adminSvc.IssueManagementToken(r.Context(), created.ID, actorID)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+
 	w.Header().Set("Location", "/v1/admin/apps/"+created.ID.String())
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"app":           created,
-		"client":        reg.Client,
-		"client_secret": reg.ClientSecret,
+		"app":              created,
+		"client":           reg.Client,
+		"client_secret":    reg.ClientSecret,
+		"management_token": token,
 	})
 }
 
@@ -491,6 +551,27 @@ func (s *server) handleListApps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": apps})
+}
+
+func (s *server) handleIssueManagementToken(w http.ResponseWriter, r *http.Request) {
+	if s.adminSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
+		return
+	}
+	appID, err := uuid.Parse(chi.URLParam(r, "appID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid app id")
+		return
+	}
+	token, err := s.adminSvc.IssueManagementToken(r.Context(), appID, adminActorIDFromContext(r.Context()))
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"app_id":           appID.String(),
+		"management_token": token,
+	})
 }
 
 func (s *server) handleCreateOIDCClient(w http.ResponseWriter, r *http.Request) {
@@ -559,49 +640,6 @@ func (s *server) handleListOIDCClients(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": clients})
 }
 
-// handleSetIdentityRolesDeprecated wraps handleSetIdentityRoles with deprecation
-// headers. Use PUT /v1/admin/users/{userRef}/roles instead.
-func (s *server) handleSetIdentityRolesDeprecated(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Deprecation", "true")
-	w.Header().Set("Sunset", "2027-05-01")
-	s.handleSetIdentityRoles(w, r)
-}
-
-func (s *server) handleSetIdentityRoles(w http.ResponseWriter, r *http.Request) {
-	if s.adminSvc == nil {
-		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
-		return
-	}
-
-	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
-	if err != nil {
-		writeUserRefError(w, err)
-		return
-	}
-
-	var req struct {
-		Roles []string `json:"roles"`
-	}
-	if err := decodeJSON(w, r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
-		return
-	}
-
-	roles, err := s.adminSvc.SetIdentityRoles(r.Context(), admindomain.SetIdentityRolesInput{
-		IdentityID: identityID,
-		Roles:      req.Roles,
-		ActorID:    adminActorIDFromContext(r.Context()),
-	})
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "failed to update identity roles")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"identity_id": identityID,
-		"roles":       roles,
-	})
-}
-
 func (s *server) handleSearchIdentities(w http.ResponseWriter, r *http.Request) {
 	if s.adminSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
@@ -630,27 +668,6 @@ func (s *server) handleSearchIdentities(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"items": identities})
 }
 
-func (s *server) handleDisableIdentity(w http.ResponseWriter, r *http.Request) {
-	if s.adminSvc == nil {
-		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
-		return
-	}
-	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
-	if err != nil {
-		writeUserRefError(w, err)
-		return
-	}
-	identity, err := s.adminSvc.DisableIdentity(r.Context(), admindomain.DisableIdentityInput{
-		IdentityID: identityID,
-		ActorID:    adminActorIDFromContext(r.Context()),
-	})
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "failed to disable identity")
-		return
-	}
-	writeJSON(w, http.StatusOK, identity)
-}
-
 func (s *server) handleDeleteIdentity(w http.ResponseWriter, r *http.Request) {
 	if s.adminSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
@@ -669,27 +686,6 @@ func (s *server) handleDeleteIdentity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *server) handleEnableIdentity(w http.ResponseWriter, r *http.Request) {
-	if s.adminSvc == nil {
-		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
-		return
-	}
-	identityID, err := s.resolveUserRef(r.Context(), chi.URLParam(r, "userRef"))
-	if err != nil {
-		writeUserRefError(w, err)
-		return
-	}
-	identity, err := s.adminSvc.EnableIdentity(r.Context(), admindomain.EnableIdentityInput{
-		IdentityID: identityID,
-		ActorID:    adminActorIDFromContext(r.Context()),
-	})
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "failed to enable identity")
-		return
-	}
-	writeJSON(w, http.StatusOK, identity)
 }
 
 func (s *server) handleRevokeIdentitySessions(w http.ResponseWriter, r *http.Request) {
@@ -833,6 +829,161 @@ func (s *server) handleListAuditLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (s *server) handleAccountOverview(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	memberships, err := s.accountSvc.ListMembershipsForIdentity(r.Context(), session.IdentityID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to load account memberships")
+		return
+	}
+	deletionRequest, err := s.accountSvc.GetDeletionRequest(r.Context(), session.IdentityID)
+	if err != nil {
+		writeAccountError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"identity_id":      session.IdentityID,
+		"email":            session.Email,
+		"memberships":      memberships,
+		"deletion_request": deletionRequest,
+		"authenticated":    true,
+		"subject":          session.Subject,
+	})
+}
+
+func (s *server) handleDisconnectAccountApp(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	appID, err := uuid.Parse(chi.URLParam(r, "appID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid app id")
+		return
+	}
+	if err := s.accountSvc.DisconnectIdentityFromApp(r.Context(), session.IdentityID, appID, session.IdentityID); err != nil {
+		writeAccountError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) handleGetDeletionRequest(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	request, err := s.accountSvc.GetDeletionRequest(r.Context(), session.IdentityID)
+	if err != nil {
+		writeAccountError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"request": request})
+}
+
+func (s *server) handleScheduleDeletion(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	request, err := s.accountSvc.ScheduleDeletion(r.Context(), session.IdentityID, session.IdentityID, req.Reason)
+	if err != nil {
+		writeAccountError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"request": request})
+}
+
+func (s *server) handleCancelDeletion(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	if err := s.accountSvc.CancelDeletion(r.Context(), session.IdentityID, session.IdentityID); err != nil {
+		writeAccountError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) handleListAppUsers(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	appActor, ok := appActorFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "app authorization required")
+		return
+	}
+	items, err := s.accountSvc.ListMembershipsForApp(r.Context(), appActor.ID)
+	if err != nil {
+		writeAccountError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"app":   appActor,
+		"items": items,
+	})
+}
+
+func (s *server) handleRevokeAppUser(w http.ResponseWriter, r *http.Request) {
+	if s.accountSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+		return
+	}
+	appActor, ok := appActorFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "app authorization required")
+		return
+	}
+	identityID := strings.TrimSpace(chi.URLParam(r, "identityID"))
+	if identityID == "" {
+		writeError(w, http.StatusBadRequest, "identity id is required")
+		return
+	}
+	if err := s.accountSvc.RevokeAppUser(r.Context(), appActor.ID, identityID, appActor.ID.String()); err != nil {
+		writeAccountError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
@@ -895,11 +1046,66 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 	})
 }
 
+func (s *server) accountAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.authSvc == nil {
+			writeError(w, http.StatusServiceUnavailable, "auth service unavailable")
+			return
+		}
+		session, err := s.authSvc.CurrentSession(r.Context(), r)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve account session")
+			return
+		}
+		if !session.Authenticated || strings.TrimSpace(session.IdentityID) == "" {
+			writeError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+		ctx := context.WithValue(r.Context(), accountIdentityIDKey, session)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (s *server) appTokenAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.accountSvc == nil {
+			writeError(w, http.StatusServiceUnavailable, "account service unavailable")
+			return
+		}
+		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		if token == "" {
+			writeError(w, http.StatusUnauthorized, "app authorization required")
+			return
+		}
+		appActor, err := s.accountSvc.ResolveAppByToken(r.Context(), token)
+		if err != nil {
+			if errors.Is(err, app.ErrAppNotFound) {
+				writeError(w, http.StatusUnauthorized, "app authorization required")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "failed to resolve app authorization")
+			return
+		}
+		ctx := context.WithValue(r.Context(), appActorKey, appActor)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func adminActorIDFromContext(ctx context.Context) string {
 	if actorID, ok := ctx.Value(adminActorIDKey).(string); ok && actorID != "" {
 		return actorID
 	}
 	return "bootstrap-admin"
+}
+
+func accountSessionFromContext(ctx context.Context) (SessionView, bool) {
+	session, ok := ctx.Value(accountIdentityIDKey).(SessionView)
+	return session, ok
+}
+
+func appActorFromContext(ctx context.Context) (app.App, bool) {
+	appActor, ok := ctx.Value(appActorKey).(app.App)
+	return appActor, ok
 }
 
 func emailAllowed(allowed []string, email string) bool {
@@ -974,6 +1180,17 @@ func writeDomainError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, app.ErrAppDisabled):
 		writeError(w, http.StatusConflict, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, "internal server error")
+	}
+}
+
+func writeAccountError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, account.ErrDeletionRequestNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, app.ErrAppNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
 	default:
 		writeError(w, http.StatusInternalServerError, "internal server error")
 	}

@@ -78,11 +78,16 @@ type ThemePreferenceUpdater interface {
 	SetIdentityOshiColor(ctx context.Context, identityID, color string) error
 }
 
+type MembershipRecorder interface {
+	EnsureMembershipForHydraClient(ctx context.Context, hydraClientID, identityID, actorID string) error
+}
+
 type authService struct {
 	baseURL      string
 	hydra        HydraAuthClient
 	kratos       KratosAuthClient
 	themeUpdater ThemePreferenceUpdater
+	memberships  MembershipRecorder
 }
 
 func normalizeRoles(roles []string) []string {
@@ -103,6 +108,10 @@ func normalizeRoles(roles []string) []string {
 }
 
 func NewAuthService(baseURL string, hydra HydraAuthClient, kratos KratosAuthClient, themeUpdaters ...ThemePreferenceUpdater) AuthService {
+	return NewAuthServiceWithOptions(baseURL, hydra, kratos, nil, themeUpdaters...)
+}
+
+func NewAuthServiceWithOptions(baseURL string, hydra HydraAuthClient, kratos KratosAuthClient, memberships MembershipRecorder, themeUpdaters ...ThemePreferenceUpdater) AuthService {
 	var themeUpdater ThemePreferenceUpdater
 	if len(themeUpdaters) > 0 {
 		themeUpdater = themeUpdaters[0]
@@ -112,6 +121,7 @@ func NewAuthService(baseURL string, hydra HydraAuthClient, kratos KratosAuthClie
 		hydra:        hydra,
 		kratos:       kratos,
 		themeUpdater: themeUpdater,
+		memberships:  memberships,
 	}
 }
 
@@ -212,6 +222,9 @@ func (s *authService) HandleConsent(ctx context.Context, r *http.Request, consen
 		if err != nil {
 			return ConsentFlowResult{}, fmt.Errorf("accept hydra consent request: %w", err)
 		}
+		if session, err := s.kratos.ToSession(ctx, r); err == nil && session.Active {
+			_ = s.ensureMembership(ctx, consentRequest.Client.ClientID, session.IdentityID)
+		}
 		return ConsentFlowResult{RedirectTo: redirectTo}, nil
 	}
 
@@ -307,6 +320,7 @@ func (s *authService) SubmitConsent(ctx context.Context, r *http.Request, consen
 	if err != nil {
 		return AuthFlowResult{}, fmt.Errorf("accept hydra consent request: %w", err)
 	}
+	_ = s.ensureMembership(ctx, consentRequest.Client.ClientID, session.IdentityID)
 	return AuthFlowResult{RedirectTo: redirectTo}, nil
 }
 
@@ -397,4 +411,11 @@ func (s *authService) validateConsentSessionSubject(ctx context.Context, r *http
 
 func sessionMFASatisfied(session KratosSession) bool {
 	return strings.EqualFold(strings.TrimSpace(session.AuthenticatorAssuranceLevel), "aal2")
+}
+
+func (s *authService) ensureMembership(ctx context.Context, hydraClientID, identityID string) error {
+	if s.memberships == nil {
+		return nil
+	}
+	return s.memberships.EnsureMembershipForHydraClient(ctx, hydraClientID, identityID, identityID)
 }
