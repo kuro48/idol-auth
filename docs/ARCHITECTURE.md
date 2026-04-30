@@ -48,7 +48,25 @@ idol-auth は「共有アカウント型」認証基盤。複数のアプリが 
 
 ### idol-auth (app)
 - Hydra からの challenge を受け取り、Kratos セッションを検証して accept/reject する**ブリッジ**
-- アプリ登録・OIDC クライアント発行・ユーザー管理の**コントロールプレーン API**
+- アプリ登録・OIDC クライアント発行・共有アカウント連携管理の**コントロールプレーン API**
+
+---
+
+## 共有アカウントモデル
+
+- `global identity`
+  - Kratos identity が shared account 本体
+  - メール、電話番号、パスワード、MFA、roles はここに集約
+- `app membership`
+  - 各 app から見た利用関係
+  - 初回 login / consent 成功時に自動作成
+  - app 側の「退会」は identity 本体削除ではなく membership の revoke
+- `account center`
+  - 現在の shared account から接続済み app を確認
+  - app ごとの連携解除
+  - shared account の完全削除予約
+
+shared account を使う前提なので、third-party app に identity 本体の削除権限は渡さない。app には `management token` を発行し、`/v1/apps/self/*` で自分の membership だけ扱わせる。
 
 ---
 
@@ -96,49 +114,19 @@ Hydra → /v1/auth/consent?consent_challenge=...
 
 ## API リファレンス
 
-<!-- AUTO-GENERATED from internal/http/router.go -->
+エンドポイント一覧と request / response の一次情報は Swagger UI を参照。
 
-### ヘルスチェック
+- `http://localhost:8080/docs`
+- `http://localhost:8080/docs/doc.json`
 
-| Method | Path | 説明 |
-|--------|------|------|
-| GET | `/healthz` | 常に 200 OK を返す liveness probe |
-| GET | `/readyz` | DB 接続を確認する readiness probe（タイムアウト 2s） |
+主要な責務は次の 3 系統。
 
-### Auth API (`/v1/auth/*`)
-
-レート制限付き（`RouterConfig.Limiter` が設定されている場合）。
-
-| Method | Path | 説明 |
-|--------|------|------|
-| GET | `/v1/auth/providers` | Kratos / Hydra の各ブラウザフロー URL を返す |
-| GET | `/v1/auth/session` | 現在の Kratos セッション情報を返す |
-| POST | `/v1/auth/logout` | Hydra logout URL を返す |
-| GET | `/v1/auth/logout/start` | Hydra logout URL へブラウザリダイレクト |
-| GET | `/v1/auth/logout/callback` | Hydra logout_challenge を処理してリダイレクト |
-| GET | `/v1/auth/login` | Hydra login_challenge を処理してリダイレクト |
-| GET | `/v1/auth/consent` | Hydra consent_challenge を処理（確認画面またはリダイレクト） |
-| POST | `/v1/auth/consent` | コンセント確認フォームの送信（action=accept\|deny） |
-
-### Admin API (`/v1/admin/*`)
-
-すべて認証必須。認証方式は後述。
-
-| Method | Path | 説明 |
-|--------|------|------|
-| GET | `/v1/admin/apps` | アプリ一覧 |
-| POST | `/v1/admin/apps` | アプリ作成 |
-| GET | `/v1/admin/apps/{appID}/clients` | OIDC クライアント一覧 |
-| POST | `/v1/admin/apps/{appID}/clients` | OIDC クライアント作成 |
-| GET | `/v1/admin/users` | ユーザー検索（`?identifier=`, `?state=active\|inactive`） |
-| POST | `/v1/admin/users/{identityID}/disable` | ユーザー無効化 |
-| POST | `/v1/admin/users/{identityID}/enable` | ユーザー再有効化 |
-| POST | `/v1/admin/users/{identityID}/revoke-sessions` | ユーザーの全セッション失効 |
-| DELETE | `/v1/admin/users/{identityID}` | ユーザー削除 |
-| PUT | `/v1/admin/identities/{identityID}/roles` | ロール設定 |
-| GET | `/v1/admin/audit-logs` | 監査ログ一覧（フィルタ可） |
-
-<!-- /AUTO-GENERATED -->
+- `/v1/auth/*`
+  - Hydra login / consent / logout bridge
+- `/v1/admin/*`
+  - app 登録、OIDC client 発行、management token 発行、監査
+- `/v1/account/*` と `/v1/apps/self/*`
+  - shared account 本体の自己管理と、app-scoped membership 管理
 
 ---
 
@@ -152,7 +140,7 @@ Hydra → /v1/auth/consent?consent_challenge=...
 Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>
 ```
 
-- GET / POST / PUT / DELETE すべて可能
+- GET / POST / PATCH / DELETE すべて可能
 - 本番では厳重に管理し、ローテーション必須
 
 ### Session 認証（読み取り限定）
@@ -160,13 +148,23 @@ Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>
 - Kratos セッション Cookie を送信
 - **MFA 必須**（`authenticator_assurance_level = aal2`）
 - `ADMIN_ALLOWED_EMAILS` または `ADMIN_ALLOWED_ROLES` のいずれかに一致すること
-- 書き込み系操作（POST / PUT / DELETE）は不可（Bootstrap Token が必要）
+- 書き込み系操作（POST / PATCH / DELETE）は不可（Bootstrap Token が必要）
+
+### App Management Token
+
+```
+Authorization: Bearer <management_token>
+```
+
+- `POST /v1/admin/apps` の response または `POST /v1/admin/apps/{appID}/management-token` で発行
+- `GET /v1/apps/self/users`
+- `DELETE /v1/apps/self/users/{identityID}`
+
+この token で触れるのは、その app に紐づく membership だけ。Kratos identity 本体の削除や global role 変更は不可。
 
 ---
 
 ## データモデル
-
-<!-- AUTO-GENERATED from internal/infra/db/migrations/ -->
 
 ```
 apps
@@ -189,6 +187,33 @@ oidc_clients
 ├── pkce_required              BOOLEAN
 └── created_at / updated_at / created_by / updated_by
 
+app_management_tokens
+├── id            UUID PK
+├── app_id        UUID FK → apps.id
+├── token_hash    TEXT UNIQUE
+├── token_prefix  TEXT
+├── status        TEXT  (active | rotated)
+└── created_at / updated_at / created_by / updated_by
+
+app_user_memberships
+├── id            UUID PK
+├── app_id        UUID FK → apps.id
+├── identity_id   TEXT
+├── status        TEXT  (active | revoked)
+├── profile       JSONB
+└── created_at / updated_at / created_by / updated_by
+
+account_deletion_requests
+├── id            UUID PK
+├── identity_id   TEXT UNIQUE
+├── status        TEXT  (scheduled | cancelled | completed)
+├── reason        TEXT
+├── requested_at  TIMESTAMPTZ
+├── scheduled_for TIMESTAMPTZ
+├── cancelled_at  TIMESTAMPTZ NULL
+├── completed_at  TIMESTAMPTZ NULL
+└── last_actor_id TEXT
+
 oidc_client_redirect_uris   (client_id ごとのリダイレクト URI 正規化テーブル)
 oidc_client_scopes          (client_id ごとのスコープ正規化テーブル)
 
@@ -206,8 +231,6 @@ audit_logs
 ```
 
 Kratos の ID データ（メール・パスワード・MFA・`metadata_public.roles`）は **Kratos の DB スキーマ（`search_path=kratos`）** に格納。idol-auth の DB は管理メタデータと監査ログのみ保持する。
-
-<!-- /AUTO-GENERATED -->
 
 ---
 

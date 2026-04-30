@@ -9,7 +9,7 @@
 このリポジトリには次の 2 つが入っています。
 
 - Hydra の login / consent / logout を処理する認証ブリッジ API
-- アプリ登録、OIDC クライアント発行、ロール管理、監査ログ取得を行う Admin API
+- アプリ登録、OIDC クライアント発行、共有アカウント連携、監査ログ取得を行う API 群
 
 ## 開発者向け概要
 
@@ -38,6 +38,7 @@ make wait
 | サービス | URL |
 |---------|-----|
 | API | http://localhost:8080 |
+| API Docs (Swagger UI) | http://localhost:8080/docs |
 | Demo UI | http://localhost:3002 |
 | Kratos public | http://localhost:4433 |
 | Hydra public | http://localhost:4444 |
@@ -79,11 +80,20 @@ go run ./cmd/configcheck
 
 ## ドキュメント
 
-- [API リファレンス](docs/API.md)
+- 開発者向け API サイト: `http://localhost:8080/docs`
+- Swagger JSON: `http://localhost:8080/docs/doc.json`
 - [アーキテクチャ](docs/ARCHITECTURE.md)
 - [デプロイと運用](docs/deployment.md)
 - [セキュリティポリシー](SECURITY.md)
 - [ライセンス](LICENSE)
+
+## Shared Account Model
+
+- Kratos identity が共有アカウント本体です。複数アプリで同じ identity を使います。
+- 各アプリの「登録」は identity 作成そのものではなく、初回 login / consent 時に `app membership` を作る動きです。
+- 各アプリの「削除」は `DELETE /v1/apps/self/users/{identityID}` で membership を無効化します。共有アカウント本体は残ります。
+- 共有アカウント本体の完全削除は `POST /v1/account/deletion` で中央管理します。
+- app-scoped API は app 作成時または `POST /v1/admin/apps/{appID}/management-token` で発行される `management_token` を使います。
 
 ## 本番デプロイ
 
