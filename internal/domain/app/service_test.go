@@ -359,6 +359,10 @@ func (r *stubOIDCClientRepositoryWithError) ListByAppID(_ context.Context, _ uui
 	return nil, nil
 }
 
+func (r *stubOIDCClientRepositoryWithError) GetAppByHydraClientID(_ context.Context, _ string) (App, error) {
+	return App{}, ErrAppNotFound
+}
+
 type stubAppRepository struct {
 	apps []App
 }
@@ -404,6 +408,15 @@ func (r *stubOIDCClientRepository) ListByAppID(_ context.Context, appID uuid.UUI
 		}
 	}
 	return out, nil
+}
+
+func (r *stubOIDCClientRepository) GetAppByHydraClientID(_ context.Context, hydraClientID string) (App, error) {
+	for _, client := range r.clients {
+		if client.HydraClientID == hydraClientID {
+			return App{ID: client.AppID}, nil
+		}
+	}
+	return App{}, ErrAppNotFound
 }
 
 type stubAuditRepository struct {

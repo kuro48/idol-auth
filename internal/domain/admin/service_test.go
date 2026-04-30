@@ -386,6 +386,13 @@ func (m *stubAppManager) ListApps(_ context.Context) ([]app.App, error) {
 	return append([]app.App(nil), m.apps...), nil
 }
 
+func (m *stubAppManager) IssueManagementToken(_ context.Context, _ uuid.UUID, _ string) (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+	return "mgmt-secret", nil
+}
+
 func (m *stubAppManager) CreateOIDCClient(_ context.Context, _ uuid.UUID, _ app.CreateOIDCClientInput) (app.ClientRegistration, error) {
 	if m.err != nil {
 		return app.ClientRegistration{}, m.err

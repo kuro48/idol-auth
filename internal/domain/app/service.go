@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -46,6 +47,12 @@ type AppRepository interface {
 type OIDCClientRepository interface {
 	Create(ctx context.Context, client OIDCClient) (OIDCClient, error)
 	ListByAppID(ctx context.Context, appID uuid.UUID) ([]OIDCClient, error)
+	GetAppByHydraClientID(ctx context.Context, hydraClientID string) (App, error)
+}
+
+type ManagementTokenRepository interface {
+	Replace(ctx context.Context, appID uuid.UUID, rawToken, actorID string, now time.Time) error
+	ResolveAppByToken(ctx context.Context, rawToken string) (App, error)
 }
 
 type ClientProvisioner interface {
@@ -58,6 +65,7 @@ type Service struct {
 	clients     OIDCClientRepository
 	auditLogs   audit.Repository
 	provisioner ClientProvisioner
+	tokens      ManagementTokenRepository
 	now         func() time.Time
 }
 
@@ -109,15 +117,20 @@ type auditMetadata struct {
 	ClientName string `json:"client_name,omitempty"`
 }
 
-func NewService(apps AppRepository, clients OIDCClientRepository, auditLogs audit.Repository, provisioner ClientProvisioner, now func() time.Time) *Service {
+func NewService(apps AppRepository, clients OIDCClientRepository, auditLogs audit.Repository, provisioner ClientProvisioner, now func() time.Time, tokenRepos ...ManagementTokenRepository) *Service {
 	if now == nil {
 		now = time.Now
+	}
+	var tokenRepo ManagementTokenRepository
+	if len(tokenRepos) > 0 {
+		tokenRepo = tokenRepos[0]
 	}
 	return &Service{
 		apps:        apps,
 		clients:     clients,
 		auditLogs:   auditLogs,
 		provisioner: provisioner,
+		tokens:      tokenRepo,
 		now:         now,
 	}
 }
@@ -179,6 +192,53 @@ func (s *Service) CreateApp(ctx context.Context, input CreateAppInput) (App, err
 
 func (s *Service) ListApps(ctx context.Context) ([]App, error) {
 	return s.apps.List(ctx)
+}
+
+func (s *Service) IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error) {
+	if s.tokens == nil {
+		return "", errors.New("management token repository unavailable")
+	}
+	if _, err := s.apps.GetByID(ctx, appID); err != nil {
+		return "", err
+	}
+	rawToken, err := generateManagementToken()
+	if err != nil {
+		return "", err
+	}
+	now := s.now().UTC()
+	if err := s.tokens.Replace(ctx, appID, rawToken, actorID, now); err != nil {
+		return "", err
+	}
+	s.writeAudit(ctx, audit.Log{
+		ID:         uuid.New(),
+		EventType:  "app.management_token.issued",
+		ActorType:  audit.ActorTypeAdminClient,
+		ActorID:    actorID,
+		TargetType: audit.TargetTypeApp,
+		TargetID:   appID.String(),
+		Result:     audit.ResultSuccess,
+		OccurredAt: now,
+	})
+	return rawToken, nil
+}
+
+func (s *Service) ResolveAppByManagementToken(ctx context.Context, rawToken string) (App, error) {
+	if s.tokens == nil {
+		return App{}, errors.New("management token repository unavailable")
+	}
+	return s.tokens.ResolveAppByToken(ctx, rawToken)
+}
+
+func (s *Service) GetByID(ctx context.Context, appID uuid.UUID) (App, error) {
+	return s.apps.GetByID(ctx, appID)
+}
+
+func (s *Service) GetByHydraClientID(ctx context.Context, hydraClientID string) (App, error) {
+	return s.clients.GetAppByHydraClientID(ctx, hydraClientID)
+}
+
+func (s *Service) GetAppByHydraClientID(ctx context.Context, hydraClientID string) (App, error) {
+	return s.clients.GetAppByHydraClientID(ctx, hydraClientID)
 }
 
 func (s *Service) CreateOIDCClient(ctx context.Context, appID uuid.UUID, input CreateOIDCClientInput) (ClientRegistration, error) {
@@ -498,4 +558,13 @@ func generateHydraClientID(slug string) string {
 		return fmt.Sprintf("%s-%d", slug, time.Now().UnixNano())
 	}
 	return fmt.Sprintf("%s-%s", slug, hex.EncodeToString(buf[:]))
+}
+
+func generateManagementToken() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate management token: %w", err)
+	}
+	sum := sha256.Sum256(buf)
+	return "iat_" + hex.EncodeToString(sum[:]), nil
 }

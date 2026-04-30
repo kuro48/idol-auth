@@ -17,6 +17,7 @@ type AppManager interface {
 	ListApps(ctx context.Context) ([]app.App, error)
 	CreateOIDCClient(ctx context.Context, appID uuid.UUID, input app.CreateOIDCClientInput) (app.ClientRegistration, error)
 	ListOIDCClients(ctx context.Context, appID uuid.UUID) ([]app.OIDCClient, error)
+	IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error)
 }
 
 type IdentityManager interface {
@@ -67,6 +68,10 @@ func (s *Service) CreateOIDCClient(ctx context.Context, appID uuid.UUID, input a
 
 func (s *Service) ListOIDCClients(ctx context.Context, appID uuid.UUID) ([]app.OIDCClient, error) {
 	return s.apps.ListOIDCClients(ctx, appID)
+}
+
+func (s *Service) IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error) {
+	return s.apps.IssueManagementToken(ctx, appID, actorID)
 }
 
 func (s *Service) SetIdentityRoles(ctx context.Context, input SetIdentityRolesInput) ([]string, error) {

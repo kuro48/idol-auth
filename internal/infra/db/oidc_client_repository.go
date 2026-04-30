@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -147,4 +149,21 @@ func (r *OIDCClientRepository) ListByAppID(ctx context.Context, appID uuid.UUID)
 		return nil, fmt.Errorf("iterate oidc clients: %w", err)
 	}
 	return out, nil
+}
+
+func (r *OIDCClientRepository) GetAppByHydraClientID(ctx context.Context, hydraClientID string) (app.App, error) {
+	const query = `
+		SELECT a.id, a.name, a.slug, a.type, a.party_type, a.status, a.description, a.created_at, a.updated_at, a.created_by, a.updated_by
+		FROM oidc_clients c
+		JOIN apps a ON a.id = c.app_id
+		WHERE c.hydra_client_id = $1
+	`
+	var entity app.App
+	if err := scanApp(r.pool.QueryRow(ctx, query, strings.TrimSpace(hydraClientID)), &entity); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return app.App{}, app.ErrAppNotFound
+		}
+		return app.App{}, fmt.Errorf("get app by hydra client id: %w", err)
+	}
+	return entity, nil
 }
