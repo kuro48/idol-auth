@@ -18,7 +18,7 @@ COMPOSE_ENV = POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 	DEMO_APP_URL=$(DEMO_APP_URL) \
 	CORS_ALLOWED_ORIGINS=$(CORS_ALLOWED_ORIGINS)
 
-.PHONY: up down test vuln check-health e2e wait verify-local config-check render-production-config nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres
+.PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres
 
 up:
 	$(COMPOSE_ENV) docker compose up -d --build
@@ -28,6 +28,9 @@ down:
 
 test:
 	go test ./...
+
+swagger:
+	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go -o docs/swagger --ot go --parseInternal --generatedTime=false
 
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
