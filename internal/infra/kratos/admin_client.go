@@ -13,6 +13,7 @@ import (
 	"time"
 
 	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
+	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
 	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
 )
 
@@ -59,12 +60,15 @@ func (c *AdminClient) SetIdentityOshiColor(ctx context.Context, identityID, colo
 }
 
 func (c *AdminClient) replaceMetadataPublic(ctx context.Context, identityID string, metadata map[string]any) error {
-
-	payload, err := json.Marshal([]map[string]any{{
+	return c.sendJSONPatch(ctx, identityID, []map[string]any{{
 		"op":    "add",
 		"path":  "/metadata_public",
 		"value": metadata,
 	}})
+}
+
+func (c *AdminClient) sendJSONPatch(ctx context.Context, identityID string, ops []map[string]any) error {
+	payload, err := json.Marshal(ops)
 	if err != nil {
 		return fmt.Errorf("marshal identity patch: %w", err)
 	}
@@ -87,6 +91,91 @@ func (c *AdminClient) replaceMetadataPublic(ctx context.Context, identityID stri
 		return fmt.Errorf("kratos patch identity returned status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string) (profile.Profile, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), nil)
+	if err != nil {
+		return profile.Profile{}, fmt.Errorf("build kratos get identity profile request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return profile.Profile{}, fmt.Errorf("call kratos get identity profile: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get identity profile", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return profile.Profile{}, fmt.Errorf("kratos get identity profile returned status %d", resp.StatusCode)
+	}
+
+	var decoded struct {
+		ID     string `json:"id"`
+		Traits struct {
+			Email       string `json:"email"`
+			Phone       string `json:"phone"`
+			DisplayName string `json:"display_name"`
+		} `json:"traits"`
+		MetadataPublic json.RawMessage `json:"metadata_public"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return profile.Profile{}, fmt.Errorf("decode kratos get identity profile response: %w", err)
+	}
+
+	var meta profile.MetadataPublic
+	if err := meta.Unmarshal([]byte(decoded.MetadataPublic)); err != nil {
+		return profile.Profile{}, fmt.Errorf("decode identity metadata_public: %w", err)
+	}
+
+	return profile.Profile{
+		IdentityID:  decoded.ID,
+		Email:       decoded.Traits.Email,
+		Phone:       decoded.Traits.Phone,
+		DisplayName: decoded.Traits.DisplayName,
+		OshiColor:   meta.OshiColor,
+		OshiIDs:     meta.OshiIDs,
+		FanSince:    meta.FanSince,
+	}, nil
+}
+
+func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID string, input profile.UpdateInput) error {
+	var ops []map[string]any
+
+	if input.OshiColor != nil || input.OshiIDs != nil || input.FanSince != nil {
+		metadata, err := c.getMetadataPublic(ctx, identityID)
+		if err != nil {
+			return err
+		}
+		if input.OshiColor != nil {
+			metadata["oshi_color"] = *input.OshiColor
+		}
+		if input.OshiIDs != nil {
+			metadata["oshi_ids"] = *input.OshiIDs
+		}
+		if input.FanSince != nil {
+			metadata["fan_since"] = *input.FanSince
+		}
+		ops = append(ops, map[string]any{
+			"op":    "add",
+			"path":  "/metadata_public",
+			"value": metadata,
+		})
+	}
+
+	if input.DisplayName != nil {
+		ops = append(ops, map[string]any{
+			"op":    "add",
+			"path":  "/traits/display_name",
+			"value": *input.DisplayName,
+		})
+	}
+
+	if len(ops) == 0 {
+		return nil
+	}
+	return c.sendJSONPatch(ctx, identityID, ops)
 }
 
 func (c *AdminClient) SearchIdentities(ctx context.Context, input admindomain.SearchIdentitiesInput) ([]admindomain.Identity, error) {

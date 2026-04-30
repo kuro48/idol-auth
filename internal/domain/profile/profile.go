@@ -135,6 +135,15 @@ func parseFanSince(s string) (time.Time, bool) {
 	}
 }
 
+// UpdateInput carries the subset of profile fields the caller wants to change.
+// A nil pointer means "leave unchanged"; a non-nil pointer is written.
+type UpdateInput struct {
+	DisplayName *string
+	OshiColor   *string
+	OshiIDs     *[]string
+	FanSince    *string
+}
+
 // MetadataPublic is the structured representation of Kratos identity metadata_public.
 // It extends the existing oshi_color key with oshi_ids and fan_since.
 type MetadataPublic struct {
