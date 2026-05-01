@@ -633,6 +633,69 @@ func TestAuthServiceHandleConsentSkipInjectsSessionRolesIntoClaims(t *testing.T)
 	}
 }
 
+func TestAuthServiceSubmitConsentInjectsEmailIntoIDTokenWhenEmailScopeRequested(t *testing.T) {
+	stub := &stubHydraAuthClient{
+		consentRequest: HydraConsentRequest{
+			Subject:        "identity-123",
+			RequestedScope: []string{"openid", "email"},
+			Client:         HydraOAuthClient{ClientID: "third-party"},
+		},
+		consentRedirect: "http://hydra/auth?consent_verifier=accepted",
+	}
+	svc := NewAuthService("http://localhost:8080", stub, &stubKratosAuthClient{
+		session: KratosSession{
+			Active:                      true,
+			IdentityID:                  "identity-123",
+			Email:                       "user@example.com",
+			AuthenticatorAssuranceLevel: "aal2",
+			Methods:                     []string{"password", "totp"},
+		},
+	})
+
+	_, err := svc.SubmitConsent(context.Background(), httptest.NewRequest(http.MethodPost, "/", nil), "challenge-1", ConsentDecisionInput{Accept: true})
+	if err != nil {
+		t.Fatalf("SubmitConsent() error = %v", err)
+	}
+	email, ok := stub.receivedSession.IDToken["email"]
+	if !ok {
+		t.Fatal("expected email in id_token claims when email scope requested")
+	}
+	if email != "user@example.com" {
+		t.Fatalf("expected email=user@example.com in id_token, got %v", email)
+	}
+	if _, ok := stub.receivedSession.AccessToken["email"]; ok {
+		t.Fatal("email should not appear in access_token claims")
+	}
+}
+
+func TestAuthServiceSubmitConsentDoesNotInjectEmailWhenEmailScopeAbsent(t *testing.T) {
+	stub := &stubHydraAuthClient{
+		consentRequest: HydraConsentRequest{
+			Subject:        "identity-123",
+			RequestedScope: []string{"openid"},
+			Client:         HydraOAuthClient{ClientID: "third-party"},
+		},
+		consentRedirect: "http://hydra/auth?consent_verifier=accepted",
+	}
+	svc := NewAuthService("http://localhost:8080", stub, &stubKratosAuthClient{
+		session: KratosSession{
+			Active:                      true,
+			IdentityID:                  "identity-123",
+			Email:                       "user@example.com",
+			AuthenticatorAssuranceLevel: "aal2",
+			Methods:                     []string{"password", "totp"},
+		},
+	})
+
+	_, err := svc.SubmitConsent(context.Background(), httptest.NewRequest(http.MethodPost, "/", nil), "challenge-1", ConsentDecisionInput{Accept: true})
+	if err != nil {
+		t.Fatalf("SubmitConsent() error = %v", err)
+	}
+	if _, ok := stub.receivedSession.IDToken["email"]; ok {
+		t.Fatal("email should not appear in id_token when email scope not requested")
+	}
+}
+
 type stubHydraAuthClient struct {
 	loginRequest          HydraLoginRequest
 	loginRedirect         string

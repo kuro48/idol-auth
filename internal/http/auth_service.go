@@ -90,6 +90,15 @@ type authService struct {
 	memberships  MembershipRecorder
 }
 
+func scopeContains(scopes []string, target string) bool {
+	for _, s := range scopes {
+		if s == target {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizeRoles(roles []string) []string {
 	seen := make(map[string]struct{}, len(roles))
 	out := make([]string, 0, len(roles))
@@ -309,12 +318,18 @@ func (s *authService) SubmitConsent(ctx context.Context, r *http.Request, consen
 	}
 
 	roles := normalizeRoles(session.Roles)
-	claims := ConsentSessionClaims{}
+	atClaims := map[string]any{}
+	idClaims := map[string]any{}
 	if len(roles) > 0 {
-		claims = ConsentSessionClaims{
-			AccessToken: map[string]any{"roles": roles},
-			IDToken:     map[string]any{"roles": roles},
-		}
+		atClaims["roles"] = roles
+		idClaims["roles"] = roles
+	}
+	if scopeContains(consentRequest.RequestedScope, "email") && session.Email != "" {
+		idClaims["email"] = session.Email
+	}
+	claims := ConsentSessionClaims{}
+	if len(atClaims) > 0 || len(idClaims) > 0 {
+		claims = ConsentSessionClaims{AccessToken: atClaims, IDToken: idClaims}
 	}
 	redirectTo, err := s.hydra.AcceptConsentRequest(ctx, consentChallenge, consentRequest.RequestedScope, consentRequest.RequestedAccessTokenAudience, claims)
 	if err != nil {
