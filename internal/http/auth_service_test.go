@@ -633,6 +633,99 @@ func TestAuthServiceHandleConsentSkipInjectsSessionRolesIntoClaims(t *testing.T)
 	}
 }
 
+func TestAuthServiceSubmitConsentInjectsProfileClaimsWhenProfileScopeRequested(t *testing.T) {
+	stub := &stubHydraAuthClient{
+		consentRequest: HydraConsentRequest{
+			Subject:        "identity-123",
+			RequestedScope: []string{"openid", "profile"},
+			Client:         HydraOAuthClient{ClientID: "third-party"},
+		},
+		consentRedirect: "http://hydra/auth?consent_verifier=accepted",
+	}
+	svc := NewAuthService("http://localhost:8080", stub, &stubKratosAuthClient{
+		session: KratosSession{
+			Active:                      true,
+			IdentityID:                  "identity-123",
+			DisplayName:                 "推し活太郎",
+			OshiColor:                   "#ffb2d8",
+			OshiIDs:                     []string{"idol-1", "idol-2"},
+			FanSince:                    "2020-04",
+			AuthenticatorAssuranceLevel: "aal2",
+			Methods:                     []string{"password", "totp"},
+		},
+	})
+
+	_, err := svc.SubmitConsent(context.Background(), httptest.NewRequest(http.MethodPost, "/", nil), "challenge-1", ConsentDecisionInput{Accept: true})
+	if err != nil {
+		t.Fatalf("SubmitConsent() error = %v", err)
+	}
+	if v, ok := stub.receivedSession.IDToken["display_name"]; !ok || v != "推し活太郎" {
+		t.Fatalf("expected display_name=推し活太郎 in id_token, got %v (ok=%v)", v, ok)
+	}
+	if v, ok := stub.receivedSession.IDToken["oshi_color"]; !ok || v != "#ffb2d8" {
+		t.Fatalf("expected oshi_color in id_token, got %v (ok=%v)", v, ok)
+	}
+	if _, ok := stub.receivedSession.AccessToken["display_name"]; ok {
+		t.Fatal("display_name must not appear in access_token claims")
+	}
+}
+
+func TestAuthServiceSubmitConsentDoesNotInjectProfileClaimsWhenProfileScopeAbsent(t *testing.T) {
+	stub := &stubHydraAuthClient{
+		consentRequest: HydraConsentRequest{
+			Subject:        "identity-123",
+			RequestedScope: []string{"openid"},
+			Client:         HydraOAuthClient{ClientID: "third-party"},
+		},
+		consentRedirect: "http://hydra/auth?consent_verifier=accepted",
+	}
+	svc := NewAuthService("http://localhost:8080", stub, &stubKratosAuthClient{
+		session: KratosSession{
+			Active:                      true,
+			IdentityID:                  "identity-123",
+			DisplayName:                 "推し活太郎",
+			OshiColor:                   "#ffb2d8",
+			AuthenticatorAssuranceLevel: "aal2",
+			Methods:                     []string{"password", "totp"},
+		},
+	})
+
+	_, err := svc.SubmitConsent(context.Background(), httptest.NewRequest(http.MethodPost, "/", nil), "challenge-1", ConsentDecisionInput{Accept: true})
+	if err != nil {
+		t.Fatalf("SubmitConsent() error = %v", err)
+	}
+	if _, ok := stub.receivedSession.IDToken["display_name"]; ok {
+		t.Fatal("display_name must not appear in id_token when profile scope not requested")
+	}
+}
+
+func TestAuthServiceHandleConsentSkipInjectsProfileClaimsWhenProfileScopeRequested(t *testing.T) {
+	stub := &stubHydraAuthClient{
+		consentRequest: HydraConsentRequest{
+			Skip:           true,
+			RequestedScope: []string{"openid", "profile"},
+		},
+		consentRedirect: "http://hydra/auth?consent_verifier=skipped",
+	}
+	svc := NewAuthService("http://localhost:8080", stub, &stubKratosAuthClient{
+		session: KratosSession{
+			Active:                      true,
+			DisplayName:                 "推し活太郎",
+			OshiColor:                   "#ffb2d8",
+			AuthenticatorAssuranceLevel: "aal2",
+			Methods:                     []string{"password", "totp"},
+		},
+	})
+
+	_, err := svc.HandleConsent(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil), "challenge-1")
+	if err != nil {
+		t.Fatalf("HandleConsent() error = %v", err)
+	}
+	if v, ok := stub.receivedSession.IDToken["display_name"]; !ok || v != "推し活太郎" {
+		t.Fatalf("expected display_name in id_token for skip path, got %v (ok=%v)", v, ok)
+	}
+}
+
 func TestAuthServiceSubmitConsentInjectsEmailIntoIDTokenWhenEmailScopeRequested(t *testing.T) {
 	stub := &stubHydraAuthClient{
 		consentRequest: HydraConsentRequest{

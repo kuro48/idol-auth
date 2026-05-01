@@ -45,8 +45,11 @@ type KratosSession struct {
 	Active                      bool
 	IdentityID                  string
 	Email                       string
-	Roles                       []string
+	DisplayName                 string
 	OshiColor                   string
+	OshiIDs                     []string
+	FanSince                    string
+	Roles                       []string
 	Methods                     []string
 	AuthenticatorAssuranceLevel string
 }
@@ -226,7 +229,7 @@ func (s *authService) HandleConsent(ctx context.Context, r *http.Request, consen
 		if err := s.validateConsentSessionSubject(ctx, r, consentRequest.Subject); err != nil {
 			return ConsentFlowResult{}, err
 		}
-		claims := s.buildConsentSessionClaims(ctx, r)
+		claims := s.buildConsentSessionClaims(ctx, r, consentRequest.RequestedScope)
 		redirectTo, err := s.hydra.AcceptConsentRequest(ctx, consentChallenge, consentRequest.RequestedScope, consentRequest.RequestedAccessTokenAudience, claims)
 		if err != nil {
 			return ConsentFlowResult{}, fmt.Errorf("accept hydra consent request: %w", err)
@@ -284,7 +287,7 @@ func (s *authService) SubmitConsent(ctx context.Context, r *http.Request, consen
 		if err := s.validateConsentSessionSubject(ctx, r, consentRequest.Subject); err != nil {
 			return AuthFlowResult{}, err
 		}
-		claims := s.buildConsentSessionClaims(ctx, r)
+		claims := s.buildConsentSessionClaims(ctx, r, consentRequest.RequestedScope)
 		redirectTo, err := s.hydra.AcceptConsentRequest(ctx, consentChallenge, consentRequest.RequestedScope, consentRequest.RequestedAccessTokenAudience, claims)
 		if err != nil {
 			return AuthFlowResult{}, fmt.Errorf("accept hydra consent request: %w", err)
@@ -317,20 +320,7 @@ func (s *authService) SubmitConsent(ctx context.Context, r *http.Request, consen
 		return AuthFlowResult{RedirectTo: redirectTo}, nil
 	}
 
-	roles := normalizeRoles(session.Roles)
-	atClaims := map[string]any{}
-	idClaims := map[string]any{}
-	if len(roles) > 0 {
-		atClaims["roles"] = roles
-		idClaims["roles"] = roles
-	}
-	if scopeContains(consentRequest.RequestedScope, "email") && session.Email != "" {
-		idClaims["email"] = session.Email
-	}
-	claims := ConsentSessionClaims{}
-	if len(atClaims) > 0 || len(idClaims) > 0 {
-		claims = ConsentSessionClaims{AccessToken: atClaims, IDToken: idClaims}
-	}
+	claims := buildClaims(session, consentRequest.RequestedScope)
 	redirectTo, err := s.hydra.AcceptConsentRequest(ctx, consentChallenge, consentRequest.RequestedScope, consentRequest.RequestedAccessTokenAudience, claims)
 	if err != nil {
 		return AuthFlowResult{}, fmt.Errorf("accept hydra consent request: %w", err)
@@ -392,22 +382,43 @@ func (s *authService) consentReturnURL(consentChallenge string) string {
 	return u.String()
 }
 
-// buildConsentSessionClaims fetches the active Kratos session and returns claims
-// containing the session's normalized roles. Returns empty claims on any error or
-// when the session is inactive, so callers always get a valid (possibly empty) value.
-func (s *authService) buildConsentSessionClaims(ctx context.Context, r *http.Request) ConsentSessionClaims {
+func (s *authService) buildConsentSessionClaims(ctx context.Context, r *http.Request, scopes []string) ConsentSessionClaims {
 	session, err := s.kratos.ToSession(ctx, r)
 	if err != nil || !session.Active {
 		return ConsentSessionClaims{}
 	}
+	return buildClaims(session, scopes)
+}
+
+func buildClaims(session KratosSession, scopes []string) ConsentSessionClaims {
+	atClaims := map[string]any{}
+	idClaims := map[string]any{}
 	roles := normalizeRoles(session.Roles)
-	if len(roles) == 0 {
+	if len(roles) > 0 {
+		atClaims["roles"] = roles
+		idClaims["roles"] = roles
+	}
+	if scopeContains(scopes, "email") && session.Email != "" {
+		idClaims["email"] = session.Email
+	}
+	if scopeContains(scopes, "profile") {
+		if session.DisplayName != "" {
+			idClaims["display_name"] = session.DisplayName
+		}
+		if session.OshiColor != "" {
+			idClaims["oshi_color"] = session.OshiColor
+		}
+		if len(session.OshiIDs) > 0 {
+			idClaims["oshi_ids"] = session.OshiIDs
+		}
+		if session.FanSince != "" {
+			idClaims["fan_since"] = session.FanSince
+		}
+	}
+	if len(atClaims) == 0 && len(idClaims) == 0 {
 		return ConsentSessionClaims{}
 	}
-	return ConsentSessionClaims{
-		AccessToken: map[string]any{"roles": roles},
-		IDToken:     map[string]any{"roles": roles},
-	}
+	return ConsentSessionClaims{AccessToken: atClaims, IDToken: idClaims}
 }
 
 func (s *authService) validateConsentSessionSubject(ctx context.Context, r *http.Request, subject string) error {

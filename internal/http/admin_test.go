@@ -1094,6 +1094,82 @@ func (s *stubAccountService) GetMembershipForApp(_ context.Context, _ uuid.UUID,
 	return account.AppMembership{}, nil
 }
 
+func TestAccountDeletionCancelReturnsNoContent(t *testing.T) {
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodDelete, "/v1/account/deletion", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusNoContent, w.Code, w.Body.String())
+	}
+}
+
+func TestAccountGetDeletionRequestReturnsScheduledDeletion(t *testing.T) {
+	deletionID := uuid.New()
+	accountSvc := &stubAccountService{
+		deletionRequest: &account.DeletionRequest{
+			ID:         deletionID,
+			IdentityID: "identity-123",
+			Status:     account.DeletionStatusScheduled,
+		},
+	}
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, accountSvc)
+	req := httptest.NewRequest(http.MethodGet, "/v1/account/deletion", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"scheduled"`) {
+		t.Fatalf("expected deletion status in response, got %s", w.Body.String())
+	}
+}
+
+func TestAppScopedDeleteUserDoesNotDeleteSharedIdentity(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{
+		resolvedApp: app.App{
+			ID:   appID,
+			Slug: "idol-web",
+			Name: "Idol Web",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	req := httptest.NewRequest(http.MethodDelete, "/v1/apps/self/users/identity-123", nil)
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusNoContent, w.Code, w.Body.String())
+	}
+	if accountSvc.revokedIdentityID != "identity-123" {
+		t.Fatalf("expected RevokeAppUser called with identity-123, got %q", accountSvc.revokedIdentityID)
+	}
+	// disconnectedIdentityID must remain empty — app-scoped delete must never call
+	// DisconnectIdentityFromApp (the admin-side full unlink path).
+	if accountSvc.disconnectedIdentityID != "" {
+		t.Fatal("DisconnectIdentityFromApp must not be called by app-scoped delete endpoint")
+	}
+}
+
 func TestRegisterAppUser_RequiresAppToken(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"email":"u@example.com"}`))

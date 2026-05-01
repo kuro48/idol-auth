@@ -63,11 +63,14 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 		Identity struct {
 			ID     string `json:"id"`
 			Traits struct {
-				Email string `json:"email"`
+				Email       string `json:"email"`
+				DisplayName string `json:"display_name"`
 			} `json:"traits"`
 			MetadataPublic struct {
 				Roles     []string `json:"roles"`
 				OshiColor string   `json:"oshi_color"`
+				OshiIDs   []string `json:"oshi_ids"`
+				FanSince  string   `json:"fan_since"`
 			} `json:"metadata_public"`
 		} `json:"identity"`
 	}
@@ -84,8 +87,11 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 		Active:                      decoded.Active,
 		IdentityID:                  decoded.Identity.ID,
 		Email:                       decoded.Identity.Traits.Email,
+		DisplayName:                 decoded.Identity.Traits.DisplayName,
 		Roles:                       decoded.Identity.MetadataPublic.Roles,
 		OshiColor:                   oshi.NormalizeColor(decoded.Identity.MetadataPublic.OshiColor),
+		OshiIDs:                     decoded.Identity.MetadataPublic.OshiIDs,
+		FanSince:                    decoded.Identity.MetadataPublic.FanSince,
 		Methods:                     methods,
 		AuthenticatorAssuranceLevel: decoded.AuthenticatorAssuranceLevel,
 	}, nil
