@@ -19,7 +19,7 @@ echo "==> Rendering production config"
 ./scripts/render-production-config.sh
 
 echo "==> Validating application config"
-make config-check
+go run ./cmd/configcheck
 
 echo "==> Validating production compose"
 docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml config >/dev/null

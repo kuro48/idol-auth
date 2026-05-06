@@ -111,3 +111,21 @@ make nix-deploy-production
 ```
 
 詳細は [docs/deployment.md](docs/deployment.md) を参照してください。
+
+## 軽量デプロイ
+
+`main` には docs、demo、tests を残したまま、別サーバー向けには最小構成だけを切り出せます。
+
+```bash
+make production-bundle
+```
+
+これで `dist/production-bundle/` に、本番運用に必要なファイルだけを出力します。docs の Markdown、demo、integration test、開発用スクリプトは含みません。
+
+同じ内容を Git branch として配りたい場合は、次で `deploy` branch に最小構成だけを force-push できます。
+
+```bash
+make publish-deploy-branch
+```
+
+別サーバーでは `deploy` branch を clone して、`.env.production` を置いた上で `./scripts/deploy-production.sh` を実行してください。

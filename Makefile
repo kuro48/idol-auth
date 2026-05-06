@@ -18,7 +18,7 @@ COMPOSE_ENV = POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 	DEMO_APP_URL=$(DEMO_APP_URL) \
 	CORS_ALLOWED_ORIGINS=$(CORS_ALLOWED_ORIGINS)
 
-.PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres
+.PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config production-bundle publish-deploy-branch nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres
 
 up:
 	$(COMPOSE_ENV) docker compose up -d --build
@@ -44,6 +44,12 @@ config-check:
 
 render-production-config:
 	./scripts/render-production-config.sh
+
+production-bundle:
+	./scripts/build-production-bundle.sh
+
+publish-deploy-branch:
+	./scripts/publish-deploy-branch.sh
 
 nix-develop:
 	nix --extra-experimental-features "nix-command flakes" develop
