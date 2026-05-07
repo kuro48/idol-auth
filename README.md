@@ -128,6 +128,6 @@ make production-bundle
 make publish-deploy-branch
 ```
 
-別サーバーでは `deploy` branch を clone して、`.env.production` を置いた上で `./scripts/deploy-production.sh` を実行してください。
+別サーバーでは `deploy` branch を clone して、`.env.production` を置いた上で `./scripts/deploy-production.sh` を実行してください。host 側の前提は `Docker / Docker Compose / bash / perl / curl` です。Go toolchain は不要です。
 
 `.env.production` は shell script として `source` されず、専用 loader で読み込まれます。DSN や secret に `&` などの文字が入っていても deploy script 側でそのまま扱えます。

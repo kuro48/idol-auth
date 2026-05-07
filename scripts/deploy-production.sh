@@ -17,7 +17,8 @@ echo "==> Rendering production config"
 ./scripts/render-production-config.sh
 
 echo "==> Validating application config"
-go run ./cmd/configcheck
+configcheck_image="$(docker build -q --target configcheck .)"
+docker run --rm --env-file "$ENV_FILE" "$configcheck_image"
 
 echo "==> Validating production compose"
 docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml config >/dev/null
