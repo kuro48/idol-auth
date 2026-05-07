@@ -22,12 +22,14 @@ include_paths=(
   deploy/postgres
   docs/swagger/docs.go
   internal/config
+  internal/demo
   internal/domain
   internal/http
   internal/infra
   internal/oshi
   scripts/backup-postgres.sh
   scripts/deploy-production.sh
+  scripts/export-env-file.sh
   scripts/render-production-config.sh
 )
 

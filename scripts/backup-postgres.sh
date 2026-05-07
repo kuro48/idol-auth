@@ -12,9 +12,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-set -a
-. "$ENV_FILE"
-set +a
+eval "$("$ROOT_DIR/scripts/export-env-file.sh" "$ENV_FILE")"
 
 mkdir -p "$BACKUP_DIR"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"

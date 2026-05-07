@@ -11,9 +11,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-set -a
-. "$ENV_FILE"
-set +a
+eval "$("$ROOT_DIR/scripts/export-env-file.sh" "$ENV_FILE")"
 
 echo "==> Rendering production config"
 ./scripts/render-production-config.sh
