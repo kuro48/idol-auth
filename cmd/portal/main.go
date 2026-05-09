@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/demo"
-	kratosinfra "github.com/ryunosukekurokawa/idol-auth/internal/infra/kratos"
+	"github.com/kuro48/idol-auth/internal/demo"
+	kratosinfra "github.com/kuro48/idol-auth/internal/infra/kratos"
 )
 
 func main() {

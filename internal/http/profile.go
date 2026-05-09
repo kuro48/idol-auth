@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
-	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
+	"github.com/kuro48/idol-auth/internal/oshi"
 )
 
 func (s *server) handleGetProfile(w http.ResponseWriter, r *http.Request) {

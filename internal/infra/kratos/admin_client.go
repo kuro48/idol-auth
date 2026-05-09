@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
-	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
-	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
+	"github.com/kuro48/idol-auth/internal/domain/account"
+	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
+	"github.com/kuro48/idol-auth/internal/oshi"
 )
 
 type AdminClient struct {

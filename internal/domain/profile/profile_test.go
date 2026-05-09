@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 )
 
 // ---- FanYears ----

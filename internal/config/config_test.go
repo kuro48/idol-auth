@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/config"
+	"github.com/kuro48/idol-auth/internal/config"
 )
 
 // setRequiredOryVars sets the Ory-related required env vars for the duration of the test.

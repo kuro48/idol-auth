@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/config"
-	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
+	"github.com/kuro48/idol-auth/internal/config"
+	apphttp "github.com/kuro48/idol-auth/internal/http"
 )
 
 func TestHandleHealthz(t *testing.T) {

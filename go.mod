@@ -1,4 +1,4 @@
-module github.com/ryunosukekurokawa/idol-auth
+module github.com/kuro48/idol-auth
 
 go 1.25.0
 

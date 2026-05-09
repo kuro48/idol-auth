@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/app"
 )
 
 type AdminClient struct {

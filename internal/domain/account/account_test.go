@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
+	"github.com/kuro48/idol-auth/internal/domain/account"
+	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/audit"
 )
 
 // ---- mock implementations ----

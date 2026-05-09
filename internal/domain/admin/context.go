@@ -3,7 +3,7 @@ package admin
 import (
 	"context"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
+	"github.com/kuro48/idol-auth/internal/domain/audit"
 )
 
 type auditContextKey string

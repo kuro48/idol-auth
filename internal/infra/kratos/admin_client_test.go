@@ -9,9 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
-	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
+	"github.com/kuro48/idol-auth/internal/domain/account"
+	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 )
 
 func TestAdminClientSearchIdentitiesBuildsFiltersAndParsesResponse(t *testing.T) {

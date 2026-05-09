@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
+	"github.com/kuro48/idol-auth/internal/oshi"
 )
 
 var ErrNoActiveSession = errors.New("no active session")

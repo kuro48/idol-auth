@@ -1,6 +1,6 @@
 package admin
 
-import "github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
+import "github.com/kuro48/idol-auth/internal/domain/audit"
 
 type IdentityState string
 

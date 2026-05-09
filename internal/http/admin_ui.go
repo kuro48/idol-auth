@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"strings"
 
-	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
+	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
+	"github.com/kuro48/idol-auth/internal/domain/app"
 )
 
 func (s *server) adminUIAuth(next http.Handler) http.Handler {

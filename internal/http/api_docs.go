@@ -3,7 +3,7 @@ package http
 import (
 	"net/http"
 
-	swaggerdocs "github.com/ryunosukekurokawa/idol-auth/docs/swagger"
+	swaggerdocs "github.com/kuro48/idol-auth/docs/swagger"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 

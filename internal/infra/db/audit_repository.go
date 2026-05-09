@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
+	"github.com/kuro48/idol-auth/internal/domain/audit"
 )
 
 type AuditRepository struct {

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
+	"github.com/kuro48/idol-auth/internal/domain/audit"
 )
 
 func TestServiceCreateApp(t *testing.T) {

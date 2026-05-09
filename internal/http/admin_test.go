@@ -11,13 +11,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/ryunosukekurokawa/idol-auth/internal/config"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
-	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/audit"
-	profiledomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
-	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
+	"github.com/kuro48/idol-auth/internal/config"
+	"github.com/kuro48/idol-auth/internal/domain/account"
+	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
+	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/audit"
+	profiledomain "github.com/kuro48/idol-auth/internal/domain/profile"
+	apphttp "github.com/kuro48/idol-auth/internal/http"
 )
 
 func TestAdminCreateAppRequiresAuthorization(t *testing.T) {

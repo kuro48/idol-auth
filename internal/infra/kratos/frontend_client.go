@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
-	"github.com/ryunosukekurokawa/idol-auth/internal/oshi"
+	apphttp "github.com/kuro48/idol-auth/internal/http"
+	"github.com/kuro48/idol-auth/internal/oshi"
 )
 
 type FrontendClient struct {

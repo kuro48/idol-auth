@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/demo"
+	"github.com/kuro48/idol-auth/internal/demo"
 )
 
 func TestSanitizeTokenResponse(t *testing.T) {

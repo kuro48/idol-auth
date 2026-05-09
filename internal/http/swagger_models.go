@@ -1,6 +1,6 @@
 package http
 
-import "github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
+import "github.com/kuro48/idol-auth/internal/domain/app"
 
 type swaggerStatusResponse struct {
 	Status string `json:"status" example:"ok"`

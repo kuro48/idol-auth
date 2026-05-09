@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	profiledomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
-	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
+	profiledomain "github.com/kuro48/idol-auth/internal/domain/profile"
+	apphttp "github.com/kuro48/idol-auth/internal/http"
 )
 
 type stubProfileService struct {

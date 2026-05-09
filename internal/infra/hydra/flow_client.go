@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	apphttp "github.com/ryunosukekurokawa/idol-auth/internal/http"
+	apphttp "github.com/kuro48/idol-auth/internal/http"
 )
 
 type FlowClient struct {

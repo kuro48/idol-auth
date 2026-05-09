@@ -18,11 +18,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
-	"github.com/ryunosukekurokawa/idol-auth/internal/config"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/account"
-	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/app"
-	"github.com/ryunosukekurokawa/idol-auth/internal/domain/profile"
+	"github.com/kuro48/idol-auth/internal/config"
+	"github.com/kuro48/idol-auth/internal/domain/account"
+	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
+	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 )
 
 var (

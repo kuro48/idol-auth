@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ryunosukekurokawa/idol-auth/internal/config"
+	"github.com/kuro48/idol-auth/internal/config"
 )
 
 func main() {

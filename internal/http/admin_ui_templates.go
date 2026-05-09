@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	admindomain "github.com/ryunosukekurokawa/idol-auth/internal/domain/admin"
+	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 )
 
 var adminUITpl = template.Must(template.New("admin-ui").Funcs(template.FuncMap{
