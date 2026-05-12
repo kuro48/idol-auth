@@ -151,21 +151,11 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  caddy:
-    image: caddy:2-alpine
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
     environment:
-      ACME_EMAIL: ${ACME_EMAIL}
-      APP_HOSTNAME: ${APP_HOSTNAME}
-      PORTAL_HOSTNAME: ${PORTAL_HOSTNAME}
-      HYDRA_HOSTNAME: ${HYDRA_HOSTNAME}
-      ADMIN_ALLOWED_CIDR: ${ADMIN_ALLOWED_CIDR:-}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       app:
         condition: service_started
@@ -178,5 +168,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  caddy_data:
-  caddy_config:
