@@ -5,28 +5,11 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/dist/production-bundle}"
 
 include_paths=(
-  .gitignore
-  .dockerignore
   .env.production.example
-  Dockerfile
   docker-compose.production.yml
-  go.mod
-  go.sum
-  cmd/configcheck
-  cmd/migrate
-  cmd/portal
-  cmd/server
-  deploy/caddy
   deploy/hydra
   deploy/kratos
   deploy/postgres
-  docs/swagger/docs.go
-  internal/config
-  internal/demo
-  internal/domain
-  internal/http
-  internal/infra
-  internal/oshi
   scripts/backup-postgres.sh
   scripts/deploy-production.sh
   scripts/export-env-file.sh

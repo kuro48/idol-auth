@@ -17,17 +17,16 @@ echo "==> Rendering production config"
 ./scripts/render-production-config.sh
 
 echo "==> Validating application config"
-configcheck_image="$(docker build -q --target configcheck .)"
-docker run --rm --env-file "$ENV_FILE" "$configcheck_image"
+docker run --rm --env-file "$ENV_FILE" ghcr.io/kuro48/idol-auth/configcheck:latest
 
 echo "==> Validating production compose"
 docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml config >/dev/null
 
-echo "==> Pulling base images"
-docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml pull || true
+echo "==> Pulling images"
+docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml pull
 
 echo "==> Deploying production stack"
-docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml up -d --build
+docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml up -d
 
 echo "==> Waiting for app readiness"
 for _ in $(seq 1 60); do

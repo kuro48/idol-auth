@@ -87,9 +87,8 @@ services:
     restart: unless-stopped
 
   migrate:
-    build:
-      context: .
-      target: migrate
+    image: ghcr.io/kuro48/idol-auth/migrate:latest
+    pull_policy: always
     environment:
       DATABASE_URL: ${DATABASE_URL}
     depends_on:
@@ -98,9 +97,8 @@ services:
     restart: on-failure
 
   app:
-    build:
-      context: .
-      target: app
+    image: ghcr.io/kuro48/idol-auth/app:latest
+    pull_policy: always
     environment:
       APP_ENV: production
       APP_PORT: 8080
@@ -135,9 +133,8 @@ services:
     restart: unless-stopped
 
   portal:
-    build:
-      context: .
-      target: portal
+    image: ghcr.io/kuro48/idol-auth/portal:latest
+    pull_policy: always
     environment:
       PORTAL_PORT: 3003
       PORTAL_APP_URL: ${PORTAL_APP_URL}
