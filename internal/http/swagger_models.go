@@ -84,6 +84,10 @@ type swaggerManagementTokenResponse struct {
 	ManagementToken string `json:"management_token" example:"iat_0123456789abcdef"`
 }
 
+type swaggerSetPartyTypeRequest struct {
+	PartyType string `json:"party_type" example:"first_party"`
+}
+
 type swaggerAppListResponse struct {
 	Items []app.App `json:"items"`
 }
@@ -172,4 +176,21 @@ type swaggerDeletionRequest struct {
 	CancelledAt  *string `json:"cancelled_at,omitempty" example:"2026-05-01T00:00:00Z"`
 	CompletedAt  *string `json:"completed_at,omitempty" example:"2026-05-07T00:00:00Z"`
 	LastActorID  string  `json:"last_actor_id,omitempty" example:"identity-123"`
+}
+
+type swaggerRegisterRequest struct {
+	Email       string `json:"email" example:"user@example.com"`
+	Password    string `json:"password" example:"correct horse battery staple"`
+	DisplayName string `json:"display_name,omitempty" example:"Idol Fan"`
+}
+
+type swaggerLoginRequest struct {
+	Identifier string `json:"identifier" example:"user@example.com"`
+	Password   string `json:"password" example:"correct horse battery staple"`
+}
+
+type swaggerAuthResult struct {
+	SessionToken string `json:"session_token" example:"ory_st_..."`
+	IdentityID   string `json:"identity_id" example:"8a7b9e7b-0f84-4f54-a7e7-1ef8d8aa4f73"`
+	Email        string `json:"email" example:"user@example.com"`
 }

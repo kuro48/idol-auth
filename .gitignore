@@ -8,6 +8,8 @@
 /bin/
 /out/
 /dist/
+/sdk/dist/
+node_modules/
 /server
 /portal
 /demo

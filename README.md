@@ -10,6 +10,7 @@
 
 - Hydra の login / consent / logout を処理する認証ブリッジ API
 - アプリ登録、OIDC クライアント発行、共有アカウント連携、監査ログ取得を行う API 群
+- ブラウザリダイレクトと headless auth を扱う Public API と TypeScript SDK
 
 ## 開発者向け概要
 
@@ -77,6 +78,7 @@ go run ./cmd/configcheck
 - `internal/http`: HTTP ルーティングと auth/admin フロー
 - `internal/domain`: アプリ登録、管理操作、監査ログのドメイン
 - `internal/infra`: DB、Hydra、Kratos 連携
+- `sdk`: 公開 API 用 TypeScript SDK
 - `integration`: E2E 相当の統合テスト
 
 ## ドキュメント
@@ -88,6 +90,32 @@ go run ./cmd/configcheck
 - [セキュリティポリシー](SECURITY.md)
 - [ライセンス](LICENSE)
 
+## Public API / SDK
+
+公開クライアントは `/v1/public/*` を使います。
+
+- Browser flow: `/v1/public/browser/login`, `/registration`, `/logout`
+- OAuth2 token proxy: `/v1/public/api/token`, `/token/revoke`, `/token/introspect`
+- Headless auth: `/v1/public/api/register`, `/login`, `/session`
+
+TypeScript SDK は `sdk/` にあります。
+
+```bash
+cd sdk
+npm install
+npm run build
+```
+
+```ts
+import { IdolAuthClient } from "@idol-auth/client";
+
+const auth = new IdolAuthClient({ baseUrl: "http://localhost:8080" });
+const result = await auth.login({
+  identifier: "user@example.com",
+  password: "<password>",
+});
+```
+
 ## Shared Account Model
 
 - Kratos identity が共有アカウント本体です。複数アプリで同じ identity を使います。
@@ -96,6 +124,7 @@ go run ./cmd/configcheck
 - 共有アカウント本体の完全削除は `POST /v1/account/deletion` で中央管理します。
 - app-scoped API は app 作成時または `POST /v1/admin/apps/{appID}/management-token` で発行される `management_token` を使います。
 - 共有アカウント本人向けの画面は `http://localhost:8080/account/` です。プロフィール更新、連携 app の確認/解除、共有アカウント削除予約をここで行います。
+- first-party / third-party の切り替えは `PATCH /v1/admin/apps/{appID}/party-type` または `adminctl set-first-party` で行います。
 
 ## 本番デプロイ
 

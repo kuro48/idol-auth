@@ -1,6 +1,9 @@
 package http_test
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -209,6 +212,91 @@ func TestRateLimitNotAppliedToHealthCheck(t *testing.T) {
 	}
 }
 
+func TestPublicLoginDoesNotExposeUpstreamError(t *testing.T) {
+	cfg := testConfig()
+	cfg.PublicSvc = &stubPublicService{
+		loginErr: errors.New("kratos returned 400: password policy details"),
+	}
+	router := apphttp.NewRouter(cfg, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/v1/public/api/login", bytes.NewBufferString(`{"identifier":"user@example.com","password":"bad"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "invalid credentials") {
+		t.Fatalf("expected generic error, got %s", body)
+	}
+	if strings.Contains(body, "kratos") || strings.Contains(body, "password policy") {
+		t.Fatalf("expected upstream details to be hidden, got %s", body)
+	}
+}
+
+func TestPublicRegisterRejectsUnknownJSONFields(t *testing.T) {
+	cfg := testConfig()
+	cfg.PublicSvc = &stubPublicService{}
+	router := apphttp.NewRouter(cfg, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/v1/public/api/register", bytes.NewBufferString(`{"email":"user@example.com","password":"secret","role":"admin"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "invalid JSON body") {
+		t.Fatalf("expected invalid JSON body error, got %s", w.Body.String())
+	}
+}
+
 type alwaysDenyLimiter struct{}
 
 func (l *alwaysDenyLimiter) Allow(_ string) bool { return false }
+
+type stubPublicService struct {
+	registerResult apphttp.AuthResult
+	registerErr    error
+	loginResult    apphttp.AuthResult
+	loginErr       error
+}
+
+func (s *stubPublicService) LoginURL(_ map[string]string) string { return "" }
+
+func (s *stubPublicService) RegistrationURL(_ string) string { return "" }
+
+func (s *stubPublicService) LogoutURL(_ map[string]string) string { return "" }
+
+func (s *stubPublicService) Token(_ context.Context, _ []byte) ([]byte, int, error) {
+	return nil, http.StatusOK, nil
+}
+
+func (s *stubPublicService) Revoke(_ context.Context, _ []byte) ([]byte, int, error) {
+	return nil, http.StatusOK, nil
+}
+
+func (s *stubPublicService) Introspect(_ context.Context, _ []byte) ([]byte, int, error) {
+	return nil, http.StatusOK, nil
+}
+
+func (s *stubPublicService) GetSession(_ context.Context, _ string) (apphttp.PublicSessionView, error) {
+	return apphttp.PublicSessionView{}, nil
+}
+
+func (s *stubPublicService) Register(_ context.Context, _ apphttp.RegisterInput) (apphttp.AuthResult, error) {
+	if s.registerErr != nil {
+		return apphttp.AuthResult{}, s.registerErr
+	}
+	return s.registerResult, nil
+}
+
+func (s *stubPublicService) Login(_ context.Context, _ apphttp.LoginInput) (apphttp.AuthResult, error) {
+	if s.loginErr != nil {
+		return apphttp.AuthResult{}, s.loginErr
+	}
+	return s.loginResult, nil
+}

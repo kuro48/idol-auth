@@ -185,6 +185,22 @@ func swaggerAdminListOIDCClientsDoc() {}
 // @Router /v1/admin/apps/{appID}/clients [post]
 func swaggerAdminCreateOIDCClientDoc() {}
 
+// @Summary Update app party type
+// @Description 指定 app の party_type を first_party または third_party に更新します。mutating admin request のため bootstrap token が必要です。
+// @Tags Admin Apps
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param appID path string true "App ID"
+// @Param request body swaggerSetPartyTypeRequest true "party type update request"
+// @Success 200 {object} app.App
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 403 {object} swaggerErrorResponse
+// @Failure 404 {object} swaggerErrorResponse
+// @Router /v1/admin/apps/{appID}/party-type [patch]
+func swaggerAdminSetAppPartyTypeDoc() {}
+
 // @Summary Search users
 // @Description Kratos identity を identifier と state で検索します。
 // @Tags Admin Users
@@ -345,3 +361,121 @@ func swaggerAppSelfListUsersDoc() {}
 // @Failure 404 {object} swaggerErrorResponse
 // @Router /v1/apps/self/users/{identityID} [delete]
 func swaggerAppSelfRevokeUserDoc() {}
+
+// @Summary Browser login URL
+// @Description Hydra authorization request 用の browser login URL を返します。
+// @Tags Public
+// @Produce json
+// @Param client_id query string true "OIDC client ID"
+// @Param redirect_uri query string true "OIDC redirect URI"
+// @Param response_type query string false "OIDC response type" default(code)
+// @Param scope query string false "OIDC scopes"
+// @Param state query string false "OIDC state"
+// @Param nonce query string false "OIDC nonce"
+// @Param code_challenge query string false "PKCE code challenge"
+// @Param code_challenge_method query string false "PKCE method"
+// @Success 302 {string} string "Found"
+// @Failure 400 {object} swaggerErrorResponse
+// @Router /v1/public/browser/login [get]
+func swaggerPublicBrowserLoginDoc() {}
+
+// @Summary Browser registration URL
+// @Description Kratos browser registration URL へリダイレクトします。
+// @Tags Public
+// @Produce json
+// @Param return_to query string false "return URL after registration"
+// @Success 302 {string} string "Found"
+// @Router /v1/public/browser/registration [get]
+func swaggerPublicBrowserRegistrationDoc() {}
+
+// @Summary Browser logout URL
+// @Description OIDC logout URL へリダイレクトします。
+// @Tags Public
+// @Produce json
+// @Param id_token_hint query string false "ID token hint"
+// @Param post_logout_redirect_uri query string false "Post logout redirect URI"
+// @Param state query string false "OIDC state"
+// @Success 302 {string} string "Found"
+// @Router /v1/public/browser/logout [get]
+func swaggerPublicBrowserLogoutDoc() {}
+
+// @Summary Exchange OAuth2 token
+// @Description Hydra /oauth2/token へ form-encoded request をプロキシします。
+// @Tags Public API
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Param grant_type formData string true "OAuth2 grant type"
+// @Param code formData string false "Authorization code"
+// @Param redirect_uri formData string false "Redirect URI"
+// @Param client_id formData string false "Client ID"
+// @Param client_secret formData string false "Client secret"
+// @Param code_verifier formData string false "PKCE code verifier"
+// @Param refresh_token formData string false "Refresh token"
+// @Success 200 {object} map[string]any
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Router /v1/public/api/token [post]
+func swaggerPublicTokenDoc() {}
+
+// @Summary Revoke OAuth2 token
+// @Description Hydra /oauth2/revoke へ form-encoded request をプロキシします。
+// @Tags Public API
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Param token formData string true "Token to revoke"
+// @Param client_id formData string false "Client ID"
+// @Param client_secret formData string false "Client secret"
+// @Success 200 {object} map[string]any
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Router /v1/public/api/token/revoke [post]
+func swaggerPublicRevokeDoc() {}
+
+// @Summary Introspect OAuth2 token
+// @Description Hydra token introspection を実行します。confidential client credentials が必要です。
+// @Tags Public API
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Param token formData string true "Token to introspect"
+// @Param client_id formData string false "Client ID"
+// @Param client_secret formData string false "Client secret"
+// @Success 200 {object} map[string]any
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Router /v1/public/api/token/introspect [post]
+func swaggerPublicIntrospectDoc() {}
+
+// @Summary Current headless session
+// @Description Authorization Bearer session token から Kratos session summary を返します。
+// @Tags Public API
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} PublicSessionView
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Router /v1/public/api/session [get]
+func swaggerPublicSessionDoc() {}
+
+// @Summary Headless registration
+// @Description API-mode Kratos registration flow で identity を作成し、session_token を返します。
+// @Tags Public API
+// @Accept json
+// @Produce json
+// @Param request body swaggerRegisterRequest true "registration request"
+// @Success 201 {object} swaggerAuthResult
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 422 {object} swaggerErrorResponse
+// @Router /v1/public/api/register [post]
+func swaggerPublicRegisterDoc() {}
+
+// @Summary Headless login
+// @Description API-mode Kratos login flow で password 認証し、session_token を返します。
+// @Tags Public API
+// @Accept json
+// @Produce json
+// @Param request body swaggerLoginRequest true "login request"
+// @Success 200 {object} swaggerAuthResult
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 401 {object} swaggerErrorResponse
+// @Router /v1/public/api/login [post]
+func swaggerPublicLoginDoc() {}

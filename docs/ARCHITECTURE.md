@@ -21,6 +21,7 @@ idol-auth は「共有アカウント型」認証基盤。複数のアプリが 
 │  │  /v1/auth/*     │  │  /v1/admin/*  │  │
 │  │  認証ブリッジ    │  │ コントロール  │  │
 │  └────────┬────────┘  └───────┬───────┘  │
+│  /v1/public/*  Public API / SDK facade   │
 └───────────┼────────────────────┼──────────┘
             │                    │
             ▼                    ▼
@@ -49,6 +50,7 @@ idol-auth は「共有アカウント型」認証基盤。複数のアプリが 
 ### idol-auth (app)
 - Hydra からの challenge を受け取り、Kratos セッションを検証して accept/reject する**ブリッジ**
 - アプリ登録・OIDC クライアント発行・共有アカウント連携管理の**コントロールプレーン API**
+- `/v1/public/*` で browser redirect helper、OAuth2 token proxy、Kratos API-mode registration/login を提供
 
 ---
 
@@ -110,6 +112,17 @@ Hydra → /v1/auth/consent?consent_challenge=...
     ▼ idol-auth → Hydra.AcceptLogoutRequest → リダイレクト
 ```
 
+### Public API / SDK フロー
+
+```
+TypeScript SDK / 外部クライアント
+    ├─ /v1/public/browser/* → Hydra / Kratos browser flow へリダイレクト
+    ├─ /v1/public/api/token* → Hydra token / revoke / introspect へプロキシ
+    └─ /v1/public/api/register|login → Kratos API-mode flow → session_token
+```
+
+headless registration/login は Kratos の API-mode self-service flow を開始してから credentials を送信する。失敗時は詳細を server log に残し、HTTP response では一般化したエラーだけを返す。
+
 ---
 
 ## API リファレンス
@@ -124,7 +137,9 @@ Hydra → /v1/auth/consent?consent_challenge=...
 - `/v1/auth/*`
   - Hydra login / consent / logout bridge
 - `/v1/admin/*`
-  - app 登録、OIDC client 発行、management token 発行、監査
+  - app 登録、party_type 更新、OIDC client 発行、management token 発行、監査
+- `/v1/public/*`
+  - browser redirect helper、OAuth2 token proxy、headless registration/login/session
 - `/v1/account/*` と `/v1/apps/self/*`
   - shared account 本体の自己管理と、app-scoped membership 管理
 
@@ -274,7 +289,7 @@ Kratos の ID データ（メール・パスワード・MFA・`metadata_public.r
 cmd/
 ├── server/      常時稼働する HTTP サーバー
 ├── migrate/     init container として 1 回だけ実行するマイグレーター
-├── adminctl/    オペレーターが手動実行する管理 CLI (set-roles)
+├── adminctl/    オペレーターが手動実行する管理 CLI (set-roles, set-first-party)
 ├── demo/        OIDC デモクライアント + Kratos UI（開発・ステージングのみ）
 ├── portal/      Kratos self-service UI（本番・ステージング）
 └── configcheck/ 設定読み込みのみ行う軽量バリデーター（CI / startupProbe）

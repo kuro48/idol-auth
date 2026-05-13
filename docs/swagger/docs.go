@@ -559,6 +559,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/admin/apps/{appID}/party-type": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定 app の party_type を first_party または third_party に更新します。mutating admin request のため bootstrap token が必要です。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Apps"
+                ],
+                "summary": "Update app party type",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "App ID",
+                        "name": "appID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "party type update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerSetPartyTypeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.App"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/admin/audit-logs": {
             "get": {
                 "security": [
@@ -1346,6 +1416,477 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/public/api/login": {
+            "post": {
+                "description": "API-mode Kratos login flow で password 認証し、session_token を返します。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public API"
+                ],
+                "summary": "Headless login",
+                "parameters": [
+                    {
+                        "description": "login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerAuthResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/api/register": {
+            "post": {
+                "description": "API-mode Kratos registration flow で identity を作成し、session_token を返します。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public API"
+                ],
+                "summary": "Headless registration",
+                "parameters": [
+                    {
+                        "description": "registration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerRegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerAuthResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/api/session": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Authorization Bearer session token から Kratos session summary を返します。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public API"
+                ],
+                "summary": "Current headless session",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.PublicSessionView"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/api/token": {
+            "post": {
+                "description": "Hydra /oauth2/token へ form-encoded request をプロキシします。",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public API"
+                ],
+                "summary": "Exchange OAuth2 token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "OAuth2 grant type",
+                        "name": "grant_type",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client secret",
+                        "name": "client_secret",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "PKCE code verifier",
+                        "name": "code_verifier",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Refresh token",
+                        "name": "refresh_token",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/api/token/introspect": {
+            "post": {
+                "description": "Hydra token introspection を実行します。confidential client credentials が必要です。",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public API"
+                ],
+                "summary": "Introspect OAuth2 token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token to introspect",
+                        "name": "token",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client secret",
+                        "name": "client_secret",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/api/token/revoke": {
+            "post": {
+                "description": "Hydra /oauth2/revoke へ form-encoded request をプロキシします。",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public API"
+                ],
+                "summary": "Revoke OAuth2 token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token to revoke",
+                        "name": "token",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client secret",
+                        "name": "client_secret",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/browser/login": {
+            "get": {
+                "description": "Hydra authorization request 用の browser login URL を返します。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Browser login URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "OIDC client ID",
+                        "name": "client_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "OIDC redirect URI",
+                        "name": "redirect_uri",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "code",
+                        "description": "OIDC response type",
+                        "name": "response_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OIDC scopes",
+                        "name": "scope",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OIDC state",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OIDC nonce",
+                        "name": "nonce",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "PKCE code challenge",
+                        "name": "code_challenge",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "PKCE method",
+                        "name": "code_challenge_method",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/browser/logout": {
+            "get": {
+                "description": "OIDC logout URL へリダイレクトします。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Browser logout URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID token hint",
+                        "name": "id_token_hint",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Post logout redirect URI",
+                        "name": "post_logout_redirect_uri",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "OIDC state",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/browser/registration": {
+            "get": {
+                "description": "Kratos browser registration URL へリダイレクトします。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public"
+                ],
+                "summary": "Browser registration URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "return URL after registration",
+                        "name": "return_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1523,6 +2064,32 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "verification_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.PublicSessionView": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "oshi_color": {
+                    "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "subject": {
                     "type": "string"
                 }
             }
@@ -1716,6 +2283,23 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/http.swaggerAuditLog"
                     }
+                }
+            }
+        },
+        "http.swaggerAuthResult": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "identity_id": {
+                    "type": "string",
+                    "example": "8a7b9e7b-0f84-4f54-a7e7-1ef8d8aa4f73"
+                },
+                "session_token": {
+                    "type": "string",
+                    "example": "ory_st_..."
                 }
             }
         },
@@ -2017,6 +2601,19 @@ const docTemplate = `{
                 }
             }
         },
+        "http.swaggerLoginRequest": {
+            "type": "object",
+            "properties": {
+                "identifier": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "correct horse battery staple"
+                }
+            }
+        },
         "http.swaggerLogoutStartResponse": {
             "type": "object",
             "properties": {
@@ -2079,6 +2676,23 @@ const docTemplate = `{
                 }
             }
         },
+        "http.swaggerRegisterRequest": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string",
+                    "example": "Idol Fan"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "correct horse battery staple"
+                }
+            }
+        },
         "http.swaggerRolesUpdateResponse": {
             "type": "object",
             "properties": {
@@ -2104,6 +2718,15 @@ const docTemplate = `{
                 "reason": {
                     "type": "string",
                     "example": "user_requested"
+                }
+            }
+        },
+        "http.swaggerSetPartyTypeRequest": {
+            "type": "object",
+            "properties": {
+                "party_type": {
+                    "type": "string",
+                    "example": "first_party"
                 }
             }
         },

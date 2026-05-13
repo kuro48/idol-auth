@@ -30,7 +30,7 @@ test:
 	go test ./...
 
 swagger:
-	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go -o docs/swagger --ot go --parseInternal --generatedTime=false
+	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go -o docs/swagger --ot go --parseInternal --generatedTime=false --exclude dist
 
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
