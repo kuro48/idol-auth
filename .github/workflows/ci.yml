@@ -14,15 +14,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: DeterminateSystems/nix-installer-action@v16
-
-      - uses: DeterminateSystems/magic-nix-cache-action@v9
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
 
       - name: Build
-        run: nix develop --command go build ./...
+        run: go build ./...
 
       - name: Test (race detector)
-        run: nix develop --command go test -race ./...
+        run: go test -race ./...
 
       - name: govulncheck
-        run: nix develop --command go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
