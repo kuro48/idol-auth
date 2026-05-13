@@ -30,7 +30,7 @@ docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml up -d
 
 echo "==> Waiting for app readiness"
 for _ in $(seq 1 60); do
-  if curl -fsS "http://127.0.0.1:8080/readyz" >/dev/null 2>&1; then
+  if docker compose --env-file "$ENV_FILE" -f docker-compose.production.yml exec -T app wget -qO- http://localhost:8080/readyz >/dev/null 2>&1; then
     echo "production stack deployed"
     exit 0
   fi

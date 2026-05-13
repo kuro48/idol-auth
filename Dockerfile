@@ -30,7 +30,8 @@ FROM deps AS build-adminctl
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/adminctl ./cmd/adminctl
 
-FROM gcr.io/distroless/static-debian12 AS app
+FROM alpine:3.21 AS app
+RUN apk add --no-cache ca-certificates wget
 COPY --from=build-app /out/server /server
 COPY --from=build-app /app/internal/infra/db/migrations /migrations
 ENTRYPOINT ["/server"]
