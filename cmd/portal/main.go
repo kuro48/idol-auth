@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"time"
 
@@ -30,7 +32,14 @@ func run() error {
 	sessionClient := kratosinfra.NewFrontendClient(cfg.KratosPublicURL, cfg.KratosBrowserURL)
 	themeUpdater := kratosinfra.NewAdminClient(cfg.KratosAdminURL)
 
+	kratosPublicURL, err := url.Parse(cfg.KratosPublicURL)
+	if err != nil {
+		return fmt.Errorf("parse kratos public url: %w", err)
+	}
+	kratosProxy := httputil.NewSingleHostReverseProxy(kratosPublicURL)
+
 	mux := http.NewServeMux()
+	mux.Handle("/self-service/", kratosProxy)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		renderHome(w, demo.ResolveSessionOshiColor(r.Context(), sessionClient, r))
 	})
