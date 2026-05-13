@@ -66,6 +66,7 @@ func run() error {
 	accountRepo := db.NewAccountRepository(dbPool)
 	kratosAdmin := kratos.NewAdminClient(cfg.Ory.KratosAdminURL)
 	hydraAdmin := hydra.NewAdminClient(cfg.Ory.HydraAdminURL)
+	hydraFacade := hydra.NewFacadeClient(cfg.Ory.HydraPublicURL, cfg.Ory.HydraAdminURL)
 
 	appService := app.NewService(
 		db.NewAppRepository(dbPool),
@@ -100,6 +101,12 @@ func run() error {
 		kratosAdmin,
 	)
 	profileService := profile.NewService(kratosAdmin)
+	publicService := apphttp.NewPublicAuthService(
+		hydraFacade,
+		cfg.Ory.HydraBrowserURL,
+		cfg.Ory.KratosBrowserURL,
+		cfg.Ory.KratosPublicURL,
+	)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)
 	router := apphttp.NewRouter(apphttp.RouterConfig{
 		App:        cfg.App,
@@ -108,6 +115,7 @@ func run() error {
 		Security:   cfg.Security,
 		Limiter:    limiter,
 		ProfileSvc: profileService,
+		PublicSvc:  publicService,
 	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{

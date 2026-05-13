@@ -44,8 +44,9 @@ type RouterConfig struct {
 	Admin      config.AdminConfig
 	Ory        config.OryConfig
 	Security   config.SecurityConfig
-	Limiter    RateLimiter    // optional; nil disables rate limiting
-	ProfileSvc ProfileService // optional; nil disables profile endpoints
+	Limiter    RateLimiter       // optional; nil disables rate limiting
+	ProfileSvc ProfileService    // optional; nil disables profile endpoints
+	PublicSvc  PublicAuthService // optional; nil disables /v1/public endpoints
 }
 
 type LoginFlowResult struct {
@@ -150,6 +151,7 @@ type server struct {
 	authSvc            AuthService
 	accountSvc         AccountService
 	profileSvc         ProfileService
+	publicSvc          PublicAuthService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 }
@@ -173,6 +175,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		authSvc:            authSvc,
 		accountSvc:         accountSvc,
 		profileSvc:         cfg.ProfileSvc,
+		publicSvc:          cfg.PublicSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 	}
@@ -255,6 +258,25 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/users", s.handleAdminUIUsers)
 		r.Get("/audit-logs", s.handleAdminUIAuditLogs)
 	})
+
+	if s.publicSvc != nil {
+		r.Route("/v1/public", func(r chi.Router) {
+			if s.config.Limiter != nil {
+				r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
+			}
+			r.Route("/browser", func(r chi.Router) {
+				r.Get("/login", s.handlePublicBrowserLogin)
+				r.Get("/registration", s.handlePublicBrowserRegistration)
+				r.Get("/logout", s.handlePublicBrowserLogout)
+			})
+			r.Route("/api", func(r chi.Router) {
+				r.Post("/token", s.handlePublicToken)
+				r.Post("/token/revoke", s.handlePublicRevoke)
+				r.Post("/token/introspect", s.handlePublicIntrospect)
+				r.Get("/session", s.handlePublicSession)
+			})
+		})
+	}
 
 	return r
 }
