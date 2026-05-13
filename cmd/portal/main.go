@@ -52,6 +52,9 @@ func run() error {
 	registerFlow(mux, kratosClient, sessionClient, "recovery", "Recovery", "Recover your account.")
 	registerFlow(mux, kratosClient, sessionClient, "verification", "Verification", "Verify your identifier.")
 	registerFlow(mux, kratosClient, sessionClient, "settings", "Settings", "Manage security settings and MFA.")
+	mux.HandleFunc("/error", func(w http.ResponseWriter, r *http.Request) {
+		demo.HandleKratosError(w, r, kratosClient)
+	})
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
