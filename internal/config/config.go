@@ -28,12 +28,13 @@ type DBConfig struct {
 }
 
 type OryConfig struct {
-	KratosPublicURL  string `env:"KRATOS_PUBLIC_URL,required"`
-	KratosAdminURL   string `env:"KRATOS_ADMIN_URL,required"`
-	HydraPublicURL   string `env:"HYDRA_PUBLIC_URL,required"`
-	HydraAdminURL    string `env:"HYDRA_ADMIN_URL,required"`
-	KratosBrowserURL string `env:"KRATOS_BROWSER_URL" envDefault:"http://localhost:4433"`
-	HydraBrowserURL  string `env:"HYDRA_BROWSER_URL"  envDefault:"http://localhost:4444"`
+	KratosPublicURL   string `env:"KRATOS_PUBLIC_URL,required"`
+	KratosAdminURL    string `env:"KRATOS_ADMIN_URL,required"`
+	HydraPublicURL    string `env:"HYDRA_PUBLIC_URL,required"`
+	HydraAdminURL     string `env:"HYDRA_ADMIN_URL,required"`
+	KratosBrowserURL  string `env:"KRATOS_BROWSER_URL"   envDefault:"http://localhost:4433"`
+	HydraBrowserURL   string `env:"HYDRA_BROWSER_URL"    envDefault:"http://localhost:4444"`
+	HydraSystemSecret string `env:"HYDRA_SYSTEM_SECRET"`
 }
 
 type AdminConfig struct {
@@ -43,9 +44,10 @@ type AdminConfig struct {
 }
 
 type SecurityConfig struct {
-	CookieSecure   bool     `env:"SESSION_COOKIE_SECURE"  envDefault:"true"`
-	CookieDomain   string   `env:"SESSION_COOKIE_DOMAIN"`
-	TrustedProxies []string `env:"TRUSTED_PROXIES"        envSeparator:","`
+	CookieSecure       bool     `env:"SESSION_COOKIE_SECURE"   envDefault:"true"`
+	CookieDomain       string   `env:"SESSION_COOKIE_DOMAIN"`
+	TrustedProxies     []string `env:"TRUSTED_PROXIES"         envSeparator:","`
+	CORSAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS"    envSeparator:","`
 }
 
 type LogConfig struct {
@@ -100,6 +102,13 @@ func (c *Config) Validate() error {
 		}
 		if token == "" {
 			return fmt.Errorf("config: production requires ADMIN_BOOTSTRAP_TOKEN")
+		}
+		secret := strings.TrimSpace(c.Ory.HydraSystemSecret)
+		if secret == "" {
+			return fmt.Errorf("config: production requires HYDRA_SYSTEM_SECRET")
+		}
+		if len(secret) < 32 {
+			return fmt.Errorf("config: HYDRA_SYSTEM_SECRET must be at least 32 characters")
 		}
 	}
 	return nil

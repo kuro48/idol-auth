@@ -156,6 +156,7 @@ type server struct {
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
+	themeLimiter       RateLimiter // moderate per-IP limiter for /v1/auth/theme
 }
 
 type contextKey string
@@ -181,6 +182,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
+		themeLimiter:       NewInMemoryRateLimiter(10, time.Minute),
 	}
 
 	r := chi.NewRouter()
@@ -204,7 +206,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		r.Get("/providers", s.handleProviders)
 		r.Get("/session", s.handleSession)
-		r.Post("/theme", s.handleThemePreference)
+		r.With(rateLimitMiddleware(s.themeLimiter, s.config.Security.TrustedProxies)).Post("/theme", s.handleThemePreference)
 		r.Post("/logout", s.handleLogoutStart)
 		r.Get("/logout", s.handleLogout)
 		r.Get("/login", s.handleLogin)
@@ -265,6 +267,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 
 	if s.publicSvc != nil {
 		r.Route("/v1/public", func(r chi.Router) {
+			if len(s.config.Security.CORSAllowedOrigins) > 0 {
+				r.Use(corsMiddleware(s.config.Security.CORSAllowedOrigins))
+			}
 			if s.config.Limiter != nil {
 				r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 			}
@@ -1131,8 +1136,8 @@ func (s *server) handleGetAppUserProfile(w http.ResponseWriter, r *http.Request)
 func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		ip := clientIP(r, s.config.Security.TrustedProxies)
 		if token != "" {
-			ip := clientIP(r, s.config.Security.TrustedProxies)
 			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
 				// Valid bootstrap token — do not consume the failure rate-limit budget.
 				ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
@@ -1144,8 +1149,7 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-			// Wrong or absent bootstrap token — consume from the per-IP failure budget
-			// to prevent brute-force guessing.
+			// Wrong token — consume from the per-IP failure budget to prevent brute-force.
 			if !s.authFailureLimiter.Allow(ip) {
 				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
 				return
@@ -1174,7 +1178,7 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 					}
 					ctx := context.WithValue(r.Context(), adminActorIDKey, actorID)
 					ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
-						IPAddress: clientIP(r, s.config.Security.TrustedProxies),
+						IPAddress: ip,
 						UserAgent: r.UserAgent(),
 						RequestID: middleware.GetReqID(r.Context()),
 					})
@@ -1186,6 +1190,14 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 			}
 		}
 
+		// No valid credential provided at all — consume failure budget to prevent
+		// unauthenticated request flooding (no-token requests were previously exempt).
+		if token == "" {
+			if !s.authFailureLimiter.Allow(ip) {
+				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
+				return
+			}
+		}
 		writeError(w, http.StatusUnauthorized, "admin authorization required")
 	})
 }
@@ -1703,6 +1715,33 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// corsMiddleware sets CORS headers for requests whose Origin matches the allowlist.
+// Preflight OPTIONS requests are answered immediately with 204.
+func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		allowed[strings.TrimRight(o, "/")] = struct{}{}
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if _, ok := allowed[strings.TrimRight(origin, "/")]; ok {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Vary", "Origin")
+				if r.Method == http.MethodOptions {
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+					w.Header().Set("Access-Control-Max-Age", "86400")
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func newCSRFToken() (string, error) {

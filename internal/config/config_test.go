@@ -202,6 +202,7 @@ func TestLoad_ProductionAllowsHardenedSettings(t *testing.T) {
 	t.Setenv("SESSION_COOKIE_SECURE", "true")
 	t.Setenv("LOG_LEVEL", "info")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
+	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
 
 	cfg, err := config.Load()
 

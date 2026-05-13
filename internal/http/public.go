@@ -155,7 +155,7 @@ func (s *PublicAuthServiceImpl) GetSession(ctx context.Context, token string) (P
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound {
 		return PublicSessionView{Active: false}, nil
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
