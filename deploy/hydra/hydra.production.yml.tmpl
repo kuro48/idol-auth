@@ -1,6 +1,9 @@
 serve:
   public:
     base_url: {{HYDRA_BROWSER_URL}}/
+    tls:
+      allow_termination_from:
+        - 0.0.0.0/0
   admin:
     base_url: http://hydra:4445/
 
