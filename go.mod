@@ -2,7 +2,7 @@ module github.com/kuro48/idol-auth
 
 go 1.25.0
 
-toolchain go1.26.2
+toolchain go1.26.3
 
 require (
 	github.com/caarlos0/env/v11 v11.3.1

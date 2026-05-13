@@ -112,8 +112,8 @@ func TestConsentChallengeRendersInteractivePrompt(t *testing.T) {
 	if got := w.Header().Get("Content-Security-Policy"); !strings.Contains(got, "frame-ancestors 'none'") {
 		t.Fatalf("expected consent CSP header, got %q", got)
 	}
-	if got := w.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'unsafe-inline'") {
-		t.Fatalf("expected consent CSP script allowance, got %q", got)
+	if got := w.Header().Get("Content-Security-Policy"); !strings.Contains(got, "script-src 'nonce-") {
+		t.Fatalf("expected consent CSP nonce-based script allowance, got %q", got)
 	}
 	foundCSRFCookie := false
 	for _, cookie := range w.Result().Cookies() {

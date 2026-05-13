@@ -155,6 +155,7 @@ type server struct {
 	publicSvc          PublicAuthService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
+	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
 }
 
 type contextKey string
@@ -179,6 +180,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		publicSvc:          cfg.PublicSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
+		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
 	}
 
 	r := chi.NewRouter()
@@ -276,8 +278,11 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 				r.Post("/token/revoke", s.handlePublicRevoke)
 				r.Post("/token/introspect", s.handlePublicIntrospect)
 				r.Get("/session", s.handlePublicSession)
-				r.Post("/register", s.handlePublicRegister)
-				r.Post("/login", s.handlePublicLogin)
+				r.Group(func(r chi.Router) {
+					r.Use(rateLimitMiddleware(s.credentialLimiter, s.config.Security.TrustedProxies))
+					r.Post("/register", s.handlePublicRegister)
+					r.Post("/login", s.handlePublicLogin)
+				})
 			})
 		})
 	}
@@ -1352,7 +1357,7 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>アプリ連携の確認</title>
-  <style>
+  <style nonce="{{ .Nonce }}">
     :root {
       --oshi: #b2b2ff;
       --oshi-deep: #4c4cc6;
@@ -1563,7 +1568,7 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
       #oshi-swatches { width: 168px; }
     }
   </style>
-  <script>
+  <script nonce="{{ .Nonce }}">
     var OSHI=['#ffb2b2','#ffb2d8','#ffb2ff','#d8b2ff','#b2b2ff','#b2d8ff','#b2ffff','#b2ffd8','#b2ffb2','#d8ffb2','#ffffb2','#ffd8b2'];
     function normalizeOshi(raw){
       raw=(raw||'').trim().toLowerCase();
@@ -1621,7 +1626,7 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
     <div id="oshi-swatches" aria-label="推しメンカラーパレット"></div>
     <button id="oshi-toggle" type="button" title="推しメンカラー">✦</button>
   </div>
-  <script>
+  <script nonce="{{ .Nonce }}">
     (function(){
       var sw=document.getElementById('oshi-swatches');
       var toggle=document.getElementById('oshi-toggle');
@@ -1656,15 +1661,20 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
 	if err != nil {
 		return err
 	}
+	nonce, err := newCSRFToken()
+	if err != nil {
+		return err
+	}
 	setConsentCSRFCookie(w, csrfToken, secureCookies, cookieDomain)
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; style-src 'nonce-"+nonce+"'; script-src 'nonce-"+nonce+"'")
 	view := struct {
 		Challenge         string
 		ClientID          string
 		DisplayName       string
 		OshiColor         string
 		CSRFToken         string
+		Nonce             string
 		RequestedScope    []string
 		RequestedAudience []string
 	}{
@@ -1673,6 +1683,7 @@ func writeConsentPage(w http.ResponseWriter, prompt *ConsentPrompt, secureCookie
 		DisplayName:       displayName,
 		OshiColor:         prompt.OshiColor,
 		CSRFToken:         csrfToken,
+		Nonce:             nonce,
 		RequestedScope:    prompt.RequestedScope,
 		RequestedAudience: prompt.RequestedAccessTokenAudience,
 	}

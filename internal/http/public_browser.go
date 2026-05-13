@@ -20,7 +20,7 @@ func (s *server) handlePublicBrowserLogin(w http.ResponseWriter, r *http.Request
 		"code_challenge_method": q.Get("code_challenge_method"),
 	}
 	if params["client_id"] == "" || params["redirect_uri"] == "" || params["response_type"] == "" {
-		http.Error(w, "client_id, redirect_uri and response_type are required", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "client_id, redirect_uri and response_type are required")
 		return
 	}
 	http.Redirect(w, r, s.publicSvc.LoginURL(params), http.StatusFound)

@@ -3,12 +3,17 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
+
+// ErrIdentityAlreadyExists is returned by Register when the email is already taken.
+var ErrIdentityAlreadyExists = errors.New("identity already exists")
 
 // PublicSessionView is the response shape for GET /v1/public/api/session.
 type PublicSessionView struct {
@@ -45,6 +50,7 @@ type HydraFacadeClient interface {
 	Token(ctx context.Context, body []byte) ([]byte, int, error)
 	Revoke(ctx context.Context, body []byte) ([]byte, int, error)
 	Introspect(ctx context.Context, body []byte) ([]byte, int, error)
+	OAuthClientExists(ctx context.Context, clientID string) (bool, error)
 }
 
 // KratosNativeClient is implemented by infra/kratos.NativeClient.
@@ -61,6 +67,7 @@ type PublicAuthService interface {
 	Token(ctx context.Context, body []byte) ([]byte, int, error)
 	Revoke(ctx context.Context, body []byte) ([]byte, int, error)
 	Introspect(ctx context.Context, body []byte) ([]byte, int, error)
+	OAuthClientExists(ctx context.Context, clientID string) (bool, error)
 	GetSession(ctx context.Context, token string) (PublicSessionView, error)
 	Register(ctx context.Context, input RegisterInput) (AuthResult, error)
 	Login(ctx context.Context, input LoginInput) (AuthResult, error)
@@ -111,7 +118,7 @@ func (s *PublicAuthServiceImpl) LogoutURL(params map[string]string) string {
 func (s *PublicAuthServiceImpl) RegistrationURL(returnTo string) string {
 	base := s.kratosBrowserURL + "/self-service/registration/browser"
 	if returnTo != "" {
-		return base + "?return_to=" + returnTo
+		return base + "?return_to=" + url.QueryEscape(returnTo)
 	}
 	return base
 }
@@ -126,6 +133,10 @@ func (s *PublicAuthServiceImpl) Revoke(ctx context.Context, body []byte) ([]byte
 
 func (s *PublicAuthServiceImpl) Introspect(ctx context.Context, body []byte) ([]byte, int, error) {
 	return s.hydra.Introspect(ctx, body)
+}
+
+func (s *PublicAuthServiceImpl) OAuthClientExists(ctx context.Context, clientID string) (bool, error) {
+	return s.hydra.OAuthClientExists(ctx, clientID)
 }
 
 // GetSession calls Kratos /sessions/whoami with X-Session-Token to look up
@@ -189,12 +200,13 @@ func (s *PublicAuthServiceImpl) Login(ctx context.Context, input LoginInput) (Au
 }
 
 // buildQueryFromMap builds a URL query string from a map, omitting empty values.
+// Uses url.Values to ensure proper encoding and stable key ordering.
 func buildQueryFromMap(params map[string]string) string {
-	parts := make([]string, 0, len(params))
-	for k, v := range params {
-		if v != "" {
-			parts = append(parts, k+"="+v)
+	v := url.Values{}
+	for k, val := range params {
+		if val != "" {
+			v.Set(k, val)
 		}
 	}
-	return strings.Join(parts, "&")
+	return v.Encode()
 }

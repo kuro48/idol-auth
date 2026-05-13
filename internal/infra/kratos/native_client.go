@@ -154,6 +154,7 @@ func (c *NativeClient) submit(ctx context.Context, path, flowID string, payload 
 }
 
 // extractKratosError returns a descriptive error from a non-2xx Kratos response.
+// Returns apphttp.ErrIdentityAlreadyExists for duplicate-identity conditions.
 func extractKratosError(body []byte, status int) error {
 	var envelope struct {
 		Error struct {
@@ -167,6 +168,9 @@ func extractKratosError(body []byte, status int) error {
 		} `json:"ui"`
 	}
 	if err := json.Unmarshal(body, &envelope); err != nil {
+		if status == 409 {
+			return apphttp.ErrIdentityAlreadyExists
+		}
 		return fmt.Errorf("kratos returned status %d", status)
 	}
 	if envelope.Error.Message != "" {
@@ -174,12 +178,28 @@ func extractKratosError(body []byte, status int) error {
 		if envelope.Error.Reason != "" {
 			msg += ": " + envelope.Error.Reason
 		}
+		if isAlreadyExistsMsg(msg) || status == 409 {
+			return apphttp.ErrIdentityAlreadyExists
+		}
 		return fmt.Errorf("%s (status %d)", msg, status)
 	}
 	for _, m := range envelope.UI.Messages {
 		if m.Text != "" {
+			if isAlreadyExistsMsg(m.Text) {
+				return apphttp.ErrIdentityAlreadyExists
+			}
 			return fmt.Errorf("%s (status %d)", m.Text, status)
 		}
 	}
+	if status == 409 {
+		return apphttp.ErrIdentityAlreadyExists
+	}
 	return fmt.Errorf("kratos returned status %d", status)
+}
+
+func isAlreadyExistsMsg(msg string) bool {
+	lower := strings.ToLower(msg)
+	return strings.Contains(lower, "already exists") ||
+		strings.Contains(lower, "already registered") ||
+		strings.Contains(lower, "account with the same")
 }

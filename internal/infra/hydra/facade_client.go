@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -42,6 +43,30 @@ func (c *FacadeClient) Revoke(ctx context.Context, body []byte) ([]byte, int, er
 // Introspect forwards a form-encoded body to Hydra's admin /admin/oauth2/introspect endpoint.
 func (c *FacadeClient) Introspect(ctx context.Context, body []byte) ([]byte, int, error) {
 	return c.post(ctx, c.adminURL+"/admin/oauth2/introspect", body)
+}
+
+// OAuthClientExists reports whether the given client ID is registered in Hydra.
+// Returns false (not error) on 404; returns error on network failure or unexpected status.
+func (c *FacadeClient) OAuthClientExists(ctx context.Context, clientID string) (bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		c.adminURL+"/admin/clients/"+url.PathEscape(clientID), nil)
+	if err != nil {
+		return false, fmt.Errorf("build hydra client check request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("call hydra admin clients: %w", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("hydra admin clients returned %d", resp.StatusCode)
+	}
+	return true, nil
 }
 
 func (c *FacadeClient) post(ctx context.Context, endpoint string, body []byte) ([]byte, int, error) {

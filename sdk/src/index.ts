@@ -1,6 +1,8 @@
-export { IdolAuthClient } from "./client";
+export { IdolAuthClient, IdolAuthError } from "./client";
 export type {
   IdolAuthClientOptions,
+  BrowserLoginParams,
+  BrowserLogoutParams,
   TokenRequest,
   TokenResponse,
   RevokeRequest,

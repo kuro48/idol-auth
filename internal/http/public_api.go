@@ -1,9 +1,11 @@
 package http
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -20,7 +22,7 @@ func (s *server) handlePublicToken(w http.ResponseWriter, r *http.Request) {
 	out, status, err := s.publicSvc.Token(r.Context(), body)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "public token proxy error", "error", err)
-		http.Error(w, "upstream error", http.StatusBadGateway)
+		writeError(w, http.StatusBadGateway, "upstream error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -37,7 +39,7 @@ func (s *server) handlePublicRevoke(w http.ResponseWriter, r *http.Request) {
 	out, status, err := s.publicSvc.Revoke(r.Context(), body)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "public revoke proxy error", "error", err)
-		http.Error(w, "upstream error", http.StatusBadGateway)
+		writeError(w, http.StatusBadGateway, "upstream error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -46,15 +48,32 @@ func (s *server) handlePublicRevoke(w http.ResponseWriter, r *http.Request) {
 }
 
 // handlePublicIntrospect proxies POST /v1/public/api/token/introspect → Hydra admin introspect.
+// Requires a registered client_id in the request body to prevent anonymous token lookup.
 func (s *server) handlePublicIntrospect(w http.ResponseWriter, r *http.Request) {
 	body, ok := readLimitedBody(w, r, maxPublicRequestBodyBytes)
 	if !ok {
 		return
 	}
+	vals, err := url.ParseQuery(string(body))
+	if err != nil || strings.TrimSpace(vals.Get("client_id")) == "" {
+		writeError(w, http.StatusUnauthorized, "client_id is required")
+		return
+	}
+	clientID := strings.TrimSpace(vals.Get("client_id"))
+	exists, err := s.publicSvc.OAuthClientExists(r.Context(), clientID)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "public introspect client check error", "error", err)
+		writeError(w, http.StatusBadGateway, "upstream error")
+		return
+	}
+	if !exists {
+		writeError(w, http.StatusUnauthorized, "unknown client_id")
+		return
+	}
 	out, status, err := s.publicSvc.Introspect(r.Context(), body)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "public introspect proxy error", "error", err)
-		http.Error(w, "upstream error", http.StatusBadGateway)
+		writeError(w, http.StatusBadGateway, "upstream error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -66,13 +85,13 @@ func (s *server) handlePublicIntrospect(w http.ResponseWriter, r *http.Request) 
 func (s *server) handlePublicSession(w http.ResponseWriter, r *http.Request) {
 	token := bearerToken(r)
 	if token == "" {
-		http.Error(w, "Authorization: Bearer <token> required", http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "Authorization: Bearer <token> required")
 		return
 	}
 	session, err := s.publicSvc.GetSession(r.Context(), token)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "public session lookup error", "error", err)
-		http.Error(w, "upstream error", http.StatusBadGateway)
+		writeError(w, http.StatusBadGateway, "upstream error")
 		return
 	}
 	writeJSON(w, http.StatusOK, session)
@@ -93,6 +112,10 @@ func (s *server) handlePublicRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := s.publicSvc.Register(r.Context(), input)
 	if err != nil {
+		if errors.Is(err, ErrIdentityAlreadyExists) {
+			writeError(w, http.StatusConflict, "email already registered")
+			return
+		}
 		slog.ErrorContext(r.Context(), "public register error", "error", err)
 		writeError(w, http.StatusUnprocessableEntity, "registration failed")
 		return
@@ -132,11 +155,12 @@ func bearerToken(r *http.Request) string {
 }
 
 // readLimitedBody reads the request body up to limit bytes.
-// Returns false and writes an error response if reading fails.
+// Returns false and writes a 413 error response if the body exceeds the limit.
 func readLimitedBody(w http.ResponseWriter, r *http.Request, limit int64) ([]byte, bool) {
-	body, err := io.ReadAll(io.LimitReader(r.Body, limit))
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
 		return nil, false
 	}
 	return body, true

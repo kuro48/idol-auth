@@ -283,6 +283,10 @@ func (s *stubPublicService) Introspect(_ context.Context, _ []byte) ([]byte, int
 	return nil, http.StatusOK, nil
 }
 
+func (s *stubPublicService) OAuthClientExists(_ context.Context, _ string) (bool, error) {
+	return true, nil
+}
+
 func (s *stubPublicService) GetSession(_ context.Context, _ string) (apphttp.PublicSessionView, error) {
 	return apphttp.PublicSessionView{}, nil
 }
