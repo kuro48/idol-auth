@@ -18,6 +18,7 @@ type AppManager interface {
 	CreateOIDCClient(ctx context.Context, appID uuid.UUID, input app.CreateOIDCClientInput) (app.ClientRegistration, error)
 	ListOIDCClients(ctx context.Context, appID uuid.UUID) ([]app.OIDCClient, error)
 	IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error)
+	SetPartyType(ctx context.Context, appID uuid.UUID, partyType app.PartyType) (app.App, error)
 }
 
 type IdentityManager interface {
@@ -72,6 +73,28 @@ func (s *Service) ListOIDCClients(ctx context.Context, appID uuid.UUID) ([]app.O
 
 func (s *Service) IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error) {
 	return s.apps.IssueManagementToken(ctx, appID, actorID)
+}
+
+func (s *Service) SetAppPartyType(ctx context.Context, appID uuid.UUID, partyType app.PartyType, actorID string) (app.App, error) {
+	updated, err := s.apps.SetPartyType(ctx, appID, partyType)
+	if err != nil {
+		return app.App{}, err
+	}
+	if s.auditLogs != nil {
+		metadata, _ := json.Marshal(map[string]string{"party_type": string(partyType)})
+		_ = s.auditLogs.Write(ctx, enrichAuditLog(ctx, audit.Log{
+			ID:         uuid.New(),
+			EventType:  "app.party_type.updated",
+			ActorType:  audit.ActorTypeAdminClient,
+			ActorID:    actorID,
+			TargetType: audit.TargetTypeApp,
+			TargetID:   appID.String(),
+			Result:     audit.ResultSuccess,
+			Metadata:   metadata,
+			OccurredAt: s.now().UTC(),
+		}))
+	}
+	return updated, nil
 }
 
 func (s *Service) SetIdentityRoles(ctx context.Context, input SetIdentityRolesInput) ([]string, error) {

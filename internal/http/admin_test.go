@@ -1025,6 +1025,10 @@ func (s *stubAdminService) ListAuditLogs(_ context.Context, input admindomain.Li
 	return append([]audit.Log(nil), s.auditLogs...), nil
 }
 
+func (s *stubAdminService) SetAppPartyType(_ context.Context, _ uuid.UUID, _ app.PartyType, _ string) (app.App, error) {
+	return app.App{}, nil
+}
+
 type stubAccountService struct {
 	resolvedApp            app.App
 	membershipsForIdentity []account.AppMembership

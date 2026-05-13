@@ -83,6 +83,23 @@ func (r *AppRepository) GetByID(ctx context.Context, id uuid.UUID) (app.App, err
 	return entity, nil
 }
 
+func (r *AppRepository) SetPartyType(ctx context.Context, id uuid.UUID, partyType app.PartyType) (app.App, error) {
+	const query = `
+		UPDATE apps
+		SET party_type = $2, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, name, slug, type, party_type, status, description, created_at, updated_at, created_by, updated_by
+	`
+	var entity app.App
+	if err := scanApp(r.pool.QueryRow(ctx, query, id, partyType), &entity); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return app.App{}, app.ErrAppNotFound
+		}
+		return app.App{}, fmt.Errorf("set party type: %w", err)
+	}
+	return entity, nil
+}
+
 func scanApp(scanner interface{ Scan(...any) error }, entity *app.App) error {
 	return scanner.Scan(
 		&entity.ID,

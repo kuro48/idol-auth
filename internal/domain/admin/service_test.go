@@ -407,6 +407,10 @@ func (m *stubAppManager) ListOIDCClients(_ context.Context, _ uuid.UUID) ([]app.
 	return append([]app.OIDCClient(nil), m.clients...), nil
 }
 
+func (m *stubAppManager) SetPartyType(_ context.Context, _ uuid.UUID, _ app.PartyType) (app.App, error) {
+	return app.App{}, m.err
+}
+
 type stubIdentityRoleManager struct {
 	receivedID        string
 	receivedRoles     []string

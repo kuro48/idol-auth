@@ -20,11 +20,37 @@ type PublicSessionView struct {
 	DisplayName string   `json:"display_name,omitempty"`
 }
 
+// AuthResult is returned by headless Register and Login.
+type AuthResult struct {
+	SessionToken string `json:"session_token"`
+	IdentityID   string `json:"identity_id"`
+	Email        string `json:"email"`
+}
+
+// RegisterInput is the request body for POST /v1/public/api/register.
+type RegisterInput struct {
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	DisplayName string `json:"display_name"`
+}
+
+// LoginInput is the request body for POST /v1/public/api/login.
+type LoginInput struct {
+	Identifier string `json:"identifier"`
+	Password   string `json:"password"`
+}
+
 // HydraFacadeClient is implemented by infra/hydra.FacadeClient.
 type HydraFacadeClient interface {
 	Token(ctx context.Context, body []byte) ([]byte, int, error)
 	Revoke(ctx context.Context, body []byte) ([]byte, int, error)
 	Introspect(ctx context.Context, body []byte) ([]byte, int, error)
+}
+
+// KratosNativeClient is implemented by infra/kratos.NativeClient.
+type KratosNativeClient interface {
+	Register(ctx context.Context, email, displayName, password string) (AuthResult, error)
+	Login(ctx context.Context, identifier, password string) (AuthResult, error)
 }
 
 // PublicAuthService is the interface the router uses for the public facade.
@@ -36,11 +62,14 @@ type PublicAuthService interface {
 	Revoke(ctx context.Context, body []byte) ([]byte, int, error)
 	Introspect(ctx context.Context, body []byte) ([]byte, int, error)
 	GetSession(ctx context.Context, token string) (PublicSessionView, error)
+	Register(ctx context.Context, input RegisterInput) (AuthResult, error)
+	Login(ctx context.Context, input LoginInput) (AuthResult, error)
 }
 
 // PublicAuthServiceImpl implements PublicAuthService.
 type PublicAuthServiceImpl struct {
 	hydra            HydraFacadeClient
+	kratosNative     KratosNativeClient
 	hydraBrowserURL  string
 	kratosBrowserURL string
 	kratosPublicURL  string
@@ -49,12 +78,14 @@ type PublicAuthServiceImpl struct {
 
 func NewPublicAuthService(
 	hydra HydraFacadeClient,
+	kratosNative KratosNativeClient,
 	hydraBrowserURL string,
 	kratosBrowserURL string,
 	kratosPublicURL string,
 ) *PublicAuthServiceImpl {
 	return &PublicAuthServiceImpl{
 		hydra:            hydra,
+		kratosNative:     kratosNative,
 		hydraBrowserURL:  strings.TrimRight(hydraBrowserURL, "/"),
 		kratosBrowserURL: strings.TrimRight(kratosBrowserURL, "/"),
 		kratosPublicURL:  strings.TrimRight(kratosPublicURL, "/"),
@@ -147,6 +178,14 @@ func (s *PublicAuthServiceImpl) GetSession(ctx context.Context, token string) (P
 		Roles:       decoded.Identity.MetadataPublic.Roles,
 		OshiColor:   decoded.Identity.MetadataPublic.OshiColor,
 	}, nil
+}
+
+func (s *PublicAuthServiceImpl) Register(ctx context.Context, input RegisterInput) (AuthResult, error) {
+	return s.kratosNative.Register(ctx, input.Email, input.DisplayName, input.Password)
+}
+
+func (s *PublicAuthServiceImpl) Login(ctx context.Context, input LoginInput) (AuthResult, error) {
+	return s.kratosNative.Login(ctx, input.Identifier, input.Password)
 }
 
 // buildQueryFromMap builds a URL query string from a map, omitting empty values.

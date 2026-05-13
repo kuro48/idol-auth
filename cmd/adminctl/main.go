@@ -36,6 +36,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 	switch args[0] {
 	case "set-roles":
 		return runSetRoles(args[1:], stdout)
+	case "set-first-party":
+		return runSetFirstParty(args[1:], stdout)
 	case "-h", "--help", "help":
 		printUsage(stdout)
 		return nil
@@ -135,7 +137,64 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
+func runSetFirstParty(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("set-first-party", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	baseURL := fs.String("base-url", envOrDefault("ADMIN_API_BASE_URL", "http://localhost:8080"), "admin API base URL")
+	token := fs.String("token", strings.TrimSpace(os.Getenv("ADMIN_BOOTSTRAP_TOKEN")), "admin bootstrap token")
+	appID := fs.String("app-id", "", "app UUID")
+	partyType := fs.String("party-type", "first_party", "first_party or third_party")
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*appID) == "" {
+		return errors.New("app-id is required")
+	}
+	if strings.TrimSpace(*token) == "" {
+		return errors.New("token is required")
+	}
+	if *partyType != "first_party" && *partyType != "third_party" {
+		return errors.New("party-type must be first_party or third_party")
+	}
+
+	payload, err := json.Marshal(map[string]string{"party_type": *partyType})
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
+	defer cancel()
+
+	endpoint := strings.TrimRight(*baseURL, "/") + "/v1/admin/apps/" + strings.TrimSpace(*appID) + "/party-type"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(*token))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("admin api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var decoded map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	return json.NewEncoder(stdout).Encode(decoded)
+}
+
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "usage:")
-	_, _ = fmt.Fprintln(w, "  adminctl set-roles --identity-id <kratos-identity-id> --roles admin,platform-operator [--base-url http://localhost:8080] [--token <bootstrap-token>]")
+	_, _ = fmt.Fprintln(w, "  adminctl set-roles --identity-id <id> --roles admin,operator [--base-url http://localhost:8080] [--token <token>]")
+	_, _ = fmt.Fprintln(w, "  adminctl set-first-party --app-id <uuid> [--party-type first_party|third_party] [--base-url http://localhost:8080] [--token <token>]")
 }

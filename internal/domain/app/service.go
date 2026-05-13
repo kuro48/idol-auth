@@ -42,6 +42,7 @@ type AppRepository interface {
 	Create(ctx context.Context, app App) (App, error)
 	List(ctx context.Context) ([]App, error)
 	GetByID(ctx context.Context, id uuid.UUID) (App, error)
+	SetPartyType(ctx context.Context, id uuid.UUID, partyType PartyType) (App, error)
 }
 
 type OIDCClientRepository interface {
@@ -192,6 +193,13 @@ func (s *Service) CreateApp(ctx context.Context, input CreateAppInput) (App, err
 
 func (s *Service) ListApps(ctx context.Context) ([]App, error) {
 	return s.apps.List(ctx)
+}
+
+func (s *Service) SetPartyType(ctx context.Context, appID uuid.UUID, partyType PartyType) (App, error) {
+	if !isValidPartyType(partyType) {
+		return App{}, ErrInvalidPartyType
+	}
+	return s.apps.SetPartyType(ctx, appID, partyType)
 }
 
 func (s *Service) IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error) {

@@ -388,6 +388,16 @@ func (r *stubAppRepository) GetByID(_ context.Context, id uuid.UUID) (App, error
 	return App{}, ErrAppNotFound
 }
 
+func (r *stubAppRepository) SetPartyType(_ context.Context, id uuid.UUID, partyType PartyType) (App, error) {
+	for i, a := range r.apps {
+		if a.ID == id {
+			r.apps[i].PartyType = partyType
+			return r.apps[i], nil
+		}
+	}
+	return App{}, ErrAppNotFound
+}
+
 type stubOIDCClientRepository struct {
 	clients []OIDCClient
 }

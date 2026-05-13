@@ -102,6 +102,7 @@ type AdminService interface {
 	IssueManagementToken(ctx context.Context, appID uuid.UUID, actorID string) (string, error)
 	CreateOIDCClient(ctx context.Context, appID uuid.UUID, input app.CreateOIDCClientInput) (app.ClientRegistration, error)
 	ListOIDCClients(ctx context.Context, appID uuid.UUID) ([]app.OIDCClient, error)
+	SetAppPartyType(ctx context.Context, appID uuid.UUID, partyType app.PartyType, actorID string) (app.App, error)
 	SetIdentityRoles(ctx context.Context, input admindomain.SetIdentityRolesInput) ([]string, error)
 	SearchIdentities(ctx context.Context, input admindomain.SearchIdentitiesInput) ([]admindomain.Identity, error)
 	DisableIdentity(ctx context.Context, input admindomain.DisableIdentityInput) (admindomain.Identity, error)
@@ -219,6 +220,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/apps/{appID}/management-token", s.handleIssueManagementToken)
 		r.Get("/apps/{appID}/clients", s.handleListOIDCClients)
 		r.Post("/apps/{appID}/clients", s.handleCreateOIDCClient)
+		r.Patch("/apps/{appID}/party-type", s.handleSetAppPartyType)
 		r.Get("/users", s.handleSearchIdentities)
 		r.Patch("/users/{userRef}", s.handlePatchUser)
 		r.Post("/users/{userRef}/revoke-sessions", s.handleRevokeIdentitySessions)
@@ -274,6 +276,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 				r.Post("/token/revoke", s.handlePublicRevoke)
 				r.Post("/token/introspect", s.handlePublicIntrospect)
 				r.Get("/session", s.handlePublicSession)
+				r.Post("/register", s.handlePublicRegister)
+				r.Post("/login", s.handlePublicLogin)
 			})
 		})
 	}
@@ -659,6 +663,32 @@ func (s *server) handleCreateOIDCClient(w http.ResponseWriter, r *http.Request) 
 		"client":        created.Client,
 		"client_secret": created.ClientSecret,
 	})
+}
+
+func (s *server) handleSetAppPartyType(w http.ResponseWriter, r *http.Request) {
+	if s.adminSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")
+		return
+	}
+	appID, err := uuid.Parse(chi.URLParam(r, "appID"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid app id")
+		return
+	}
+	var body struct {
+		PartyType app.PartyType `json:"party_type"`
+	}
+	if err := decodeJSON(w, r, &body); err != nil || body.PartyType == "" {
+		writeError(w, http.StatusBadRequest, "party_type is required (first_party or third_party)")
+		return
+	}
+	actorID, _ := r.Context().Value(adminActorIDKey).(string)
+	updated, err := s.adminSvc.SetAppPartyType(r.Context(), appID, body.PartyType, actorID)
+	if err != nil {
+		writeDomainError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
 }
 
 func (s *server) handleListOIDCClients(w http.ResponseWriter, r *http.Request) {

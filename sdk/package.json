@@ -1,0 +1,16 @@
+{
+  "name": "@idol-auth/client",
+  "version": "0.1.0",
+  "description": "TypeScript client for the idol-auth public API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "license": "MIT"
+}

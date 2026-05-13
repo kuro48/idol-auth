@@ -65,6 +65,7 @@ func run() error {
 	tokenRepo := db.NewAppManagementTokenRepository(dbPool)
 	accountRepo := db.NewAccountRepository(dbPool)
 	kratosAdmin := kratos.NewAdminClient(cfg.Ory.KratosAdminURL)
+	kratosNative := kratos.NewNativeClient(cfg.Ory.KratosPublicURL)
 	hydraAdmin := hydra.NewAdminClient(cfg.Ory.HydraAdminURL)
 	hydraFacade := hydra.NewFacadeClient(cfg.Ory.HydraPublicURL, cfg.Ory.HydraAdminURL)
 
@@ -103,6 +104,7 @@ func run() error {
 	profileService := profile.NewService(kratosAdmin)
 	publicService := apphttp.NewPublicAuthService(
 		hydraFacade,
+		kratosNative,
 		cfg.Ory.HydraBrowserURL,
 		cfg.Ory.KratosBrowserURL,
 		cfg.Ory.KratosPublicURL,
