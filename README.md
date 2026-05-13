@@ -86,6 +86,7 @@ go run ./cmd/configcheck
 - 開発者向け API サイト: `http://localhost:8080/docs`
 - Swagger JSON: `http://localhost:8080/docs/doc.json`
 - [アーキテクチャ](docs/ARCHITECTURE.md)
+- [連携ガイド（API 利用者向け）](docs/integration.md)
 - [デプロイと運用](docs/deployment.md)
 - [セキュリティポリシー](SECURITY.md)
 - [ライセンス](LICENSE)

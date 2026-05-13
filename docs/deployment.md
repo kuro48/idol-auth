@@ -7,8 +7,7 @@
 - 1 Linux VM
 - Docker Engine / Docker Compose
 - `docker-compose.production.yml`
-- `Caddy` を唯一の公開入口として利用
-- 公開ポートは `80/443` のみ
+- **Cloudflare Tunnel** (`cloudflared`) を唯一の公開入口として利用（VPS への直接 inbound 不要）
 - `hydra admin`, `kratos admin`, `postgres`, `redis` は内部ネットワーク限定
 
 ## 1. 本番用設定を作る
@@ -19,20 +18,20 @@ cp .env.production.example .env.production
 
 最低限、次を埋めます。
 
-- `APP_BASE_URL`
-- `APP_HOSTNAME`
-- `PORTAL_APP_URL`
-- `PORTAL_HOSTNAME`
+- `CLOUDFLARE_TUNNEL_TOKEN` — Cloudflare Zero Trust で発行したトンネルトークン
+- `APP_BASE_URL` / `APP_HOSTNAME`
+- `PORTAL_APP_URL` / `PORTAL_HOSTNAME`
 - `HYDRA_HOSTNAME`
-- `ACME_EMAIL`
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
 - `ADMIN_BOOTSTRAP_TOKEN`
-- `KRATOS_SECRETS_*`
+- `KRATOS_SECRETS_DEFAULT` / `KRATOS_SECRETS_COOKIE` / `KRATOS_SECRETS_CIPHER`
 - `HYDRA_SYSTEM_SECRET`
 - `KRATOS_SMTP_CONNECTION_URI`
 - `ADMIN_ALLOWED_CIDR`
 - `TRUSTED_PROXIES`
+
+各シークレットは `openssl rand -hex 32` で生成してください。
 
 公開前チェック:
 
@@ -45,20 +44,28 @@ cp .env.production.example .env.production
 ## 2. 本番用 Ory 設定を生成する
 
 ```bash
-make nix-render-production-config
-make nix-config-check
-docker compose -f docker-compose.production.yml config
+set -a && source .env.production && set +a
+./scripts/render-production-config.sh
 ```
 
 生成物は `dist/kratos/kratos.yml` と `dist/hydra/hydra.yml` です。リポジトリにはコミットしません。
 
+Nix が使える場合は代わりに:
+```bash
+make nix-render-production-config
+make nix-config-check
+```
+
 ## 3. デプロイする
 
 ```bash
-make nix-deploy-production
+./scripts/deploy-production.sh
 ```
 
-初回に Linux VPS を整える必要がある場合は、リポジトリ内のプロビジョニングスクリプトを参照してください。
+または Nix 環境では:
+```bash
+make nix-deploy-production
+```
 
 ## 4. 公開前に確認すること
 
@@ -133,13 +140,13 @@ go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 ```bash
 git pull
-./scripts/run-nix-app.sh deploy-production .env.production
+./scripts/deploy-production.sh
 ```
 
 ### バックアップ
 
 ```bash
-./scripts/run-nix-app.sh backup-postgres .env.production
+./scripts/backup-postgres.sh .env.production
 ```
 
 systemd unit:
@@ -163,7 +170,7 @@ gunzip -c backups/idol_auth_<timestamp>.sql.gz | \
 ```bash
 git fetch
 git checkout <tag-or-commit>
-./scripts/run-nix-app.sh deploy-production .env.production
+./scripts/deploy-production.sh
 ```
 
 ### ブレークグラス

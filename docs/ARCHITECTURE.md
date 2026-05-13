@@ -270,6 +270,7 @@ Kratos の ID データ（メール・パスワード・MFA・`metadata_public.r
 | `APP_ENV` | `development` | `production` にするとバリデーションが厳格化 |
 | `APP_PORT` | `8080` | リスニングポート |
 | `APP_BASE_URL` | `http://localhost:8080` | 本番では `https://` 必須 |
+| `HYDRA_SYSTEM_SECRET` | `` | Hydra のシステムシークレット。32 文字以上。本番では必須 |
 | `ADMIN_BOOTSTRAP_TOKEN` | `` | Admin API の Bootstrap Token。本番では必須 |
 | `ADMIN_ALLOWED_EMAILS` | `` | カンマ区切りの管理者メール |
 | `ADMIN_ALLOWED_ROLES` | `` | カンマ区切りの管理者ロール |
