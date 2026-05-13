@@ -50,7 +50,6 @@ type HydraFacadeClient interface {
 	Token(ctx context.Context, body []byte) ([]byte, int, error)
 	Revoke(ctx context.Context, body []byte) ([]byte, int, error)
 	Introspect(ctx context.Context, body []byte) ([]byte, int, error)
-	OAuthClientExists(ctx context.Context, clientID string) (bool, error)
 }
 
 // KratosNativeClient is implemented by infra/kratos.NativeClient.
@@ -67,7 +66,6 @@ type PublicAuthService interface {
 	Token(ctx context.Context, body []byte) ([]byte, int, error)
 	Revoke(ctx context.Context, body []byte) ([]byte, int, error)
 	Introspect(ctx context.Context, body []byte) ([]byte, int, error)
-	OAuthClientExists(ctx context.Context, clientID string) (bool, error)
 	GetSession(ctx context.Context, token string) (PublicSessionView, error)
 	Register(ctx context.Context, input RegisterInput) (AuthResult, error)
 	Login(ctx context.Context, input LoginInput) (AuthResult, error)
@@ -133,10 +131,6 @@ func (s *PublicAuthServiceImpl) Revoke(ctx context.Context, body []byte) ([]byte
 
 func (s *PublicAuthServiceImpl) Introspect(ctx context.Context, body []byte) ([]byte, int, error) {
 	return s.hydra.Introspect(ctx, body)
-}
-
-func (s *PublicAuthServiceImpl) OAuthClientExists(ctx context.Context, clientID string) (bool, error) {
-	return s.hydra.OAuthClientExists(ctx, clientID)
 }
 
 // GetSession calls Kratos /sessions/whoami with X-Session-Token to look up

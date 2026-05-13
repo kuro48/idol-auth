@@ -5,7 +5,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -47,27 +46,11 @@ func (s *server) handlePublicRevoke(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(out)
 }
 
-// handlePublicIntrospect proxies POST /v1/public/api/token/introspect → Hydra admin introspect.
-// Requires a registered client_id in the request body to prevent anonymous token lookup.
+// handlePublicIntrospect proxies POST /v1/public/api/token/introspect → Hydra public introspect.
+// Hydra enforces client authentication for confidential clients.
 func (s *server) handlePublicIntrospect(w http.ResponseWriter, r *http.Request) {
 	body, ok := readLimitedBody(w, r, maxPublicRequestBodyBytes)
 	if !ok {
-		return
-	}
-	vals, err := url.ParseQuery(string(body))
-	if err != nil || strings.TrimSpace(vals.Get("client_id")) == "" {
-		writeError(w, http.StatusUnauthorized, "client_id is required")
-		return
-	}
-	clientID := strings.TrimSpace(vals.Get("client_id"))
-	exists, err := s.publicSvc.OAuthClientExists(r.Context(), clientID)
-	if err != nil {
-		slog.ErrorContext(r.Context(), "public introspect client check error", "error", err)
-		writeError(w, http.StatusBadGateway, "upstream error")
-		return
-	}
-	if !exists {
-		writeError(w, http.StatusUnauthorized, "unknown client_id")
 		return
 	}
 	out, status, err := s.publicSvc.Introspect(r.Context(), body)
