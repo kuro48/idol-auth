@@ -866,6 +866,10 @@ func (s *stubKratosAuthClient) BrowserSettingsURL(returnTo string) string {
 	return "http://kratos/settings?return_to=" + returnTo
 }
 
+func (s *stubKratosAuthClient) GetSettingsFlow(_ context.Context, _ *http.Request, _ string) (*KratosSettingsFlow, error) {
+	return nil, ErrSettingsFlowExpired
+}
+
 func (s *stubThemePreferenceUpdater) SetIdentityOshiColor(_ context.Context, identityID, color string) error {
 	s.identityID = identityID
 	s.color = color

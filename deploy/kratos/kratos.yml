@@ -64,7 +64,7 @@ selfservice:
       after:
         default_browser_return_url: http://localhost:3002/login
     settings:
-      ui_url: http://localhost:3002/settings
+      ui_url: http://localhost:8080/settings
       required_aal: highest_available
     recovery:
       enabled: true

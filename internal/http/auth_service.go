@@ -13,10 +13,38 @@ import (
 
 var ErrNoActiveSession = errors.New("no active session")
 
+var ErrSettingsFlowExpired = errors.New("settings flow expired or not found")
+
 var (
-	ErrInvalidOshiColor          = errors.New("invalid oshi color")
+	ErrInvalidOshiColor           = errors.New("invalid oshi color")
 	ErrThemePreferenceUnavailable = errors.New("theme preference unavailable")
 )
+
+type KratosSettingsMessage struct {
+	ID   int
+	Text string
+	Type string
+}
+
+type KratosSettingsNode struct {
+	Type      string
+	Group     string
+	Name      string
+	InputType string
+	Value     string
+	Label     string
+	Required  bool
+	Disabled  bool
+	Messages  []KratosSettingsMessage
+}
+
+type KratosSettingsFlow struct {
+	ID       string
+	Action   string
+	Method   string
+	Nodes    []KratosSettingsNode
+	Messages []KratosSettingsMessage
+}
 
 type HydraLoginRequest struct {
 	Skip    bool
@@ -76,6 +104,7 @@ type KratosAuthClient interface {
 	ToSession(ctx context.Context, r *http.Request) (KratosSession, error)
 	BrowserLoginURL(returnTo string) string
 	BrowserSettingsURL(returnTo string) string
+	GetSettingsFlow(ctx context.Context, r *http.Request, flowID string) (*KratosSettingsFlow, error)
 }
 
 type ThemePreferenceUpdater interface {
@@ -367,6 +396,10 @@ func (s *authService) CurrentSession(ctx context.Context, r *http.Request) (Sess
 		Methods:                     session.Methods,
 		AuthenticatorAssuranceLevel: session.AuthenticatorAssuranceLevel,
 	}, nil
+}
+
+func (s *authService) GetSettingsFlow(ctx context.Context, r *http.Request, flowID string) (*KratosSettingsFlow, error) {
+	return s.kratos.GetSettingsFlow(ctx, r, flowID)
 }
 
 func (s *authService) loginReturnURL(loginChallenge string) string {

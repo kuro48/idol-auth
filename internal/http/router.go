@@ -201,6 +201,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Use(s.accountUIAuth)
 		r.Get("/", s.handleAccountCenter)
 	})
+	r.With(s.accountUIAuth).Get("/settings", s.handleSettings)
 
 	r.Route("/v1/auth", func(r chi.Router) {
 		if s.config.Limiter != nil {
