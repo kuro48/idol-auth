@@ -99,7 +99,7 @@ func TestAccountCenter_RendersAtBarePath(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), "Account Center") {
+	if !strings.Contains(w.Body.String(), "アカウントセンター") {
 		t.Fatalf("expected account center body, got %s", w.Body.String())
 	}
 }
@@ -125,7 +125,7 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 		t.Fatalf("expected html content type, got %q", ct)
 	}
 	body := w.Body.String()
-	for _, fragment := range []string{"Account Center", "共有プロフィール", "連携中アプリ", "共有アカウント削除"} {
+	for _, fragment := range []string{"アカウントセンター", "共有プロフィール", "連携中アプリ", "アカウント削除"} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected body to contain %q, got %s", fragment, body)
 		}

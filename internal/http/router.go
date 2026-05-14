@@ -81,6 +81,8 @@ type SessionView struct {
 	Subject                     string   `json:"subject,omitempty"`
 	IdentityID                  string   `json:"identity_id,omitempty"`
 	Email                       string   `json:"email,omitempty"`
+	Phone                       string   `json:"phone,omitempty"`
+	DisplayName                 string   `json:"display_name,omitempty"`
 	Roles                       []string `json:"roles,omitempty"`
 	OshiColor                   string   `json:"oshi_color,omitempty"`
 	Methods                     []string `json:"methods,omitempty"`

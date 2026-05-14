@@ -64,6 +64,7 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 			ID     string `json:"id"`
 			Traits struct {
 				Email       string `json:"email"`
+				Phone       string `json:"phone"`
 				DisplayName string `json:"display_name"`
 			} `json:"traits"`
 			MetadataPublic struct {
@@ -87,6 +88,7 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 		Active:                      decoded.Active,
 		IdentityID:                  decoded.Identity.ID,
 		Email:                       decoded.Identity.Traits.Email,
+		Phone:                       decoded.Identity.Traits.Phone,
 		DisplayName:                 decoded.Identity.Traits.DisplayName,
 		Roles:                       decoded.Identity.MetadataPublic.Roles,
 		OshiColor:                   oshi.NormalizeColor(decoded.Identity.MetadataPublic.OshiColor),

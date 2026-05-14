@@ -45,6 +45,7 @@ type KratosSession struct {
 	Active                      bool
 	IdentityID                  string
 	Email                       string
+	Phone                       string
 	DisplayName                 string
 	OshiColor                   string
 	OshiIDs                     []string
@@ -359,6 +360,8 @@ func (s *authService) CurrentSession(ctx context.Context, r *http.Request) (Sess
 		Subject:                     session.IdentityID,
 		IdentityID:                  session.IdentityID,
 		Email:                       session.Email,
+		Phone:                       session.Phone,
+		DisplayName:                 session.DisplayName,
 		Roles:                       normalizeRoles(session.Roles),
 		OshiColor:                   oshi.NormalizeColor(session.OshiColor),
 		Methods:                     session.Methods,
