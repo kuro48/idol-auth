@@ -200,6 +200,7 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 			DisplayName string `json:"display_name"`
 		} `json:"traits"`
 		MetadataPublic json.RawMessage `json:"metadata_public"`
+		MetadataAdmin  json.RawMessage `json:"metadata_admin"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return profile.Profile{}, fmt.Errorf("decode kratos get identity profile response: %w", err)
@@ -209,22 +210,44 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 	if err := meta.Unmarshal([]byte(decoded.MetadataPublic)); err != nil {
 		return profile.Profile{}, fmt.Errorf("decode identity metadata_public: %w", err)
 	}
+	var adminMeta profile.MetadataAdmin
+	if err := adminMeta.Unmarshal([]byte(decoded.MetadataAdmin)); err != nil {
+		return profile.Profile{}, fmt.Errorf("decode identity metadata_admin: %w", err)
+	}
 
 	return profile.Profile{
-		IdentityID:  decoded.ID,
-		Email:       decoded.Traits.Email,
-		Phone:       decoded.Traits.Phone,
-		DisplayName: decoded.Traits.DisplayName,
-		OshiColor:   meta.OshiColor,
-		OshiIDs:     meta.OshiIDs,
-		FanSince:    meta.FanSince,
+		IdentityID:              decoded.ID,
+		Email:                   decoded.Traits.Email,
+		Phone:                   decoded.Traits.Phone,
+		DisplayName:             decoded.Traits.DisplayName,
+		AvatarURL:               meta.AvatarURL,
+		Locale:                  meta.Locale,
+		Timezone:                meta.Timezone,
+		OshiColor:               meta.OshiColor,
+		OshiIDs:                 meta.OshiIDs,
+		FanSince:                meta.FanSince,
+		Badges:                  meta.Badges,
+		PrimaryBadgeID:          meta.PrimaryBadgeID,
+		ContributionScore:       meta.ContributionScore,
+		ContributionSummary:     meta.ContributionSummary,
+		Birthdate:               adminMeta.Birthdate,
+		NotificationPreferences: adminMeta.NotificationPreferences,
 	}, nil
 }
 
 func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID string, input profile.UpdateInput) error {
 	var ops []map[string]any
 
-	if input.OshiColor != nil || input.OshiIDs != nil || input.FanSince != nil {
+	if input.OshiColor != nil ||
+		input.OshiIDs != nil ||
+		input.FanSince != nil ||
+		input.AvatarURL != nil ||
+		input.Locale != nil ||
+		input.Timezone != nil ||
+		input.Badges != nil ||
+		input.PrimaryBadgeID != nil ||
+		input.ContributionScore != nil ||
+		input.ContributionSummary != nil {
 		metadata, err := c.getMetadataPublic(ctx, identityID)
 		if err != nil {
 			return err
@@ -238,9 +261,48 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		if input.FanSince != nil {
 			metadata["fan_since"] = *input.FanSince
 		}
+		if input.AvatarURL != nil {
+			metadata["avatar_url"] = *input.AvatarURL
+		}
+		if input.Locale != nil {
+			metadata["locale"] = *input.Locale
+		}
+		if input.Timezone != nil {
+			metadata["timezone"] = *input.Timezone
+		}
+		if input.Badges != nil {
+			metadata["badges"] = *input.Badges
+		}
+		if input.PrimaryBadgeID != nil {
+			metadata["primary_badge_id"] = *input.PrimaryBadgeID
+		}
+		if input.ContributionScore != nil {
+			metadata["contribution_score"] = *input.ContributionScore
+		}
+		if input.ContributionSummary != nil {
+			metadata["contribution_summary"] = *input.ContributionSummary
+		}
 		ops = append(ops, map[string]any{
 			"op":    "add",
 			"path":  "/metadata_public",
+			"value": metadata,
+		})
+	}
+
+	if input.Birthdate != nil || input.NotificationPreferences != nil {
+		metadata, err := c.getMetadataAdmin(ctx, identityID)
+		if err != nil {
+			return err
+		}
+		if input.Birthdate != nil {
+			metadata["birthdate"] = *input.Birthdate
+		}
+		if input.NotificationPreferences != nil {
+			metadata["notification_preferences"] = *input.NotificationPreferences
+		}
+		ops = append(ops, map[string]any{
+			"op":    "add",
+			"path":  "/metadata_admin",
 			"value": metadata,
 		})
 	}
@@ -495,4 +557,33 @@ func (c *AdminClient) getMetadataPublic(ctx context.Context, identityID string) 
 		return map[string]any{}, nil
 	}
 	return decoded.MetadataPublic, nil
+}
+
+func (c *AdminClient) getMetadataAdmin(ctx context.Context, identityID string) (map[string]any, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), nil)
+	if err != nil {
+		return nil, fmt.Errorf("build kratos get identity request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call kratos get identity: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get identity metadata_admin", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("kratos get identity returned status %d", resp.StatusCode)
+	}
+	var decoded struct {
+		MetadataAdmin map[string]any `json:"metadata_admin"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return nil, fmt.Errorf("decode kratos identity metadata_admin: %w", err)
+	}
+	if decoded.MetadataAdmin == nil {
+		return map[string]any{}, nil
+	}
+	return decoded.MetadataAdmin, nil
 }

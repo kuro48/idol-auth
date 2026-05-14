@@ -67,6 +67,10 @@ idol-auth は「共有アカウント型」認証基盤。複数のアプリが 
   - 現在の shared account から接続済み app を確認
   - app ごとの連携解除
   - shared account の完全削除予約
+- `shared profile`
+  - `display_name`, `avatar_url`, `locale`, `timezone`, 推しID/推し色などの共通表示情報
+  - `birthdate`, `notification_preferences` は本人向けプロフィールとして扱い、third-party app 向け `PublicView` からは除外
+  - `badges`, `primary_badge_id`, `contribution_score`, `contribution_summary` は投稿型サービスの横断的な貢献表示用。自己申告ではなく管理APIから更新する
 
 shared account を使う前提なので、third-party app に identity 本体の削除権限は渡さない。app には `management token` を発行し、`/v1/apps/self/*` で自分の membership だけ扱わせる。
 
@@ -137,7 +141,7 @@ headless registration/login は Kratos の API-mode self-service flow を開始�
 - `/v1/auth/*`
   - Hydra login / consent / logout bridge
 - `/v1/admin/*`
-  - app 登録、party_type 更新、OIDC client 発行、management token 発行、監査
+  - app 登録、party_type 更新、OIDC client 発行、management token 発行、ユーザー状態/ロール/バッジ更新、監査
 - `/v1/public/*`
   - browser redirect helper、OAuth2 token proxy、headless registration/login/session
 - `/v1/account/*` と `/v1/apps/self/*`
@@ -217,6 +221,12 @@ app_user_memberships
 ├── status        TEXT  (active | revoked)
 ├── profile       JSONB
 └── created_at / updated_at / created_by / updated_by
+
+Kratos identity profile
+├── traits.display_name
+├── metadata_public.avatar_url / locale / timezone / oshi_color / oshi_ids / fan_since
+├── metadata_public.badges / primary_badge_id / contribution_score / contribution_summary
+└── metadata_admin.birthdate / notification_preferences
 
 account_deletion_requests
 ├── id            UUID PK

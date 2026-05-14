@@ -1,6 +1,9 @@
 package http
 
-import "github.com/kuro48/idol-auth/internal/domain/app"
+import (
+	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
+)
 
 type swaggerStatusResponse struct {
 	Status string `json:"status" example:"ok"`
@@ -30,6 +33,25 @@ type swaggerRolesUpdateResponse struct {
 type swaggerPatchUserRequest struct {
 	State string    `json:"state,omitempty" example:"active"`
 	Roles *[]string `json:"roles,omitempty"`
+}
+
+type swaggerPatchProfileRequest struct {
+	DisplayName             string                          `json:"display_name,omitempty" example:"推し活太郎"`
+	AvatarURL               string                          `json:"avatar_url,omitempty" example:"https://example.com/avatar.png"`
+	Locale                  string                          `json:"locale,omitempty" example:"ja-JP"`
+	Timezone                string                          `json:"timezone,omitempty" example:"Asia/Tokyo"`
+	Birthdate               string                          `json:"birthdate,omitempty" example:"2000-01-02"`
+	NotificationPreferences profile.NotificationPreferences `json:"notification_preferences,omitempty"`
+	OshiColor               string                          `json:"oshi_color,omitempty" example:"#ffb2d8"`
+	OshiIDs                 []string                        `json:"oshi_ids,omitempty" example:"member-01,member-03"`
+	FanSince                string                          `json:"fan_since,omitempty" example:"2019-04"`
+}
+
+type swaggerPatchProfileAwardsRequest struct {
+	Badges              []profile.Badge             `json:"badges,omitempty"`
+	PrimaryBadgeID      string                      `json:"primary_badge_id,omitempty" example:"top_contributor_2026"`
+	ContributionScore   int                         `json:"contribution_score,omitempty" example:"42"`
+	ContributionSummary profile.ContributionSummary `json:"contribution_summary,omitempty"`
 }
 
 type swaggerCreateOIDCClientRequest struct {

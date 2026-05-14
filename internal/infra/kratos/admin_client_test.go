@@ -177,9 +177,25 @@ func TestGetIdentityProfile_ReadsAllFields(t *testing.T) {
 				"display_name": "推し活太郎",
 			},
 			"metadata_public": map[string]any{
-				"oshi_color": "#ffb2d8",
-				"oshi_ids":   []string{"member-01", "member-03"},
-				"fan_since":  "2019-04",
+				"oshi_color":         "#ffb2d8",
+				"oshi_ids":           []string{"member-01", "member-03"},
+				"fan_since":          "2019-04",
+				"avatar_url":         "https://example.com/avatar.png",
+				"locale":             "ja-JP",
+				"timezone":           "Asia/Tokyo",
+				"badges":             []map[string]any{{"id": "top", "label": "Top"}},
+				"primary_badge_id":   "top",
+				"contribution_score": 42,
+				"contribution_summary": map[string]any{
+					"posts_count": 10,
+				},
+			},
+			"metadata_admin": map[string]any{
+				"birthdate": "2000-01-02",
+				"notification_preferences": map[string]any{
+					"email_enabled":   true,
+					"security_alerts": true,
+				},
 			},
 		})
 	}))
@@ -210,6 +226,15 @@ func TestGetIdentityProfile_ReadsAllFields(t *testing.T) {
 	}
 	if p.FanSince != "2019-04" {
 		t.Errorf("FanSince = %q, want 2019-04", p.FanSince)
+	}
+	if p.AvatarURL != "https://example.com/avatar.png" || p.Locale != "ja-JP" || p.Timezone != "Asia/Tokyo" {
+		t.Errorf("common profile fields mismatch: %+v", p)
+	}
+	if len(p.Badges) != 1 || p.PrimaryBadgeID != "top" || p.ContributionScore != 42 || p.ContributionSummary.PostsCount != 10 {
+		t.Errorf("contribution fields mismatch: %+v", p)
+	}
+	if p.Birthdate != "2000-01-02" || !p.NotificationPreferences.EmailEnabled || !p.NotificationPreferences.SecurityAlerts {
+		t.Errorf("private profile fields mismatch: %+v", p)
 	}
 }
 
@@ -304,6 +329,12 @@ func TestUpdateIdentityProfile_MergesExistingMetadataAndPatches(t *testing.T) {
 			if metaValue["fan_since"] != "2019-04" {
 				t.Errorf("fan_since = %v, want 2019-04", metaValue["fan_since"])
 			}
+			if metaValue["avatar_url"] != "https://example.com/avatar.png" {
+				t.Errorf("avatar_url = %v", metaValue["avatar_url"])
+			}
+			if metaValue["locale"] != "ja-JP" || metaValue["timezone"] != "Asia/Tokyo" {
+				t.Errorf("locale/timezone = %v/%v", metaValue["locale"], metaValue["timezone"])
+			}
 			if !foundDisplayName {
 				t.Error("expected /traits/display_name patch op")
 			}
@@ -317,13 +348,72 @@ func TestUpdateIdentityProfile_MergesExistingMetadataAndPatches(t *testing.T) {
 	displayName := "推し活太郎"
 	oshiColor := "#ffb2d8"
 	fanSince := "2019-04"
+	avatarURL := "https://example.com/avatar.png"
+	locale := "ja-JP"
+	timezone := "Asia/Tokyo"
 	client := NewAdminClient(srv.URL)
 	err := client.UpdateIdentityProfile(context.Background(), "identity-1", profile.UpdateInput{
 		DisplayName: &displayName,
 		OshiColor:   &oshiColor,
 		FanSince:    &fanSince,
+		AvatarURL:   &avatarURL,
+		Locale:      &locale,
+		Timezone:    &timezone,
 	})
 	if err != nil {
+		t.Fatalf("UpdateIdentityProfile() error = %v", err)
+	}
+}
+
+func TestUpdateIdentityProfile_PatchesMetadataAdminForPrivateFields(t *testing.T) {
+	requestCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if r.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", r.Method)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"metadata_admin": map[string]any{"existing": true},
+			})
+		case 2:
+			if r.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", r.Method)
+			}
+			var patch []map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+				t.Fatalf("decode patch: %v", err)
+			}
+			if len(patch) != 1 || patch[0]["path"] != "/metadata_admin" {
+				t.Fatalf("expected metadata_admin patch, got %+v", patch)
+			}
+			value, _ := patch[0]["value"].(map[string]any)
+			if value["birthdate"] != "2000-01-02" {
+				t.Fatalf("expected birthdate, got %+v", value)
+			}
+			prefs, _ := value["notification_preferences"].(map[string]any)
+			if prefs["security_alerts"] != true {
+				t.Fatalf("expected notification preferences, got %+v", prefs)
+			}
+			if value["existing"] != true {
+				t.Fatalf("expected existing metadata preserved, got %+v", value)
+			}
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+		}
+	}))
+	defer srv.Close()
+
+	birthdate := "2000-01-02"
+	prefs := profile.NotificationPreferences{EmailEnabled: true, SecurityAlerts: true}
+	client := NewAdminClient(srv.URL)
+	if err := client.UpdateIdentityProfile(context.Background(), "identity-1", profile.UpdateInput{
+		Birthdate:               &birthdate,
+		NotificationPreferences: &prefs,
+	}); err != nil {
 		t.Fatalf("UpdateIdentityProfile() error = %v", err)
 	}
 }

@@ -125,6 +125,8 @@ const result = await auth.login({
 - 共有アカウント本体の完全削除は `POST /v1/account/deletion` で中央管理します。
 - app-scoped API は app 作成時または `POST /v1/admin/apps/{appID}/management-token` で発行される `management_token` を使います。
 - 共有アカウント本人向けの画面は `http://localhost:8080/account/` です。プロフィール更新、連携 app の確認/解除、共有アカウント削除予約をここで行います。
+- 共有プロフィールは `display_name`, `avatar_url`, `locale`, `timezone`, `birthdate`, `notification_preferences`, 推し情報を持ちます。
+- 投稿型サービス向けの `badges`, `primary_badge_id`, `contribution_score`, `contribution_summary` は管理APIからだけ更新します。
 - first-party / third-party の切り替えは `PATCH /v1/admin/apps/{appID}/party-type` または `adminctl set-first-party` で行います。
 
 ## 本番デプロイ
