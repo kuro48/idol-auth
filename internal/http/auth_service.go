@@ -21,29 +21,35 @@ var (
 )
 
 type KratosSettingsMessage struct {
-	ID   int
-	Text string
-	Type string
+	ID   int    `json:"id"`
+	Text string `json:"text"`
+	Type string `json:"type"`
 }
 
 type KratosSettingsNode struct {
-	Type      string
-	Group     string
-	Name      string
-	InputType string
-	Value     string
-	Label     string
-	Required  bool
-	Disabled  bool
-	Messages  []KratosSettingsMessage
+	Type      string                  `json:"type"`
+	Group     string                  `json:"group"`
+	Name      string                  `json:"name"`
+	InputType string                  `json:"input_type"`
+	Value     string                  `json:"value"`
+	Label     string                  `json:"label"`
+	Required  bool                    `json:"required"`
+	Disabled  bool                    `json:"disabled"`
+	Messages  []KratosSettingsMessage `json:"messages,omitempty"`
 }
 
 type KratosSettingsFlow struct {
-	ID       string
-	Action   string
-	Method   string
-	Nodes    []KratosSettingsNode
-	Messages []KratosSettingsMessage
+	ID       string                  `json:"id"`
+	Action   string                  `json:"action"`
+	Method   string                  `json:"method"`
+	Nodes    []KratosSettingsNode    `json:"nodes"`
+	Messages []KratosSettingsMessage `json:"messages,omitempty"`
+}
+
+type KratosSettingsSubmitResult struct {
+	RedirectTo string
+	Flow       *KratosSettingsFlow
+	SetCookies []string
 }
 
 type HydraLoginRequest struct {
@@ -105,6 +111,7 @@ type KratosAuthClient interface {
 	BrowserLoginURL(returnTo string) string
 	BrowserSettingsURL(returnTo string) string
 	GetSettingsFlow(ctx context.Context, r *http.Request, flowID string) (*KratosSettingsFlow, error)
+	SubmitSettingsFlow(ctx context.Context, r *http.Request, flowID string, form url.Values) (KratosSettingsSubmitResult, error)
 }
 
 type ThemePreferenceUpdater interface {
@@ -400,6 +407,10 @@ func (s *authService) CurrentSession(ctx context.Context, r *http.Request) (Sess
 
 func (s *authService) GetSettingsFlow(ctx context.Context, r *http.Request, flowID string) (*KratosSettingsFlow, error) {
 	return s.kratos.GetSettingsFlow(ctx, r, flowID)
+}
+
+func (s *authService) SubmitSettingsFlow(ctx context.Context, r *http.Request, flowID string, form url.Values) (KratosSettingsSubmitResult, error) {
+	return s.kratos.SubmitSettingsFlow(ctx, r, flowID, form)
 }
 
 func (s *authService) loginReturnURL(loginChallenge string) string {

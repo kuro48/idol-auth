@@ -202,6 +202,11 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/", s.handleAccountCenter)
 	})
 	r.With(s.accountUIAuth).Get("/settings", s.handleSettings)
+	r.Route("/v1/settings", func(r chi.Router) {
+		r.Use(s.accountUIAuth)
+		r.Get("/flow", s.handleSettingsFlowGet)
+		r.Post("/flow", s.handleSettingsFlowSubmit)
+	})
 
 	r.Route("/v1/auth", func(r chi.Router) {
 		if s.config.Limiter != nil {
@@ -230,6 +235,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Patch("/apps/{appID}/party-type", s.handleSetAppPartyType)
 		r.Get("/users", s.handleSearchIdentities)
 		r.Patch("/users/{userRef}", s.handlePatchUser)
+		r.Patch("/users/{userRef}/profile-awards", s.handlePatchProfileAwards)
 		r.Post("/users/{userRef}/revoke-sessions", s.handleRevokeIdentitySessions)
 		r.Delete("/users/{userRef}", s.handleDeleteIdentity)
 		r.Get("/audit-logs", s.handleListAuditLogs)

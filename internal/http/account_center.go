@@ -4,7 +4,6 @@ import (
 	"context"
 	"html/template"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -41,9 +40,6 @@ func (s *server) handleAccountCenter(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, s.kratosLoginURL(r.RequestURI), http.StatusSeeOther)
 		return
 	}
-	returnTo := strings.TrimRight(s.config.App.BaseURL, "/") + "/account"
-	kratosSettingsURL := strings.TrimRight(s.config.Ory.KratosBrowserURL, "/") + "/self-service/settings/browser?" +
-		url.Values{"return_to": {returnTo}}.Encode()
 	oshiColor := template.CSS("#1740c9")
 	if c := session.OshiColor; c != "" {
 		oshiColor = template.CSS(c)
@@ -54,7 +50,7 @@ func (s *server) handleAccountCenter(w http.ResponseWriter, r *http.Request) {
 		Phone:             session.Phone,
 		IdentityID:        session.IdentityID,
 		LogoutURL:         "/v1/auth/logout",
-		KratosSettingsURL: kratosSettingsURL,
+		KratosSettingsURL: "/settings",
 		DisplayName:       session.DisplayName,
 		Initials:          initials(session.DisplayName, session.Email),
 		OshiColor:         oshiColor,

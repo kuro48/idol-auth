@@ -11,6 +11,7 @@ import (
 
 type settingsFlowService interface {
 	GetSettingsFlow(ctx context.Context, r *http.Request, flowID string) (*KratosSettingsFlow, error)
+	SubmitSettingsFlow(ctx context.Context, r *http.Request, flowID string, form url.Values) (KratosSettingsSubmitResult, error)
 }
 
 type settingsSection struct {
@@ -69,8 +70,8 @@ func (s *server) handleSettings(w http.ResponseWriter, r *http.Request) {
 
 	setAccountCenterHeaders(w)
 	_ = settingsTpl.Execute(w, settingsData{
-		Action:      flow.Action,
-		Method:      flow.Method,
+		Action:      "/v1/settings/flow?flow=" + url.QueryEscape(flow.ID),
+		Method:      http.MethodPost,
 		Email:       session.Email,
 		Phone:       session.Phone,
 		DisplayName: session.DisplayName,
@@ -80,6 +81,117 @@ func (s *server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		Sections:    buildSettingsSections(flow),
 		Messages:    flow.Messages,
 	})
+}
+
+func (s *server) handleSettingsFlowGet(w http.ResponseWriter, r *http.Request) {
+	flowID := strings.TrimSpace(r.URL.Query().Get("id"))
+	if flowID == "" {
+		writeError(w, http.StatusBadRequest, "settings flow id is required")
+		return
+	}
+	svc, ok := s.authSvc.(settingsFlowService)
+	if !ok {
+		writeError(w, http.StatusServiceUnavailable, "settings service unavailable")
+		return
+	}
+	flow, err := svc.GetSettingsFlow(r.Context(), r, flowID)
+	if err != nil {
+		writeSettingsFlowError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, flow)
+}
+
+func (s *server) handleSettingsFlowSubmit(w http.ResponseWriter, r *http.Request) {
+	flowID := strings.TrimSpace(r.URL.Query().Get("flow"))
+	if flowID == "" {
+		flowID = strings.TrimSpace(r.URL.Query().Get("id"))
+	}
+	if flowID == "" {
+		writeError(w, http.StatusBadRequest, "settings flow id is required")
+		return
+	}
+	svc, ok := s.authSvc.(settingsFlowService)
+	if !ok {
+		writeError(w, http.StatusServiceUnavailable, "settings service unavailable")
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid form body")
+		return
+	}
+	result, err := svc.SubmitSettingsFlow(r.Context(), r, flowID, r.PostForm)
+	if err != nil {
+		writeSettingsFlowError(w, err)
+		return
+	}
+	for _, cookie := range result.SetCookies {
+		w.Header().Add("Set-Cookie", cookie)
+	}
+	if result.RedirectTo != "" {
+		http.Redirect(w, r, s.safeSettingsRedirect(result.RedirectTo), http.StatusSeeOther)
+		return
+	}
+	if result.Flow != nil {
+		session, _ := accountSessionFromContext(r.Context())
+		oshiColor := template.CSS("#1740c9")
+		if c := session.OshiColor; c != "" {
+			oshiColor = template.CSS(c)
+		}
+		setAccountCenterHeaders(w)
+		w.WriteHeader(http.StatusBadRequest)
+		_ = settingsTpl.Execute(w, settingsData{
+			Action:      "/v1/settings/flow?flow=" + url.QueryEscape(result.Flow.ID),
+			Method:      http.MethodPost,
+			Email:       session.Email,
+			Phone:       session.Phone,
+			DisplayName: session.DisplayName,
+			OshiColor:   oshiColor,
+			Initials:    initials(session.DisplayName, session.Email),
+			BackURL:     "/account",
+			Sections:    buildSettingsSections(result.Flow),
+			Messages:    result.Flow.Messages,
+		})
+		return
+	}
+	http.Redirect(w, r, "/account", http.StatusSeeOther)
+}
+
+func (s *server) safeSettingsRedirect(raw string) string {
+	target := strings.TrimSpace(raw)
+	if target == "" {
+		return "/account"
+	}
+	if strings.HasPrefix(target, "/") && !strings.HasPrefix(target, "//") {
+		return target
+	}
+	u, err := url.Parse(target)
+	if err != nil || u.Host == "" {
+		return "/account"
+	}
+	if sameOrigin(u, s.config.App.BaseURL) || sameOrigin(u, s.config.Ory.KratosBrowserURL) {
+		return target
+	}
+	return "/account"
+}
+
+func sameOrigin(u *url.URL, allowedRaw string) bool {
+	allowed, err := url.Parse(strings.TrimSpace(allowedRaw))
+	if err != nil || allowed.Host == "" {
+		return false
+	}
+	return strings.EqualFold(u.Scheme, allowed.Scheme) && strings.EqualFold(u.Host, allowed.Host)
+}
+
+func writeSettingsFlowError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrSettingsFlowExpired):
+		writeError(w, http.StatusNotFound, "settings flow expired or not found")
+	case errors.Is(err, ErrNoActiveSession):
+		writeError(w, http.StatusUnauthorized, "authentication required")
+	default:
+		writeError(w, http.StatusBadGateway, "failed to proxy settings flow")
+	}
 }
 
 func buildSettingsSections(flow *KratosSettingsFlow) []settingsSection {

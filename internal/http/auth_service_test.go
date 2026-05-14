@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -868,6 +869,10 @@ func (s *stubKratosAuthClient) BrowserSettingsURL(returnTo string) string {
 
 func (s *stubKratosAuthClient) GetSettingsFlow(_ context.Context, _ *http.Request, _ string) (*KratosSettingsFlow, error) {
 	return nil, ErrSettingsFlowExpired
+}
+
+func (s *stubKratosAuthClient) SubmitSettingsFlow(_ context.Context, _ *http.Request, _ string, _ url.Values) (KratosSettingsSubmitResult, error) {
+	return KratosSettingsSubmitResult{}, ErrSettingsFlowExpired
 }
 
 func (s *stubThemePreferenceUpdater) SetIdentityOshiColor(_ context.Context, identityID, color string) error {
