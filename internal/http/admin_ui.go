@@ -11,6 +11,10 @@ import (
 
 func (s *server) adminUIAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !adminIPAllowed(clientIP(r, s.config.Security.TrustedProxies), s.config.Admin.AllowedCIDRs) {
+			http.Error(w, "admin access denied", http.StatusForbidden)
+			return
+		}
 		if s.authSvc == nil {
 			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
 			return

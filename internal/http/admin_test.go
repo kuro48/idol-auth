@@ -60,6 +60,44 @@ func TestAdminCreateAppReturnsCreated(t *testing.T) {
 	}
 }
 
+func TestAdminAPIRejectsRequestsOutsideAllowedCIDR(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{
+			BootstrapToken: "secret",
+			AllowedCIDRs:   []string{"203.0.113.10/32"},
+		},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodGet, "/v1/admin/apps", nil)
+	req.RemoteAddr = "198.51.100.20:4567"
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusForbidden, w.Code, w.Body.String())
+	}
+}
+
+func TestAdminAPIAllowsRequestsInsideAllowedCIDR(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{
+			BootstrapToken: "secret",
+			AllowedCIDRs:   []string{"203.0.113.0/24"},
+		},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodGet, "/v1/admin/apps", nil)
+	req.RemoteAddr = "203.0.113.10:4567"
+	req.Header.Set("Authorization", "Bearer secret")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+}
+
 func TestAdminListAppsAllowsKratosAdminSession(t *testing.T) {
 	authn := &stubAuthService{
 		session: apphttp.SessionView{

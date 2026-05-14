@@ -75,6 +75,7 @@ func TestLoad_CustomValues(t *testing.T) {
 	t.Setenv("HYDRA_BROWSER_URL", "http://browser-hydra:4444")
 	t.Setenv("ADMIN_ALLOWED_EMAILS", "admin@example.com,ops@example.com")
 	t.Setenv("ADMIN_ALLOWED_ROLES", "admin,platform-operator")
+	t.Setenv("ADMIN_ALLOWED_CIDR", "203.0.113.10/32,10.8.0.0/24")
 
 	// Act
 	cfg, err := config.Load()
@@ -115,6 +116,9 @@ func TestLoad_CustomValues(t *testing.T) {
 	}
 	if len(cfg.Admin.AllowedRoles) != 2 || cfg.Admin.AllowedRoles[0] != "admin" || cfg.Admin.AllowedRoles[1] != "platform-operator" {
 		t.Errorf("unexpected admin allowed roles: %v", cfg.Admin.AllowedRoles)
+	}
+	if len(cfg.Admin.AllowedCIDRs) != 2 || cfg.Admin.AllowedCIDRs[0] != "203.0.113.10/32" {
+		t.Errorf("unexpected admin allowed cidrs: %v", cfg.Admin.AllowedCIDRs)
 	}
 }
 
@@ -193,7 +197,7 @@ func TestLoad_ProductionRejectsInsecureSettings(t *testing.T) {
 }
 
 func TestLoad_ProductionAllowsHardenedSettings(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://user:pass@db:5432/prod")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@db.example.com:5432/prod?sslmode=require")
 	setRequiredOryVars(t)
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_BASE_URL", "https://auth.example.com")
@@ -203,6 +207,7 @@ func TestLoad_ProductionAllowsHardenedSettings(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "info")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
 	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
+	t.Setenv("ADMIN_ALLOWED_CIDR", "203.0.113.10/32")
 
 	cfg, err := config.Load()
 
@@ -211,5 +216,51 @@ func TestLoad_ProductionAllowsHardenedSettings(t *testing.T) {
 	}
 	if cfg.App.Env != "production" {
 		t.Fatalf("expected production env, got %q", cfg.App.Env)
+	}
+}
+
+func TestLoad_ProductionAllowsInternalComposePostgresWithoutSSL(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://user:pass@postgres:5432/prod?sslmode=disable")
+	setRequiredOryVars(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("APP_BASE_URL", "https://auth.example.com")
+	t.Setenv("KRATOS_BROWSER_URL", "https://accounts.example.com")
+	t.Setenv("HYDRA_BROWSER_URL", "https://login.example.com")
+	t.Setenv("SESSION_COOKIE_SECURE", "true")
+	t.Setenv("LOG_LEVEL", "info")
+	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
+	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
+	t.Setenv("ADMIN_ALLOWED_CIDR", "203.0.113.10/32")
+
+	if _, err := config.Load(); err != nil {
+		t.Fatalf("expected internal compose postgres to load, got %v", err)
+	}
+}
+
+func TestLoad_ProductionRejectsExternalDatabaseWithoutSSL(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://user:pass@db.example.com:5432/prod?sslmode=disable")
+	setRequiredOryVars(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("APP_BASE_URL", "https://auth.example.com")
+	t.Setenv("KRATOS_BROWSER_URL", "https://accounts.example.com")
+	t.Setenv("HYDRA_BROWSER_URL", "https://login.example.com")
+	t.Setenv("SESSION_COOKIE_SECURE", "true")
+	t.Setenv("LOG_LEVEL", "info")
+	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
+	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
+	t.Setenv("ADMIN_ALLOWED_CIDR", "203.0.113.10/32")
+
+	if _, err := config.Load(); err == nil {
+		t.Fatal("expected external production database without SSL to be rejected")
+	}
+}
+
+func TestLoad_RejectsInvalidAdminAllowedCIDR(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/testdb")
+	setRequiredOryVars(t)
+	t.Setenv("ADMIN_ALLOWED_CIDR", "not-a-cidr")
+
+	if _, err := config.Load(); err == nil {
+		t.Fatal("expected invalid ADMIN_ALLOWED_CIDR to be rejected")
 	}
 }

@@ -37,6 +37,7 @@ cp .env.production.example .env.production
 
 - `APP_ENV=production`
 - `APP_BASE_URL`, `KRATOS_BROWSER_URL`, `HYDRA_BROWSER_URL` は `https://`
+- 同梱 PostgreSQL を使う場合は `sslmode=disable` でよい。外部/マネージド PostgreSQL を使う場合は `sslmode=require` または `sslmode=verify-full`
 - `SESSION_COOKIE_SECURE=true`
 - `LOG_LEVEL` は `debug` ではない
 - `ADMIN_BOOTSTRAP_TOKEN` は 32 文字以上のランダム値
@@ -71,13 +72,13 @@ make nix-deploy-production
 
 ### Admin API の到達制御
 
-`ADMIN_ALLOWED_CIDR` で `/v1/admin/*` を operator ネットワークに制限します。
+`ADMIN_ALLOWED_CIDR` で `/v1/admin/*` と `/admin-ui/*` を operator ネットワークに制限します。Cloudflare Tunnel 経由でもアプリ側で検証されます。
 
 例:
 
 ```bash
 ADMIN_ALLOWED_CIDR=203.0.113.10/32
-ADMIN_ALLOWED_CIDR=10.8.0.0/24
+ADMIN_ALLOWED_CIDR=203.0.113.10/32,10.8.0.0/24
 ```
 
 確認:

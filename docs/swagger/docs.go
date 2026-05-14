@@ -265,6 +265,110 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/account/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "認証中の共有アカウントプロフィールを返します。本人向けなので birthdate / notification_preferences を含みます。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Get shared profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.Profile"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "認証中の共有アカウントプロフィールを更新します。badges / contribution 系は自己更新できません。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Update shared profile",
+                "parameters": [
+                    {
+                        "description": "profile update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerPatchProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.Profile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/admin/apps": {
             "get": {
                 "security": [
@@ -886,6 +990,82 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/http.swaggerRolesUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/users/{userRef}/profile-awards": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "指定 identity の badges / primary_badge_id / contribution_score / contribution_summary を更新します。ユーザー自己申告ではなく管理API専用です。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Users"
+                ],
+                "summary": "Update profile awards",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Identity UUID or URL-encoded email",
+                        "name": "userRef",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "profile awards request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerPatchProfileAwardsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.Profile"
                         }
                     },
                     "400": {
@@ -1887,6 +2067,155 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/settings/flow": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "認証中ユーザーの Kratos self-service settings flow をバックエンド経由で取得します。ブラウザ画面は /settings?flow={id} を使います。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Get Kratos settings flow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Kratos settings flow ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.KratosSettingsFlow"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "メールアドレス・電話番号などの Kratos settings flow フォーム送信をバックエンド経由でproxyします。成功時は /account などのreturn_toへリダイレクトします。",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Submit Kratos settings flow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Kratos settings flow ID",
+                        "name": "flow",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Kratos CSRF token",
+                        "name": "csrf_token",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "profile",
+                            "password",
+                            "totp",
+                            "lookup_secret"
+                        ],
+                        "type": "string",
+                        "description": "Kratos settings method",
+                        "name": "method",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "303": {
+                        "description": "See Other",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2045,6 +2374,81 @@ const docTemplate = `{
                 "PartyTypeThird"
             ]
         },
+        "http.KratosSettingsFlow": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.KratosSettingsMessage"
+                    }
+                },
+                "method": {
+                    "type": "string"
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.KratosSettingsNode"
+                    }
+                }
+            }
+        },
+        "http.KratosSettingsMessage": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.KratosSettingsNode": {
+            "type": "object",
+            "properties": {
+                "disabled": {
+                    "type": "boolean"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "input_type": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.KratosSettingsMessage"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "http.ProviderView": {
             "type": "object",
             "properties": {
@@ -2103,6 +2507,9 @@ const docTemplate = `{
                 "authenticator_assurance_level": {
                     "type": "string"
                 },
+                "display_name": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -2116,6 +2523,9 @@ const docTemplate = `{
                     }
                 },
                 "oshi_color": {
+                    "type": "string"
+                },
+                "phone": {
                     "type": "string"
                 },
                 "roles": {
@@ -2661,6 +3071,74 @@ const docTemplate = `{
                 }
             }
         },
+        "http.swaggerPatchProfileAwardsRequest": {
+            "type": "object",
+            "properties": {
+                "badges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/profile.Badge"
+                    }
+                },
+                "contribution_score": {
+                    "type": "integer",
+                    "example": 42
+                },
+                "contribution_summary": {
+                    "$ref": "#/definitions/profile.ContributionSummary"
+                },
+                "primary_badge_id": {
+                    "type": "string",
+                    "example": "top_contributor_2026"
+                }
+            }
+        },
+        "http.swaggerPatchProfileRequest": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.png"
+                },
+                "birthdate": {
+                    "type": "string",
+                    "example": "2000-01-02"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "推し活太郎"
+                },
+                "fan_since": {
+                    "type": "string",
+                    "example": "2019-04"
+                },
+                "locale": {
+                    "type": "string",
+                    "example": "ja-JP"
+                },
+                "notification_preferences": {
+                    "$ref": "#/definitions/profile.NotificationPreferences"
+                },
+                "oshi_color": {
+                    "type": "string",
+                    "example": "#ffb2d8"
+                },
+                "oshi_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "member-01",
+                        "member-03"
+                    ]
+                },
+                "timezone": {
+                    "type": "string",
+                    "example": "Asia/Tokyo"
+                }
+            }
+        },
         "http.swaggerPatchUserRequest": {
             "type": "object",
             "properties": {
@@ -2745,6 +3223,126 @@ const docTemplate = `{
                 "oshi_color": {
                     "type": "string",
                     "example": "#b2b2ff"
+                }
+            }
+        },
+        "profile.Badge": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "issued_at": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "source_app_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "profile.ContributionSummary": {
+            "type": "object",
+            "properties": {
+                "accepted_contributions_count": {
+                    "type": "integer"
+                },
+                "helpful_votes_count": {
+                    "type": "integer"
+                },
+                "last_contributed_at": {
+                    "type": "string"
+                },
+                "posts_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "profile.NotificationPreferences": {
+            "type": "object",
+            "properties": {
+                "app_membership_notifications": {
+                    "type": "boolean"
+                },
+                "community_notifications": {
+                    "type": "boolean"
+                },
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "product_updates": {
+                    "type": "boolean"
+                },
+                "security_alerts": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "profile.Profile": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "badges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/profile.Badge"
+                    }
+                },
+                "birthdate": {
+                    "type": "string"
+                },
+                "contribution_score": {
+                    "type": "integer"
+                },
+                "contribution_summary": {
+                    "$ref": "#/definitions/profile.ContributionSummary"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "description": "PII — excluded from PublicView",
+                    "type": "string"
+                },
+                "fan_since": {
+                    "type": "string"
+                },
+                "identity_id": {
+                    "type": "string"
+                },
+                "locale": {
+                    "type": "string"
+                },
+                "notification_preferences": {
+                    "$ref": "#/definitions/profile.NotificationPreferences"
+                },
+                "oshi_color": {
+                    "type": "string"
+                },
+                "oshi_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "primary_badge_id": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
                 }
             }
         }

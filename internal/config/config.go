@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/netip"
 	"net/url"
 	"strings"
 
@@ -41,6 +42,7 @@ type AdminConfig struct {
 	BootstrapToken string   `env:"ADMIN_BOOTSTRAP_TOKEN"`
 	AllowedEmails  []string `env:"ADMIN_ALLOWED_EMAILS" envSeparator:","`
 	AllowedRoles   []string `env:"ADMIN_ALLOWED_ROLES" envSeparator:","`
+	AllowedCIDRs   []string `env:"ADMIN_ALLOWED_CIDR" envSeparator:","`
 }
 
 type SecurityConfig struct {
@@ -79,8 +81,8 @@ func (c *Config) Validate() error {
 	}
 
 	if strings.EqualFold(strings.TrimSpace(c.App.Env), "production") {
-		if strings.Contains(strings.ToLower(c.DB.URL), "sslmode=disable") {
-			return fmt.Errorf("config: production forbids sslmode=disable in DATABASE_URL; use sslmode=require or sslmode=verify-full")
+		if err := validateProductionDatabaseURL(c.DB.URL); err != nil {
+			return err
 		}
 		if !c.Security.CookieSecure {
 			return fmt.Errorf("config: production requires SESSION_COOKIE_SECURE=true")
@@ -103,6 +105,9 @@ func (c *Config) Validate() error {
 		if token == "" {
 			return fmt.Errorf("config: production requires ADMIN_BOOTSTRAP_TOKEN")
 		}
+		if len(c.Admin.AllowedCIDRs) == 0 {
+			return fmt.Errorf("config: production requires ADMIN_ALLOWED_CIDR")
+		}
 		secret := strings.TrimSpace(c.Ory.HydraSystemSecret)
 		if secret == "" {
 			return fmt.Errorf("config: production requires HYDRA_SYSTEM_SECRET")
@@ -111,7 +116,35 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("config: HYDRA_SYSTEM_SECRET must be at least 32 characters")
 		}
 	}
+	for _, cidr := range c.Admin.AllowedCIDRs {
+		cidr = strings.TrimSpace(cidr)
+		if cidr == "" {
+			continue
+		}
+		if _, err := netip.ParsePrefix(cidr); err != nil {
+			if _, addrErr := netip.ParseAddr(cidr); addrErr != nil {
+				return fmt.Errorf("config: invalid ADMIN_ALLOWED_CIDR %q", cidr)
+			}
+		}
+	}
 	return nil
+}
+
+func validateProductionDatabaseURL(raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return fmt.Errorf("config: parse DATABASE_URL: %w", err)
+	}
+	if !strings.EqualFold(parsed.Query().Get("sslmode"), "disable") {
+		return nil
+	}
+	host := strings.TrimSpace(strings.ToLower(parsed.Hostname()))
+	switch host {
+	case "postgres", "localhost", "127.0.0.1", "::1":
+		return nil
+	default:
+		return fmt.Errorf("config: production forbids sslmode=disable for external DATABASE_URL hosts; use sslmode=require or sslmode=verify-full")
+	}
 }
 
 var knownWeakTokens = []string{

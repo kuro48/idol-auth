@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -1146,6 +1147,10 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		ip := clientIP(r, s.config.Security.TrustedProxies)
+		if !adminIPAllowed(ip, s.config.Admin.AllowedCIDRs) {
+			writeError(w, http.StatusForbidden, "admin access denied")
+			return
+		}
 		if token != "" {
 			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
 				// Valid bootstrap token — do not consume the failure rate-limit budget.
@@ -1205,6 +1210,29 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 		}
 		writeError(w, http.StatusUnauthorized, "admin authorization required")
 	})
+}
+
+func adminIPAllowed(ip string, allowedCIDRs []string) bool {
+	if len(allowedCIDRs) == 0 {
+		return true
+	}
+	addr, err := netip.ParseAddr(strings.TrimSpace(ip))
+	if err != nil {
+		return false
+	}
+	for _, candidate := range allowedCIDRs {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if prefix, err := netip.ParsePrefix(candidate); err == nil && prefix.Contains(addr) {
+			return true
+		}
+		if allowedIP, err := netip.ParseAddr(candidate); err == nil && allowedIP == addr {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *server) accountAuth(next http.Handler) http.Handler {
@@ -1820,7 +1848,6 @@ func requestIsSecure(r *http.Request, trustedProxies []string) bool {
 func adminSessionMFASatisfied(session SessionView) bool {
 	return strings.EqualFold(strings.TrimSpace(session.AuthenticatorAssuranceLevel), "aal2")
 }
-
 
 // resolveUserRef accepts either a UUID or an email/identifier string.
 // UUIDs are passed through directly; other values trigger a Kratos identity search.

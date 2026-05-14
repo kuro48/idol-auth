@@ -234,6 +234,23 @@ func swaggerAdminSearchUsersDoc() {}
 // @Router /v1/admin/users/{userRef} [patch]
 func swaggerAdminPatchUserDoc() {}
 
+// @Summary Update profile awards
+// @Description 指定 identity の badges / primary_badge_id / contribution_score / contribution_summary を更新します。ユーザー自己申告ではなく管理API専用です。
+// @Tags Admin Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param userRef path string true "Identity UUID or URL-encoded email"
+// @Param request body swaggerPatchProfileAwardsRequest true "profile awards request"
+// @Success 200 {object} profile.Profile
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 403 {object} swaggerErrorResponse
+// @Failure 404 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Router /v1/admin/users/{userRef}/profile-awards [patch]
+func swaggerAdminPatchProfileAwardsDoc() {}
+
 // @Summary Revoke user sessions
 // @Description identity に紐づくアクティブセッションを失効します。
 // @Tags Admin Users
@@ -292,6 +309,66 @@ func swaggerAdminAuditLogsDoc() {}
 // @Failure 503 {object} swaggerErrorResponse
 // @Router /v1/account [get]
 func swaggerAccountOverviewDoc() {}
+
+// @Summary Get shared profile
+// @Description 認証中の共有アカウントプロフィールを返します。本人向けなので birthdate / notification_preferences を含みます。
+// @Tags Account
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} profile.Profile
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Failure 503 {object} swaggerErrorResponse
+// @Router /v1/account/profile [get]
+func swaggerAccountProfileDoc() {}
+
+// @Summary Update shared profile
+// @Description 認証中の共有アカウントプロフィールを更新します。badges / contribution 系は自己更新できません。
+// @Tags Account
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body swaggerPatchProfileRequest true "profile update request"
+// @Success 200 {object} profile.Profile
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Failure 503 {object} swaggerErrorResponse
+// @Router /v1/account/profile [patch]
+func swaggerAccountPatchProfileDoc() {}
+
+// @Summary Get Kratos settings flow
+// @Description 認証中ユーザーの Kratos self-service settings flow をバックエンド経由で取得します。ブラウザ画面は /settings?flow={id} を使います。
+// @Tags Account
+// @Produce json
+// @Security BearerAuth
+// @Param id query string true "Kratos settings flow ID"
+// @Success 200 {object} KratosSettingsFlow
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 404 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Failure 503 {object} swaggerErrorResponse
+// @Router /v1/settings/flow [get]
+func swaggerSettingsFlowDoc() {}
+
+// @Summary Submit Kratos settings flow
+// @Description メールアドレス・電話番号などの Kratos settings flow フォーム送信をバックエンド経由でproxyします。成功時は /account などのreturn_toへリダイレクトします。
+// @Tags Account
+// @Accept x-www-form-urlencoded
+// @Produce html
+// @Security BearerAuth
+// @Param flow query string true "Kratos settings flow ID"
+// @Param csrf_token formData string true "Kratos CSRF token"
+// @Param method formData string true "Kratos settings method" Enums(profile,password,totp,lookup_secret)
+// @Success 303 {string} string "See Other"
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 404 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Failure 503 {object} swaggerErrorResponse
+// @Router /v1/settings/flow [post]
+func swaggerSettingsFlowSubmitDoc() {}
 
 // @Summary Disconnect app from current account
 // @Description 現在の共有アカウントから指定 app との membership を解除します。identity 本体は削除しません。
