@@ -610,7 +610,7 @@ func TestAdminReadAccessRejectsSessionWithoutMFA(t *testing.T) {
 	}
 }
 
-func TestAdminMutatingAccessRequiresBootstrapTokenForSessionAuth(t *testing.T) {
+func TestAdminMutatingAccessAllowedForSessionAuth(t *testing.T) {
 	authn := &stubAuthService{
 		session: apphttp.SessionView{
 			Authenticated:               true,
@@ -634,8 +634,8 @@ func TestAdminMutatingAccessRequiresBootstrapTokenForSessionAuth(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusForbidden, w.Code, w.Body.String())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
 	}
 }
 

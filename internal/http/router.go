@@ -1168,10 +1168,6 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 					return
 				}
 				if emailAllowed(s.config.Admin.AllowedEmails, session.Email) || roleAllowed(s.config.Admin.AllowedRoles, session.Roles) {
-					if adminMutationRequiresBootstrapToken(r.Method) {
-						writeError(w, http.StatusForbidden, "admin bootstrap token required for mutating requests")
-						return
-					}
 					actorID := session.Email
 					if actorID == "" {
 						actorID = session.IdentityID
@@ -1816,14 +1812,6 @@ func adminSessionMFASatisfied(session SessionView) bool {
 	return strings.EqualFold(strings.TrimSpace(session.AuthenticatorAssuranceLevel), "aal2")
 }
 
-func adminMutationRequiresBootstrapToken(method string) bool {
-	switch method {
-	case http.MethodGet, http.MethodHead, http.MethodOptions:
-		return false
-	default:
-		return true
-	}
-}
 
 // resolveUserRef accepts either a UUID or an email/identifier string.
 // UUIDs are passed through directly; other values trigger a Kratos identity search.
