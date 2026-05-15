@@ -16,6 +16,7 @@ urls:
   consent: http://localhost:8080/v1/auth/consent
   login: http://localhost:8080/v1/auth/login
   logout: http://localhost:8080/v1/auth/logout
+  post_logout_redirect: http://localhost:3002/login
 
 ttl:
   access_token: 5m

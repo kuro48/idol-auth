@@ -37,6 +37,7 @@ cp .env.production.example .env.production
 
 - `APP_ENV=production`
 - `APP_BASE_URL`, `KRATOS_BROWSER_URL`, `HYDRA_BROWSER_URL` は `https://`
+- Hydra の logout 後は `PORTAL_APP_URL/login` に戻ります。`./scripts/render-production-config.sh` 実行後、`dist/hydra/hydra.yml` の `urls.post_logout_redirect` を確認してください。
 - 同梱 PostgreSQL を使う場合は `sslmode=disable` でよい。外部/マネージド PostgreSQL を使う場合は `sslmode=require` または `sslmode=verify-full`
 - `SESSION_COOKIE_SECURE=true`
 - `LOG_LEVEL` は `debug` ではない
