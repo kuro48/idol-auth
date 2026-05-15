@@ -37,7 +37,12 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .field{display:grid;gap:5px;margin-bottom:12px}
     .field label{font-size:11px;font-weight:700;color:#65748f;text-transform:uppercase;letter-spacing:.07em}
     .field input{width:100%;border:1px solid #d9e0f0;border-radius:12px;padding:10px 12px;font-size:14px;background:#fff;font-family:inherit;color:#1b2440}
+    .field input[type="checkbox"]{width:18px;height:18px;padding:0;border-radius:5px;accent-color:#1740c9;flex-shrink:0}
     .field input:focus{outline:2px solid #1740c9;outline-offset:1px;border-color:#1740c9}
+    .field-note{font-size:11px;color:#8898b8;line-height:1.45}
+    .check-grid{display:grid;gap:8px;margin:4px 0 14px}
+    .check-row{display:flex;align-items:center;gap:9px;font-size:13px;color:#4d5c76}
+    .check-row span{line-height:1.4}
     .form-error{font-size:13px;color:#c73a2b;min-height:18px;margin-bottom:6px}
     .form-actions{display:flex;gap:8px;margin-top:4px}
     .btn{appearance:none;border:none;border-radius:12px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;font-family:inherit;transition:opacity .15s}
@@ -109,12 +114,31 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             <div class="field-row"><span class="field-label">推し色</span><span class="field-value" data-display="oshi_color"><span class="empty">—</span></span></div>
             <div class="field-row"><span class="field-label">推しID</span><span class="field-value" data-display="oshi_ids"><span class="empty">—</span></span></div>
             <div class="field-row"><span class="field-label">ファン歴</span><span class="field-value" data-display="fan_since"><span class="empty">—</span></span></div>
+            <div class="field-row"><span class="field-label">アバターURL</span><span class="field-value" data-display="avatar_url"><span class="empty">—</span></span></div>
+            <div class="field-row"><span class="field-label">ロケール</span><span class="field-value" data-display="locale"><span class="empty">—</span></span></div>
+            <div class="field-row"><span class="field-label">タイムゾーン</span><span class="field-value" data-display="timezone"><span class="empty">—</span></span></div>
+            <div class="field-row"><span class="field-label">生年月日</span><span class="field-value" data-display="birthdate"><span class="empty">—</span></span></div>
+            <div class="field-row"><span class="field-label">通知設定</span><span class="field-value" data-display="notification_preferences"><span class="empty">—</span></span></div>
           </div>
           <form class="section-edit" id="form-profile">
             <div class="field"><label>表示名<input name="display_name" type="text" maxlength="50"></label></div>
             <div class="field"><label>推し色（#rrggbb）<input name="oshi_color" type="text" placeholder="#ff88cc"></label></div>
             <div class="field"><label>推しID（カンマ区切り、最大10件）<input name="oshi_ids" type="text"></label></div>
             <div class="field"><label>ファン歴（YYYY または YYYY-MM）<input name="fan_since" type="text" placeholder="2022-03"></label></div>
+            <div class="field"><label>アバターURL<input name="avatar_url" type="url" placeholder="https://example.com/avatar.png"></label><div class="field-note">公開プロフィールに含まれます。http または https のURLを指定できます。</div></div>
+            <div class="field"><label>ロケール<input name="locale" type="text" placeholder="ja-JP"></label></div>
+            <div class="field"><label>タイムゾーン<input name="timezone" type="text" placeholder="Asia/Tokyo"></label></div>
+            <div class="field"><label>生年月日<input name="birthdate" type="date"></label><div class="field-note">本人向けアカウント情報として保存します。連携アプリ向け公開プロフィールには含まれません。</div></div>
+            <div class="field">
+              <label>通知設定</label>
+              <div class="check-grid">
+                <label class="check-row"><input name="notify_email_enabled" type="checkbox"><span>メール通知を受け取る</span></label>
+                <label class="check-row"><input name="notify_product_updates" type="checkbox"><span>プロダクト更新</span></label>
+                <label class="check-row"><input name="notify_security_alerts" type="checkbox"><span>セキュリティ通知</span></label>
+                <label class="check-row"><input name="notify_community_notifications" type="checkbox"><span>コミュニティ通知</span></label>
+                <label class="check-row"><input name="notify_app_membership_notifications" type="checkbox"><span>アプリ連携通知</span></label>
+              </div>
+            </div>
             <div class="form-error" id="profile-error" role="alert"></div>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">保存</button>
@@ -183,13 +207,34 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     function setDisplay(card, field, value) {
       var el = card.querySelector('[data-display="' + field + '"]');
       if (!el) return;
-      el.innerHTML = value ? '<span>' + value + '</span>' : '<span class="empty">—</span>';
+      el.textContent = '';
+      var child = document.createElement('span');
+      if (value) {
+        child.textContent = value;
+      } else {
+        child.className = 'empty';
+        child.textContent = '—';
+      }
+      el.appendChild(child);
+    }
+
+    function notificationSummary(prefs) {
+      if (!prefs) return null;
+      var enabled = [];
+      if (prefs.email_enabled) enabled.push('メール');
+      if (prefs.product_updates) enabled.push('プロダクト更新');
+      if (prefs.security_alerts) enabled.push('セキュリティ');
+      if (prefs.community_notifications) enabled.push('コミュニティ');
+      if (prefs.app_membership_notifications) enabled.push('アプリ連携');
+      return enabled.length ? enabled.join(', ') : 'すべてOFF';
     }
 
     function enterEdit(card) {
       var form = card.querySelector('form');
       if (form) {
-        form.querySelectorAll('input').forEach(function(inp){ inp.dataset.snapshot = inp.value; });
+        form.querySelectorAll('input').forEach(function(inp){
+          inp.dataset.snapshot = inp.type === 'checkbox' ? String(inp.checked) : inp.value;
+        });
       }
       card.dataset.mode = 'edit';
       if (form) { var f = form.querySelector('input'); if (f) f.focus(); }
@@ -200,7 +245,12 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       var form = card.querySelector('form');
       if (form) {
         form.querySelectorAll('input').forEach(function(inp){
-          if (inp.dataset.snapshot !== undefined) inp.value = inp.dataset.snapshot;
+          if (inp.dataset.snapshot === undefined) return;
+          if (inp.type === 'checkbox') {
+            inp.checked = inp.dataset.snapshot === 'true';
+          } else {
+            inp.value = inp.dataset.snapshot;
+          }
         });
         var errEl = form.querySelector('[role="alert"]');
         if (errEl) errEl.textContent = '';
@@ -221,12 +271,27 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       setDisplay(card, 'oshi_color', data.oshi_color || null);
       setDisplay(card, 'oshi_ids', (data.oshi_ids || []).length ? (data.oshi_ids || []).join(', ') : null);
       setDisplay(card, 'fan_since', data.fan_since || null);
+      setDisplay(card, 'avatar_url', data.avatar_url || null);
+      setDisplay(card, 'locale', data.locale || null);
+      setDisplay(card, 'timezone', data.timezone || null);
+      setDisplay(card, 'birthdate', data.birthdate || null);
+      setDisplay(card, 'notification_preferences', notificationSummary(data.notification_preferences));
       var form = card.querySelector('form');
       if (!form) return;
       form.display_name.value = data.display_name || '';
       form.oshi_color.value = data.oshi_color || '';
       form.oshi_ids.value = (data.oshi_ids || []).join(',');
       form.fan_since.value = data.fan_since || '';
+      form.avatar_url.value = data.avatar_url || '';
+      form.locale.value = data.locale || '';
+      form.timezone.value = data.timezone || '';
+      form.birthdate.value = data.birthdate || '';
+      var prefs = data.notification_preferences || {};
+      form.notify_email_enabled.checked = !!prefs.email_enabled;
+      form.notify_product_updates.checked = !!prefs.product_updates;
+      form.notify_security_alerts.checked = !!prefs.security_alerts;
+      form.notify_community_notifications.checked = !!prefs.community_notifications;
+      form.notify_app_membership_notifications.checked = !!prefs.app_membership_notifications;
     }
 
     document.getElementById('form-profile').addEventListener('submit', async function(e) {
@@ -239,7 +304,18 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
           display_name: this.display_name.value,
           oshi_color: this.oshi_color.value,
           oshi_ids: splitCSV(this.oshi_ids.value),
-          fan_since: this.fan_since.value
+          fan_since: this.fan_since.value,
+          avatar_url: this.avatar_url.value,
+          locale: this.locale.value,
+          timezone: this.timezone.value,
+          birthdate: this.birthdate.value,
+          notification_preferences: {
+            email_enabled: this.notify_email_enabled.checked,
+            product_updates: this.notify_product_updates.checked,
+            security_alerts: this.notify_security_alerts.checked,
+            community_notifications: this.notify_community_notifications.checked,
+            app_membership_notifications: this.notify_app_membership_notifications.checked
+          }
         });
         applyProfile(card, data);
         showToast('プロフィールを保存しました');

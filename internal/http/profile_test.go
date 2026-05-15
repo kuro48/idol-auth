@@ -125,10 +125,24 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 		t.Fatalf("expected html content type, got %q", ct)
 	}
 	body := w.Body.String()
-	for _, fragment := range []string{"アカウントセンター", "共有プロフィール", "連携中アプリ", "アカウント削除"} {
+	for _, fragment := range []string{
+		"アカウントセンター",
+		"共有プロフィール",
+		"連携中アプリ",
+		"アカウント削除",
+		`name="avatar_url"`,
+		`name="locale"`,
+		`name="timezone"`,
+		`name="birthdate"`,
+		`name="notify_email_enabled"`,
+		`data-display="notification_preferences"`,
+	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected body to contain %q, got %s", fragment, body)
 		}
+	}
+	if strings.Contains(body, "innerHTML = value") {
+		t.Fatalf("expected profile display rendering to avoid raw innerHTML")
 	}
 }
 
