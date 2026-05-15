@@ -49,7 +49,7 @@ func (s *server) handleAccountCenter(w http.ResponseWriter, r *http.Request) {
 		Email:             session.Email,
 		Phone:             session.Phone,
 		IdentityID:        session.IdentityID,
-		LogoutURL:         "/v1/auth/logout",
+		LogoutURL:         strings.TrimRight(s.config.Ory.KratosBrowserURL, "/") + "/logout",
 		KratosSettingsURL: "/settings",
 		DisplayName:       session.DisplayName,
 		Initials:          initials(session.DisplayName, session.Email),

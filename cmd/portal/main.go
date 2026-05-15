@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kuro48/idol-auth/internal/demo"
@@ -40,6 +43,9 @@ func run() error {
 
 	mux := http.NewServeMux()
 	mux.Handle("/self-service/", kratosProxy)
+	mux.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		handleLogout(w, r, cfg, http.DefaultClient)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		renderHome(w, demo.ResolveSessionOshiColor(r.Context(), sessionClient, r))
 	})
@@ -87,6 +93,68 @@ func registerFlow(mux *http.ServeMux, kratosClient *demo.KratosFlowClient, sessi
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+}
+
+func handleLogout(w http.ResponseWriter, r *http.Request, cfg *demo.PortalConfig, client *http.Client) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	loginURL := strings.TrimRight(cfg.AppURL, "/") + "/login"
+	logoutBrowserURL, err := url.Parse(strings.TrimRight(cfg.KratosPublicURL, "/") + "/self-service/logout/browser")
+	if err != nil {
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		return
+	}
+	q := logoutBrowserURL.Query()
+	q.Set("return_to", loginURL)
+	logoutBrowserURL.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, logoutBrowserURL.String(), nil)
+	if err != nil {
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		return
+	}
+	if cookie := filterOryCookies(r.Header.Get("Cookie")); cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		return
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		return
+	}
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	var decoded struct {
+		LogoutURL string `json:"logout_url"`
+	}
+	if err := json.Unmarshal(body, &decoded); err != nil || strings.TrimSpace(decoded.LogoutURL) == "" {
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, decoded.LogoutURL, http.StatusSeeOther)
+}
+
+func filterOryCookies(cookieHeader string) string {
+	parts := strings.Split(cookieHeader, ";")
+	ory := parts[:0]
+	for _, part := range parts {
+		if strings.HasPrefix(strings.TrimSpace(part), "ory_") {
+			ory = append(ory, strings.TrimSpace(part))
+		}
+	}
+	return strings.Join(ory, "; ")
 }
 
 func renderHome(w http.ResponseWriter, oshiColor string) {
