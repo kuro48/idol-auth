@@ -127,6 +127,29 @@ TypeScript SDK / 外部クライアント
 
 headless registration/login は Kratos の API-mode self-service flow を開始してから credentials を送信する。失敗時は詳細を server log に残し、HTTP response では一般化したエラーだけを返す。
 
+### アカウントセンター・設定フロー
+
+```
+ユーザー → /account (SNS-style profile page)
+    │
+    ├─ profile display (display_name, phone, initials, oshi_color)
+    ├─ connected apps (membership 一覧)
+    ├─ account deletion request (削除予約)
+    │
+    └─ → /settings (Kratos self-service settings flow)
+         ├─ GET /settings?flow=<flowID> → Kratos flow 取得 → HTML form
+         ├─ POST /settings/flow?flow=<flowID> → form submit → Kratos へリレー
+         │   - profile 更新（メール・電話番号・名前）
+         │   - password 変更
+         │   - TOTP / lookup_secret 設定
+         └─ success → /account へリダイレクト
+```
+
+- `/account` は session auth 必須（`accountUIAuth` middleware）
+- `/settings` は Kratos browser flow で flow_id 取得後、`/settings?flow=<flow_id>` でアクセス
+- 設定フローは Kratos と idol-auth 間のプロキシ（Ory cookie forward）
+- SNS-style account center では display_name, phone, oshi_color を表示
+
 ---
 
 ## API リファレンス
@@ -146,6 +169,8 @@ headless registration/login は Kratos の API-mode self-service flow を開始�
   - browser redirect helper、OAuth2 token proxy、headless registration/login/session
 - `/v1/account/*` と `/v1/apps/self/*`
   - shared account 本体の自己管理と、app-scoped membership 管理
+- `/v1/settings/*`
+  - Kratos self-service settings flow proxy（メール・パスワード・MFA 変更）
 
 ---
 

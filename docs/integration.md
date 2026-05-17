@@ -227,6 +227,8 @@ try {
 | `GET /v1/public/browser/login` | OAuth2 認可画面へリダイレクト |
 | `GET /v1/public/browser/registration` | Kratos 登録画面へリダイレクト |
 | `GET /v1/public/browser/logout` | OIDC ログアウトフロー開始 |
+| `GET /account/` | アカウントセンター（SNS-style profile page、要認証） |
+| `GET /settings?flow=<flowID>` | Kratos 設定画面プロキシ（メール・パスワード・MFA 変更、要認証） |
 | `POST /v1/public/api/token` | トークン取得・リフレッシュ |
 | `POST /v1/public/api/token/revoke` | トークン失効 |
 | `POST /v1/public/api/token/introspect` | トークン検証 |
@@ -235,3 +237,37 @@ try {
 | `POST /v1/public/api/login` | Headless ログイン |
 | `GET /v1/apps/self/users` | 自アプリのユーザー一覧 |
 | `DELETE /v1/apps/self/users/{id}` | 自アプリのユーザー連携解除 |
+
+---
+
+## ステップ 4: アカウントセンターと設定（ユーザー向け画面）
+
+ユーザーが自分のプロフィールを管理する UI を提供しています。
+
+### アカウントセンター (`/account/`)
+
+ユーザーがログインして訪問できるセンター画面です。以下をサポートしています:
+
+- **プロフィール表示** — display_name, email, phone, oshi_color など
+- **連携アプリ一覧** — 現在接続している third-party app の表示・連携解除
+- **共有アカウント削除予約** — アカウント完全削除を申請（管理 API で後続処理）
+
+セッション認証が必須です。未認証ユーザーは Kratos ログイン画面へリダイレクトされます。
+
+### 設定画面 (`/settings?flow=<flowID>`)
+
+Kratos self-service settings flow をプロキシした画面です。ユーザーは以下を変更できます:
+
+- **プロフィール** — メールアドレス、電話番号、表示名
+- **パスワード変更**
+- **TOTP 設定** — 二段階認証（TOTP）の有効化・無効化
+- **バックアップコード** — MFA 認証失敗時の回復用コード
+
+**アクセス方法:**
+
+1. Kratos browser settings flow で flow_id を取得
+2. `/settings?flow=<flow_id>` へリダイレクト
+3. ユーザーが値を変更
+4. POST submit → Kratos へリレー → success 時は `/account/` へ自動リダイレクト
+
+セッション認証が必須です。

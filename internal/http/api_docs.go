@@ -27,7 +27,11 @@ func init() {
 }
 
 func (s *server) handleDocsIndex(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/docs/index.html", http.StatusMovedPermanently)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy",
+		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "+
+			"font-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'")
+	_ = apiReferenceTpl.Execute(w, nil)
 }
 
 func (s *server) handleDocs(w http.ResponseWriter, r *http.Request) {

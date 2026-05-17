@@ -93,7 +93,7 @@ func TestHandleDocs(t *testing.T) {
 	}
 }
 
-func TestHandleDocsIndexRedirects(t *testing.T) {
+func TestHandleDocsIndexRendersHTML(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.RouterConfig{
 		Admin: config.AdminConfig{BootstrapToken: "secret"},
 	}, nil, nil, nil)
@@ -102,11 +102,11 @@ func TestHandleDocsIndexRedirects(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusMovedPermanently {
-		t.Fatalf("expected status %d, got %d", http.StatusMovedPermanently, w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
-	if got := w.Header().Get("Location"); got != "/docs/index.html" {
-		t.Fatalf("expected redirect location %q, got %q", "/docs/index.html", got)
+	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
+		t.Fatalf("expected Content-Type text/html, got %q", ct)
 	}
 }
 
