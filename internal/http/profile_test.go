@@ -3,9 +3,12 @@ package http_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -43,6 +46,12 @@ func (s *stubProfileService) UpdateProfile(_ context.Context, identityID string,
 }
 
 func authenticatedProfileRouter(profileSvc apphttp.ProfileService) http.Handler {
+	cfg := testConfig()
+	cfg.ProfileSvc = profileSvc
+	return authenticatedProfileRouterWithConfig(cfg)
+}
+
+func authenticatedProfileRouterWithConfig(cfg apphttp.RouterConfig) http.Handler {
 	authn := &stubAuthService{
 		session: apphttp.SessionView{
 			Authenticated: true,
@@ -50,8 +59,6 @@ func authenticatedProfileRouter(profileSvc apphttp.ProfileService) http.Handler 
 			Email:         "user@example.com",
 		},
 	}
-	cfg := testConfig()
-	cfg.ProfileSvc = profileSvc
 	return apphttp.NewRouter(cfg, &stubAdminService{}, nil, authn, &stubAccountService{})
 }
 
@@ -130,7 +137,8 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 		"共有プロフィール",
 		"連携中アプリ",
 		"アカウント削除",
-		`name="avatar_url"`,
+		`name="avatar_file"`,
+		`/v1/account/profile/avatar`,
 		`name="locale"`,
 		`name="timezone"`,
 		`name="birthdate"`,
@@ -307,6 +315,28 @@ func TestPatchProfile_RejectsInvalidOshiColor(t *testing.T) {
 	}
 }
 
+func TestPatchProfile_AllowsEmptyOshiColor(t *testing.T) {
+	svc := &stubProfileService{
+		updatedProfile: profiledomain.Profile{IdentityID: "identity-1", Locale: "ja-JP"},
+	}
+	router := authenticatedProfileRouter(svc)
+	req := httptest.NewRequest(http.MethodPatch, "/v1/account/profile", bytes.NewBufferString(`{"oshi_color":"","locale":"ja-JP"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if svc.lastInput.OshiColor == nil || *svc.lastInput.OshiColor != "" {
+		t.Fatalf("expected empty oshi_color to be forwarded for clearing, got %v", svc.lastInput.OshiColor)
+	}
+	if svc.lastInput.Locale == nil || *svc.lastInput.Locale != "ja-JP" {
+		t.Fatalf("expected locale update to be forwarded, got %v", svc.lastInput.Locale)
+	}
+}
+
 func TestPatchProfile_RejectsFutureFanSince(t *testing.T) {
 	router := authenticatedProfileRouter(&stubProfileService{})
 	req := httptest.NewRequest(http.MethodPatch, "/v1/account/profile", bytes.NewBufferString(`{"fan_since":"9999-12"}`))
@@ -351,6 +381,79 @@ func TestPatchProfile_RejectsInvalidAvatarURL(t *testing.T) {
 	router := authenticatedProfileRouter(&stubProfileService{})
 	req := httptest.NewRequest(http.MethodPatch, "/v1/account/profile", bytes.NewBufferString(`{"avatar_url":"javascript:alert(1)"}`))
 	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusBadRequest, w.Code, w.Body.String())
+	}
+}
+
+func TestUploadAvatar_StoresFileAndUpdatesProfile(t *testing.T) {
+	pngData, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=")
+	if err != nil {
+		t.Fatalf("decode png fixture: %v", err)
+	}
+	svc := &stubProfileService{
+		updatedProfile: profiledomain.Profile{IdentityID: "identity-1"},
+	}
+	cfg := testConfig()
+	cfg.App.BaseURL = "https://auth.example.com"
+	cfg.App.UploadDir = t.TempDir()
+	cfg.ProfileSvc = svc
+	router := authenticatedProfileRouterWithConfig(cfg)
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, err := mw.CreateFormFile("avatar", "avatar.png")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write(pngData); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/account/profile/avatar", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	if svc.lastInput.AvatarURL == nil || !strings.HasPrefix(*svc.lastInput.AvatarURL, "https://auth.example.com/uploads/avatars/identity-1-") {
+		t.Fatalf("expected generated avatar URL, got %v", svc.lastInput.AvatarURL)
+	}
+	filename := strings.TrimPrefix(*svc.lastInput.AvatarURL, "https://auth.example.com/uploads/avatars/")
+	if _, err := os.Stat(cfg.App.UploadDir + "/avatars/" + filename); err != nil {
+		t.Fatalf("expected avatar file to be stored: %v", err)
+	}
+}
+
+func TestUploadAvatar_RejectsNonImage(t *testing.T) {
+	cfg := testConfig()
+	cfg.App.UploadDir = t.TempDir()
+	cfg.ProfileSvc = &stubProfileService{}
+	router := authenticatedProfileRouterWithConfig(cfg)
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, err := mw.CreateFormFile("avatar", "avatar.txt")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write([]byte("not an image")); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/account/profile/avatar", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)

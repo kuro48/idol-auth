@@ -14,7 +14,8 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .profile-header{background:#fff;border-bottom:1px solid #e4e9f5;margin-bottom:24px}
     .cover{height:110px;background:linear-gradient(135deg,{{.OshiColor}} 0%,#6390f5 100%);opacity:.8}
     .profile-bar{display:flex;justify-content:space-between;align-items:flex-end;padding:0 28px;margin-top:-36px}
-    .avatar{width:72px;height:72px;border-radius:50%;background:{{.OshiColor}};color:#fff;font-size:26px;font-weight:800;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.15);letter-spacing:.02em;flex-shrink:0}
+    .avatar{width:72px;height:72px;border-radius:50%;background:{{.OshiColor}};color:#fff;font-size:26px;font-weight:800;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.15);letter-spacing:.02em;flex-shrink:0;background-size:cover;background-position:center}
+    .avatar.has-image{color:transparent}
     .profile-identity{padding:10px 28px 20px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
     .profile-identity h1{margin:0;font-size:22px;font-weight:800;line-height:1.1}
     .handle{font-size:12px;color:#8898b8;font-weight:500;word-break:break-all}
@@ -72,7 +73,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
   <header class="profile-header">
     <div class="cover"></div>
     <div class="profile-bar">
-      <div class="avatar">{{.Initials}}</div>
+      <div class="avatar" data-initials="{{.Initials}}">{{.Initials}}</div>
       <div style="padding-bottom:6px">
         <a class="btn btn-ghost btn-sm" href="{{.LogoutURL}}">ログアウト</a>
       </div>
@@ -114,7 +115,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             <div class="field-row"><span class="field-label">推し色</span><span class="field-value" data-display="oshi_color"><span class="empty">—</span></span></div>
             <div class="field-row"><span class="field-label">推しID</span><span class="field-value" data-display="oshi_ids"><span class="empty">—</span></span></div>
             <div class="field-row"><span class="field-label">ファン歴</span><span class="field-value" data-display="fan_since"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">アバターURL</span><span class="field-value" data-display="avatar_url"><span class="empty">—</span></span></div>
+            <div class="field-row"><span class="field-label">アバター</span><span class="field-value" data-display="avatar_url"><span class="empty">—</span></span></div>
             <div class="field-row"><span class="field-label">ロケール</span><span class="field-value" data-display="locale"><span class="empty">—</span></span></div>
             <div class="field-row"><span class="field-label">タイムゾーン</span><span class="field-value" data-display="timezone"><span class="empty">—</span></span></div>
             <div class="field-row"><span class="field-label">生年月日</span><span class="field-value" data-display="birthdate"><span class="empty">—</span></span></div>
@@ -125,7 +126,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             <div class="field"><label>推し色（#rrggbb）<input name="oshi_color" type="text" placeholder="#ff88cc"></label></div>
             <div class="field"><label>推しID（カンマ区切り、最大10件）<input name="oshi_ids" type="text"></label></div>
             <div class="field"><label>ファン歴（YYYY または YYYY-MM）<input name="fan_since" type="text" placeholder="2022-03"></label></div>
-            <div class="field"><label>アバターURL<input name="avatar_url" type="url" placeholder="https://example.com/avatar.png"></label><div class="field-note">公開プロフィールに含まれます。http または https のURLを指定できます。</div></div>
+            <div class="field"><label>アバター画像<input name="avatar_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp"></label><div class="field-note">PNG / JPEG / GIF / WebP、2MBまで。アップロード後に公開プロフィールのアバターURLが自動更新されます。</div></div>
             <div class="field"><label>ロケール<input name="locale" type="text" placeholder="ja-JP"></label></div>
             <div class="field"><label>タイムゾーン<input name="timezone" type="text" placeholder="Asia/Tokyo"></label></div>
             <div class="field"><label>生年月日<input name="birthdate" type="date"></label><div class="field-note">本人向けアカウント情報として保存します。連携アプリ向け公開プロフィールには含まれません。</div></div>
@@ -233,6 +234,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       var form = card.querySelector('form');
       if (form) {
         form.querySelectorAll('input').forEach(function(inp){
+          if (inp.type === 'file') { inp.value = ''; return; }
           inp.dataset.snapshot = inp.type === 'checkbox' ? String(inp.checked) : inp.value;
         });
       }
@@ -245,6 +247,10 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       var form = card.querySelector('form');
       if (form) {
         form.querySelectorAll('input').forEach(function(inp){
+          if (inp.type === 'file') {
+            inp.value = '';
+            return;
+          }
           if (inp.dataset.snapshot === undefined) return;
           if (inp.type === 'checkbox') {
             inp.checked = inp.dataset.snapshot === 'true';
@@ -267,6 +273,24 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     });
 
     function applyProfile(card, data) {
+      var avatar = document.querySelector('.avatar');
+      if (avatar) {
+        try {
+          var avatarURL = data.avatar_url ? new URL(data.avatar_url, window.location.href) : null;
+          if (avatarURL && avatarURL.origin === window.location.origin) {
+            avatar.style.backgroundImage = 'url("' + avatarURL.href.replace(/"/g, '%22') + '")';
+            avatar.classList.add('has-image');
+            avatar.textContent = avatar.dataset.initials || '';
+          } else {
+            avatar.style.backgroundImage = '';
+            avatar.classList.remove('has-image');
+            avatar.textContent = avatar.dataset.initials || '?';
+          }
+        } catch (_) {
+          avatar.style.backgroundImage = '';
+          avatar.classList.remove('has-image');
+        }
+      }
       setDisplay(card, 'display_name', data.display_name || null);
       setDisplay(card, 'oshi_color', data.oshi_color || null);
       setDisplay(card, 'oshi_ids', (data.oshi_ids || []).length ? (data.oshi_ids || []).join(', ') : null);
@@ -282,7 +306,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       form.oshi_color.value = data.oshi_color || '';
       form.oshi_ids.value = (data.oshi_ids || []).join(',');
       form.fan_since.value = data.fan_since || '';
-      form.avatar_url.value = data.avatar_url || '';
+      form.avatar_file.value = '';
       form.locale.value = data.locale || '';
       form.timezone.value = data.timezone || '';
       form.birthdate.value = data.birthdate || '';
@@ -305,7 +329,6 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
           oshi_color: this.oshi_color.value,
           oshi_ids: splitCSV(this.oshi_ids.value),
           fan_since: this.fan_since.value,
-          avatar_url: this.avatar_url.value,
           locale: this.locale.value,
           timezone: this.timezone.value,
           birthdate: this.birthdate.value,
@@ -317,6 +340,18 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             app_membership_notifications: this.notify_app_membership_notifications.checked
           }
         });
+        if (this.avatar_file.files.length) {
+          var fd = new FormData();
+          fd.append('avatar', this.avatar_file.files[0]);
+          var res = await fetch('/v1/account/profile/avatar', {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: fd
+          });
+          var text = await res.text();
+          data = text ? JSON.parse(text) : data;
+          if (!res.ok) throw new Error(data && data.error ? data.error : 'avatar upload failed: ' + res.status);
+        }
         applyProfile(card, data);
         showToast('プロフィールを保存しました');
         card.dataset.mode = 'display';

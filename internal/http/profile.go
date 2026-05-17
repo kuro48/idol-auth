@@ -1,7 +1,13 @@
 package http
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -9,6 +15,9 @@ import (
 	"github.com/kuro48/idol-auth/internal/domain/profile"
 	"github.com/kuro48/idol-auth/internal/oshi"
 )
+
+const maxAvatarUploadBytes int64 = 2 << 20
+const maxAvatarRequestBytes int64 = maxAvatarUploadBytes + 512<<10
 
 func (s *server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	if s.profileSvc == nil {
@@ -69,7 +78,7 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if req.OshiColor != nil {
-		if oshi.NormalizeColor(*req.OshiColor) == "" {
+		if *req.OshiColor != "" && oshi.NormalizeColor(*req.OshiColor) == "" {
 			writeError(w, http.StatusBadRequest, "invalid oshi_color")
 			return
 		}
@@ -128,6 +137,91 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
+	if s.profileSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarRequestBytes)
+	if err := r.ParseMultipartForm(maxAvatarUploadBytes); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid avatar upload")
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+
+	file, _, err := r.FormFile("avatar")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "avatar file is required")
+		return
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxAvatarUploadBytes+1))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "failed to read avatar file")
+		return
+	}
+	if int64(len(data)) > maxAvatarUploadBytes {
+		writeError(w, http.StatusBadRequest, "avatar file is too large")
+		return
+	}
+	ext, ok := avatarExtension(data)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "avatar must be a png, jpeg, gif, or webp image")
+		return
+	}
+
+	sum := sha256.Sum256(data)
+	filename := sanitizeAvatarOwner(session.IdentityID) + "-" + hex.EncodeToString(sum[:])[:16] + ext
+	dir := filepath.Join(s.config.App.UploadDir, "avatars")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to prepare avatar storage")
+		return
+	}
+	if err := os.WriteFile(filepath.Join(dir, filename), data, 0o644); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to store avatar file")
+		return
+	}
+
+	avatarURL := strings.TrimRight(s.config.App.BaseURL, "/") + "/uploads/avatars/" + url.PathEscape(filename)
+	if err := profile.ValidateAvatarURL(avatarURL); err != nil {
+		writeError(w, http.StatusInternalServerError, "invalid generated avatar url")
+		return
+	}
+	updated, err := s.profileSvc.UpdateProfile(r.Context(), session.IdentityID, profile.UpdateInput{
+		AvatarURL: &avatarURL,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to update profile")
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *server) handleAvatarAsset(w http.ResponseWriter, r *http.Request) {
+	filename := chi.URLParam(r, "file")
+	if filename == "" || filename != filepath.Base(filename) {
+		http.NotFound(w, r)
+		return
+	}
+	path := filepath.Join(s.config.App.UploadDir, "avatars", filename)
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	http.ServeFile(w, r, path)
 }
 
 func (s *server) handlePatchProfileAwards(w http.ResponseWriter, r *http.Request) {
@@ -208,4 +302,45 @@ func trimStringPtr(s *string) {
 	if s != nil {
 		*s = strings.TrimSpace(*s)
 	}
+}
+
+func avatarExtension(data []byte) (string, bool) {
+	if len(data) == 0 {
+		return "", false
+	}
+	contentType := http.DetectContentType(data)
+	switch contentType {
+	case "image/png":
+		return ".png", true
+	case "image/jpeg":
+		return ".jpg", true
+	case "image/gif":
+		return ".gif", true
+	case "image/webp":
+		return ".webp", true
+	}
+	if len(data) >= 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
+		return ".webp", true
+	}
+	return "", false
+}
+
+func sanitizeAvatarOwner(identityID string) string {
+	var b strings.Builder
+	for _, r := range identityID {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '-' || r == '_':
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() == 0 {
+		return "avatar"
+	}
+	return b.String()
 }

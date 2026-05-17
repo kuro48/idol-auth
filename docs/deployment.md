@@ -30,6 +30,7 @@ cp .env.production.example .env.production
 - `KRATOS_SMTP_CONNECTION_URI`
 - `ADMIN_ALLOWED_CIDR`
 - `TRUSTED_PROXIES`
+- `UPLOAD_DIR` は通常デフォルトの `/var/lib/idol-auth/uploads` のままで、`uploads_data` volume を永続化します
 
 各シークレットは `openssl rand -hex 32` で生成してください。
 

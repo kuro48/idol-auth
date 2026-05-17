@@ -19,9 +19,10 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env     string `env:"APP_ENV"      envDefault:"development"`
-	Port    int    `env:"APP_PORT"     envDefault:"8080"`
-	BaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
+	Env       string `env:"APP_ENV"      envDefault:"development"`
+	Port      int    `env:"APP_PORT"     envDefault:"8080"`
+	BaseURL   string `env:"APP_BASE_URL" envDefault:"http://localhost:8080"`
+	UploadDir string `env:"UPLOAD_DIR"   envDefault:"./uploads"`
 }
 
 type DBConfig struct {

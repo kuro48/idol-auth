@@ -369,6 +369,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/account/profile/avatar": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "認証中ユーザーのアバター画像をアップロードし、共有プロフィールの avatar_url を自動更新します。PNG / JPEG / GIF / WebP、最大 2MB です。",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Upload avatar image",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "avatar image",
+                        "name": "avatar",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.Profile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/http.swaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/admin/apps": {
             "get": {
                 "security": [

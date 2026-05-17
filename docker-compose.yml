@@ -106,6 +106,7 @@ services:
     environment:
       APP_ENV: development
       APP_PORT: 8080
+      UPLOAD_DIR: /var/lib/idol-auth/uploads
       DATABASE_URL: postgres://idol:${POSTGRES_PASSWORD}@postgres:5432/idol_auth?sslmode=disable
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -121,6 +122,8 @@ services:
       LOG_LEVEL: debug
     ports:
       - "8080:8080"
+    volumes:
+      - uploads_data:/var/lib/idol-auth/uploads
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -154,3 +157,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  uploads_data:

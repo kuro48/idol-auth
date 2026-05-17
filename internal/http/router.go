@@ -198,6 +198,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Get("/readyz", s.handleReadyz)
 	r.Get("/docs", s.handleDocsIndex)
 	r.Get("/docs/*", s.handleDocs)
+	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)
 	r.Route("/account", func(r chi.Router) {
 		r.Use(s.accountUIAuth)
 		r.Get("/", s.handleAccountCenter)
@@ -254,6 +255,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Delete("/deletion", s.handleCancelDeletion)
 		r.Get("/profile", s.handleGetProfile)
 		r.Patch("/profile", s.handlePatchProfile)
+		r.Post("/profile/avatar", s.handleUploadAvatar)
 	})
 
 	r.Route("/v1/apps/self", func(r chi.Router) {

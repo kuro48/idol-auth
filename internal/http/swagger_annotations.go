@@ -337,6 +337,21 @@ func swaggerAccountProfileDoc() {}
 // @Router /v1/account/profile [patch]
 func swaggerAccountPatchProfileDoc() {}
 
+// @Summary Upload avatar image
+// @Description 認証中ユーザーのアバター画像をアップロードし、共有プロフィールの avatar_url を自動更新します。PNG / JPEG / GIF / WebP、最大 2MB です。
+// @Tags Account
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param avatar formData file true "avatar image"
+// @Success 200 {object} profile.Profile
+// @Failure 400 {object} swaggerErrorResponse
+// @Failure 401 {object} swaggerErrorResponse
+// @Failure 502 {object} swaggerErrorResponse
+// @Failure 503 {object} swaggerErrorResponse
+// @Router /v1/account/profile/avatar [post]
+func swaggerAccountUploadAvatarDoc() {}
+
 // @Summary Get Kratos settings flow
 // @Description 認証中ユーザーの Kratos self-service settings flow をバックエンド経由で取得します。ブラウザ画面は /settings?flow={id} を使います。
 // @Tags Account

@@ -38,6 +38,9 @@ func TestLoad_DefaultValues(t *testing.T) {
 	if cfg.App.BaseURL != "http://localhost:8080" {
 		t.Errorf("expected default base URL %q, got %q", "http://localhost:8080", cfg.App.BaseURL)
 	}
+	if cfg.App.UploadDir != "./uploads" {
+		t.Errorf("expected default upload dir %q, got %q", "./uploads", cfg.App.UploadDir)
+	}
 	if cfg.Log.Level != "info" {
 		t.Errorf("expected default log level %q, got %q", "info", cfg.Log.Level)
 	}
@@ -68,6 +71,7 @@ func TestLoad_CustomValues(t *testing.T) {
 	t.Setenv("APP_PORT", "9090")
 	t.Setenv("APP_ENV", "development")
 	t.Setenv("APP_BASE_URL", "https://example.com")
+	t.Setenv("UPLOAD_DIR", "/var/lib/idol-auth/uploads")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("SESSION_COOKIE_SECURE", "false")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.1,10.0.0.2")
@@ -92,6 +96,9 @@ func TestLoad_CustomValues(t *testing.T) {
 	}
 	if cfg.App.BaseURL != "https://example.com" {
 		t.Errorf("expected base URL %q, got %q", "https://example.com", cfg.App.BaseURL)
+	}
+	if cfg.App.UploadDir != "/var/lib/idol-auth/uploads" {
+		t.Errorf("expected upload dir %q, got %q", "/var/lib/idol-auth/uploads", cfg.App.UploadDir)
 	}
 	if cfg.Log.Level != "debug" {
 		t.Errorf("expected log level %q, got %q", "debug", cfg.Log.Level)
