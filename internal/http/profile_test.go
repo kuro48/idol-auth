@@ -3,8 +3,11 @@ package http_test
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -391,10 +394,7 @@ func TestPatchProfile_RejectsInvalidAvatarURL(t *testing.T) {
 }
 
 func TestUploadAvatar_StoresFileAndUpdatesProfile(t *testing.T) {
-	pngData, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=")
-	if err != nil {
-		t.Fatalf("decode png fixture: %v", err)
-	}
+	pngData := testPNG(t)
 	svc := &stubProfileService{
 		updatedProfile: profiledomain.Profile{IdentityID: "identity-1"},
 	}
@@ -428,10 +428,113 @@ func TestUploadAvatar_StoresFileAndUpdatesProfile(t *testing.T) {
 	if svc.lastInput.AvatarURL == nil || !strings.HasPrefix(*svc.lastInput.AvatarURL, "https://auth.example.com/uploads/avatars/identity-1-") {
 		t.Fatalf("expected generated avatar URL, got %v", svc.lastInput.AvatarURL)
 	}
+	if !strings.HasSuffix(*svc.lastInput.AvatarURL, ".jpg") {
+		t.Fatalf("expected generated avatar URL to use normalized jpeg extension, got %q", *svc.lastInput.AvatarURL)
+	}
 	filename := strings.TrimPrefix(*svc.lastInput.AvatarURL, "https://auth.example.com/uploads/avatars/")
-	if _, err := os.Stat(cfg.App.UploadDir + "/avatars/" + filename); err != nil {
+	storedPath := cfg.App.UploadDir + "/avatars/" + filename
+	if _, err := os.Stat(storedPath); err != nil {
 		t.Fatalf("expected avatar file to be stored: %v", err)
 	}
+	stored, err := os.ReadFile(storedPath)
+	if err != nil {
+		t.Fatalf("read stored avatar: %v", err)
+	}
+	if got := http.DetectContentType(stored); got != "image/jpeg" {
+		t.Fatalf("expected stored avatar to be image/jpeg, got %q", got)
+	}
+}
+
+func TestUploadAvatar_AcceptsPhotoOverTwoMBAndNormalizes(t *testing.T) {
+	jpegData := testLargeJPEG(t)
+	if len(jpegData) <= 2<<20 {
+		t.Fatalf("expected fixture to exceed old 2MB limit, got %d bytes", len(jpegData))
+	}
+	if len(jpegData) >= 10<<20 {
+		t.Fatalf("expected fixture to stay below 10MB limit, got %d bytes", len(jpegData))
+	}
+	svc := &stubProfileService{
+		updatedProfile: profiledomain.Profile{IdentityID: "identity-1"},
+	}
+	cfg := testConfig()
+	cfg.App.BaseURL = "https://auth.example.com"
+	cfg.App.UploadDir = t.TempDir()
+	cfg.ProfileSvc = svc
+	router := authenticatedProfileRouterWithConfig(cfg)
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, err := mw.CreateFormFile("avatar", "photo.jpg")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write(jpegData); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/account/profile/avatar", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	filename := strings.TrimPrefix(*svc.lastInput.AvatarURL, "https://auth.example.com/uploads/avatars/")
+	stored, err := os.ReadFile(cfg.App.UploadDir + "/avatars/" + filename)
+	if err != nil {
+		t.Fatalf("read stored avatar: %v", err)
+	}
+	if len(stored) >= len(jpegData) {
+		t.Fatalf("expected normalized avatar to be smaller than original, original=%d stored=%d", len(jpegData), len(stored))
+	}
+	cfgImg, _, err := image.DecodeConfig(bytes.NewReader(stored))
+	if err != nil {
+		t.Fatalf("decode stored avatar config: %v", err)
+	}
+	if cfgImg.Width != 512 || cfgImg.Height != 512 {
+		t.Fatalf("expected stored avatar to be 512x512, got %dx%d", cfgImg.Width, cfgImg.Height)
+	}
+}
+
+func testPNG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 32, 24))
+	for y := 0; y < img.Bounds().Dy(); y++ {
+		for x := 0; x < img.Bounds().Dx(); x++ {
+			img.Set(x, y, color.RGBA{R: uint8(x * 8), G: uint8(y * 10), B: 180, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode png fixture: %v", err)
+	}
+	return buf.Bytes()
+}
+
+func testLargeJPEG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 1800, 1800))
+	var seed uint32 = 1
+	for y := 0; y < img.Bounds().Dy(); y++ {
+		for x := 0; x < img.Bounds().Dx(); x++ {
+			seed = seed*1664525 + 1013904223
+			img.Set(x, y, color.RGBA{
+				R: uint8(seed >> 24),
+				G: uint8(seed >> 16),
+				B: uint8(seed >> 8),
+				A: 255,
+			})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 95}); err != nil {
+		t.Fatalf("encode jpeg fixture: %v", err)
+	}
+	return buf.Bytes()
 }
 
 func TestUploadAvatar_RejectsNonImage(t *testing.T) {

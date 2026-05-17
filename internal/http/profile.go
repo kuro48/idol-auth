@@ -1,8 +1,16 @@
 package http
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"image"
+	"image/color"
+	"image/draw"
+	_ "image/gif"
+	"image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,10 +22,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/kuro48/idol-auth/internal/domain/profile"
 	"github.com/kuro48/idol-auth/internal/oshi"
+	xdraw "golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
 )
 
-const maxAvatarUploadBytes int64 = 2 << 20
+const maxAvatarUploadBytes int64 = 10 << 20
 const maxAvatarRequestBytes int64 = maxAvatarUploadBytes + 512<<10
+const avatarOutputSize = 512
+const maxAvatarDimension = 12000
+const maxAvatarPixels = 50_000_000
 
 func (s *server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	if s.profileSvc == nil {
@@ -175,20 +188,24 @@ func (s *server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "avatar file is too large")
 		return
 	}
-	ext, ok := avatarExtension(data)
-	if !ok {
+	if !isSupportedAvatarInput(data) {
 		writeError(w, http.StatusBadRequest, "avatar must be a png, jpeg, gif, or webp image")
 		return
 	}
+	avatarData, err := normalizeAvatarImage(data)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	sum := sha256.Sum256(data)
-	filename := sanitizeAvatarOwner(session.IdentityID) + "-" + hex.EncodeToString(sum[:])[:16] + ext
+	sum := sha256.Sum256(avatarData)
+	filename := sanitizeAvatarOwner(session.IdentityID) + "-" + hex.EncodeToString(sum[:])[:16] + ".jpg"
 	dir := filepath.Join(s.config.App.UploadDir, "avatars")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to prepare avatar storage")
 		return
 	}
-	if err := os.WriteFile(filepath.Join(dir, filename), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, filename), avatarData, 0o644); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to store avatar file")
 		return
 	}
@@ -304,25 +321,59 @@ func trimStringPtr(s *string) {
 	}
 }
 
-func avatarExtension(data []byte) (string, bool) {
+func isSupportedAvatarInput(data []byte) bool {
 	if len(data) == 0 {
-		return "", false
+		return false
 	}
 	contentType := http.DetectContentType(data)
 	switch contentType {
-	case "image/png":
-		return ".png", true
-	case "image/jpeg":
-		return ".jpg", true
-	case "image/gif":
-		return ".gif", true
-	case "image/webp":
-		return ".webp", true
+	case "image/png", "image/jpeg", "image/gif", "image/webp":
+		return true
 	}
 	if len(data) >= 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
-		return ".webp", true
+		return true
 	}
-	return "", false
+	return false
+}
+
+func normalizeAvatarImage(data []byte) ([]byte, error) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, errors.New("avatar image could not be decoded")
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 {
+		return nil, errors.New("avatar image has invalid dimensions")
+	}
+	if cfg.Width > maxAvatarDimension || cfg.Height > maxAvatarDimension || cfg.Width*cfg.Height > maxAvatarPixels {
+		return nil, errors.New("avatar image dimensions are too large")
+	}
+
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, errors.New("avatar image could not be decoded")
+	}
+	srcRect := centerSquareBounds(src.Bounds())
+	dst := image.NewRGBA(image.Rect(0, 0, avatarOutputSize, avatarOutputSize))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, srcRect, xdraw.Over, nil)
+
+	var out bytes.Buffer
+	if err := jpeg.Encode(&out, dst, &jpeg.Options{Quality: 85}); err != nil {
+		return nil, errors.New("avatar image could not be encoded")
+	}
+	return out.Bytes(), nil
+}
+
+func centerSquareBounds(b image.Rectangle) image.Rectangle {
+	w := b.Dx()
+	h := b.Dy()
+	size := w
+	if h < size {
+		size = h
+	}
+	x0 := b.Min.X + (w-size)/2
+	y0 := b.Min.Y + (h-size)/2
+	return image.Rect(x0, y0, x0+size, y0+size)
 }
 
 func sanitizeAvatarOwner(identityID string) string {

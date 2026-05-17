@@ -126,7 +126,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             <div class="field"><label>推し色（#rrggbb）<input name="oshi_color" type="text" placeholder="#ff88cc"></label></div>
             <div class="field"><label>推しID（カンマ区切り、最大10件）<input name="oshi_ids" type="text"></label></div>
             <div class="field"><label>ファン歴（YYYY または YYYY-MM）<input name="fan_since" type="text" placeholder="2022-03"></label></div>
-            <div class="field"><label>アバター画像<input name="avatar_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp"></label><div class="field-note">PNG / JPEG / GIF / WebP、2MBまで。アップロード後に公開プロフィールのアバターURLが自動更新されます。</div></div>
+            <div class="field"><label>アバター画像<input name="avatar_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp"></label><div class="field-note">PNG / JPEG / GIF / WebP、10MBまで。保存時に512px四方のJPEGへ変換されます。</div></div>
             <div class="field"><label>ロケール<input name="locale" type="text" placeholder="ja-JP"></label></div>
             <div class="field"><label>タイムゾーン<input name="timezone" type="text" placeholder="Asia/Tokyo"></label></div>
             <div class="field"><label>生年月日<input name="birthdate" type="date"></label><div class="field-note">本人向けアカウント情報として保存します。連携アプリ向け公開プロフィールには含まれません。</div></div>

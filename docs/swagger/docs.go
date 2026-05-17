@@ -376,7 +376,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "認証中ユーザーのアバター画像をアップロードし、共有プロフィールの avatar_url を自動更新します。PNG / JPEG / GIF / WebP、最大 2MB です。",
+                "description": "認証中ユーザーのアバター画像をアップロードし、共有プロフィールの avatar_url を自動更新します。PNG / JPEG / GIF / WebP、最大 10MB です。保存時に 512px 四方の JPEG へ変換します。",
                 "consumes": [
                     "multipart/form-data"
                 ],
