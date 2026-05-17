@@ -147,6 +147,9 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 		`name="birthdate"`,
 		`name="notify_email_enabled"`,
 		`data-display="notification_preferences"`,
+		`function showError(err)`,
+		`showToast(err && err.message ? err.message : 'エラーが発生しました', 'error')`,
+		`.toast.error`,
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected body to contain %q, got %s", fragment, body)

@@ -63,7 +63,8 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .membership p{margin:0;color:#65748f;font-size:12px;line-height:1.5}
     .badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#edf7ef;color:#13643a;font-size:11px;font-weight:700;margin-bottom:5px}
     .empty-state{text-align:center;padding:20px 0;color:#b0bdd4;font-size:13px}
-    .toast{position:fixed;right:20px;bottom:20px;background:#162a5c;color:#fff;padding:12px 16px;border-radius:14px;display:none;max-width:320px;box-shadow:0 18px 40px rgba(14,24,54,.24);font-size:14px;z-index:100}
+    .toast{position:fixed;right:20px;bottom:20px;background:#162a5c;color:#fff;padding:12px 16px;border-radius:14px;display:none;max-width:320px;box-shadow:0 18px 40px rgba(14,24,54,.24);font-size:14px;z-index:100;line-height:1.5}
+    .toast.error{background:#9f2417}
     .toast.show{display:block}
     @media(max-width:840px){.grid{grid-template-columns:1fr}.profile-bar{margin-top:-28px}.avatar{width:60px;height:60px;font-size:20px}.profile-identity h1{font-size:19px}}
   </style>
@@ -183,12 +184,18 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
 
   <div id="toast" class="toast"></div>
   <script>
-    function showToast(msg) {
+    function showToast(msg, type) {
       var el = document.getElementById('toast');
       el.textContent = msg;
+      el.className = 'toast';
+      if (type === 'error') el.classList.add('error');
       el.classList.add('show');
       clearTimeout(window.__tt);
       window.__tt = setTimeout(function(){ el.classList.remove('show'); }, 3200);
+    }
+
+    function showError(err) {
+      showToast(err && err.message ? err.message : 'エラーが発生しました', 'error');
     }
 
     function splitCSV(v) {
@@ -355,7 +362,10 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
         applyProfile(card, data);
         showToast('プロフィールを保存しました');
         card.dataset.mode = 'display';
-      } catch(err) { errEl.textContent = err.message; }
+      } catch(err) {
+        errEl.textContent = err.message;
+        showError(err);
+      }
     });
 
     function renderMemberships(items) {
@@ -379,7 +389,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             await req('DELETE', '/v1/account/apps/' + item.app_id);
             showToast('連携を解除しました');
             await loadOverview();
-          } catch(err) { showToast(err.message); }
+          } catch(err) { showError(err); }
         });
         root.appendChild(row);
       });
@@ -404,7 +414,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
         await req('POST', '/v1/account/deletion', { reason: reason });
         showToast('削除を予約しました');
         await loadOverview();
-      } catch(err) { showToast(err.message); }
+      } catch(err) { showError(err); }
     });
 
     document.getElementById('btn-cancel-del').addEventListener('click', async function() {
@@ -412,7 +422,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
         await req('DELETE', '/v1/account/deletion');
         showToast('削除予約を取り消しました');
         await loadOverview();
-      } catch(err) { showToast(err.message); }
+      } catch(err) { showError(err); }
     });
 
     async function loadOverview() {
@@ -427,7 +437,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       if (card) applyProfile(card, data);
     }
 
-    Promise.all([loadOverview(), loadProfile()]).catch(function(err){ showToast(err.message); });
+    Promise.all([loadOverview(), loadProfile()]).catch(showError);
   </script>
 </body>
 </html>
