@@ -151,6 +151,12 @@ code.inline{font-family:ui-monospace,'SFMono-Regular',Consolas,monospace;font-si
     <a class="nav-link" href="#ep-revoke"><span class="method-pill pill-post">POST</span>/api/token/revoke</a>
     <a class="nav-link" href="#ep-introspect"><span class="method-pill pill-post">POST</span>/api/token/introspect</a>
   </div>
+  <div class="nav-group">
+    <div class="nav-group-label">アプリ管理 API</div>
+    <a class="nav-link" href="#app-self-auth">Management Token</a>
+    <a class="nav-link" href="#ep-app-users"><span class="method-pill pill-get">GET</span>/apps/self/users</a>
+    <a class="nav-link" href="#ep-app-revoke-user"><span class="method-pill pill-delete">DEL</span>/apps/self/users/{id}</a>
+  </div>
 </nav>
 
 <main id="main">
@@ -188,11 +194,19 @@ code.inline{font-family:ui-monospace,'SFMono-Regular',Consolas,monospace;font-si
   <section id="auth">
     <h2>認証方式</h2>
     <div class="info-box">
-      <h3>Bearer トークン</h3>
+      <h3>Session Bearer トークン</h3>
       <p>ヘッドレス API の保護エンドポイントは <code class="inline">Authorization: Bearer &lt;session_token&gt;</code> ヘッダーが必要です。トークンはログイン・登録の成功レスポンスの <code class="inline">session_token</code> フィールドから取得できます。</p>
     </div>
     <div class="code-block"><span class="cmt"># ヘッドレスログイン後のリクエスト例</span>
 <span class="key">Authorization</span>: Bearer <span class="str">ory_st_xxxxxxxxxxxx</span>
+<span class="key">Content-Type</span>: application/json</div>
+    <div class="info-box" style="margin-top:16px">
+      <h3>Management Token（アプリ管理 API 用）</h3>
+      <p>アプリ管理 API (<code class="inline">/v1/apps/self/*</code>) は、アプリ単位で発行される management token が必要です。このトークンはサーバーサイドで安全に保管し、エンドユーザーには公開しないでください。<br><br>
+      トークンの発行は idol-auth 管理者が行います。発行された management token を <code class="inline">Authorization: Bearer</code> ヘッダーに付与してリクエストしてください。</p>
+    </div>
+    <div class="code-block"><span class="cmt"># アプリ管理 API のリクエスト例</span>
+<span class="key">Authorization</span>: Bearer <span class="str">mgmt_xxxxxxxxxxxx</span>
 <span class="key">Content-Type</span>: application/json</div>
   </section>
 
@@ -485,6 +499,72 @@ code.inline{font-family:ui-monospace,'SFMono-Regular',Consolas,monospace;font-si
         <span class="r-chip r-2xx">200 OK</span>
         <span class="r-chip r-4xx">400 Bad Request</span>
         <span class="r-chip r-5xx">502 Bad Gateway</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ APP SELF API ═══════════ -->
+  <section id="app-self-auth">
+    <h2>アプリ管理 API</h2>
+    <div class="info-box">
+      <h3>Management Token について</h3>
+      <p>
+        アプリ管理 API は、あなたのアプリに紐づくユーザー（membership）を管理するためのサーバー間 API です。<br><br>
+        管理者から発行された management token を <code class="inline">Authorization: Bearer &lt;token&gt;</code> に付与してください。このトークンはアプリスコープに制限されており、他のアプリのユーザーにはアクセスできません。
+      </p>
+    </div>
+  </section>
+
+  <div class="endpoint" id="ep-app-users">
+    <div class="endpoint-header" onclick="toggle(this)">
+      <span class="method-tag tag-get">GET</span>
+      <span class="endpoint-path">/v1/apps/self/users</span>
+      <span class="endpoint-summary">List app-scoped users</span>
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="endpoint-body">
+      <p class="desc">management token に紐づくアプリの membership 一覧を返します。ユーザーがアプリに登録した際に作成された membership のみが対象です。</p>
+      <p class="params-label">Response Body <code class="inline">200 OK</code></p>
+      <div class="code-block">{
+  <span class="key">"memberships"</span>: [
+    {
+      <span class="key">"identity_id"</span>: <span class="str">"uuid"</span>,
+      <span class="key">"email"</span>: <span class="str">"user@example.com"</span>,
+      <span class="key">"display_name"</span>: <span class="str">"username"</span>,
+      <span class="key">"roles"</span>: [<span class="str">"member"</span>],
+      <span class="key">"created_at"</span>: <span class="str">"2024-01-01T00:00:00Z"</span>
+    }
+  ]
+}</div>
+      <p class="params-label">Responses</p>
+      <div class="responses">
+        <span class="r-chip r-2xx">200 OK</span>
+        <span class="r-chip r-4xx">401 Unauthorized</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="ep-app-revoke-user">
+    <div class="endpoint-header" onclick="toggle(this)">
+      <span class="method-tag tag-delete">DELETE</span>
+      <span class="endpoint-path">/v1/apps/self/users/{identityID}</span>
+      <span class="endpoint-summary">Revoke app-scoped user</span>
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="endpoint-body">
+      <p class="desc">指定した identity のアプリ membership を無効化します。shared account 本体（他のアプリの membership）は削除されません。</p>
+      <p class="params-label">Path Parameters</p>
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code class="inline">identityID</code></td><td>string</td><td><span class="req-badge">必須</span></td><td>対象ユーザーの Identity UUID</td></tr>
+        </tbody>
+      </table>
+      <p class="params-label">Responses</p>
+      <div class="responses">
+        <span class="r-chip r-2xx">204 No Content</span>
+        <span class="r-chip r-4xx">401 Unauthorized</span>
+        <span class="r-chip r-4xx">404 Not Found</span>
       </div>
     </div>
   </div>
