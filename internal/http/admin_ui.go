@@ -7,6 +7,7 @@ import (
 
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/appreg"
 )
 
 func (s *server) adminUIAuth(next http.Handler) http.Handler {
@@ -179,5 +180,62 @@ func (s *server) handleAdminUIAuditLogs(w http.ResponseWriter, r *http.Request) 
 		TargetType:  targetType,
 		Logs:        logs,
 		HasMore:     hasMore,
+	})
+}
+
+type adminUIAppRequestsData struct {
+	adminUIBase
+	StatusFilter string
+	Requests     []appreg.Request
+}
+
+type adminUIAppRequestDetailData struct {
+	adminUIBase
+	Request appreg.Request
+}
+
+func (s *server) handleAdminUIAppRequests(w http.ResponseWriter, r *http.Request) {
+	if s.adminAppRegSvc == nil {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	session, _ := s.authSvc.CurrentSession(r.Context(), r)
+	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
+	reqs, _ := s.adminAppRegSvc.ListForAdmin(r.Context(), statusFilter)
+	if reqs == nil {
+		reqs = []appreg.Request{}
+	}
+	setAdminUIHeaders(w)
+	_ = adminUITpl.ExecuteTemplate(w, "app-requests", adminUIAppRequestsData{
+		adminUIBase:  adminUIBase{Email: session.Email, Nav: "app-requests"},
+		StatusFilter: statusFilter,
+		Requests:     reqs,
+	})
+}
+
+func (s *server) handleAdminUIAppRequestDetail(w http.ResponseWriter, r *http.Request) {
+	if s.adminAppRegSvc == nil {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	session, _ := s.authSvc.CurrentSession(r.Context(), r)
+	id, ok := parseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+	req, err := s.adminAppRegSvc.GetByID(r.Context(), id)
+	if err != nil {
+		setAdminUIHeaders(w)
+		w.WriteHeader(http.StatusNotFound)
+		_ = adminUITpl.ExecuteTemplate(w, "error", map[string]string{
+			"Title": "申請が見つかりません",
+			"Msg":   err.Error(),
+		})
+		return
+	}
+	setAdminUIHeaders(w)
+	_ = adminUITpl.ExecuteTemplate(w, "app-request-detail", adminUIAppRequestDetailData{
+		adminUIBase: adminUIBase{Email: session.Email, Nav: "app-requests"},
+		Request:     req,
 	})
 }

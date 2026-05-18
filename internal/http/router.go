@@ -41,13 +41,15 @@ type AuthAction string
 const AuthActionRedirect AuthAction = "redirect"
 
 type RouterConfig struct {
-	App        config.AppConfig
-	Admin      config.AdminConfig
-	Ory        config.OryConfig
-	Security   config.SecurityConfig
-	Limiter    RateLimiter       // optional; nil disables rate limiting
-	ProfileSvc ProfileService    // optional; nil disables profile endpoints
-	PublicSvc  PublicAuthService // optional; nil disables /v1/public endpoints
+	App            config.AppConfig
+	Admin          config.AdminConfig
+	Ory            config.OryConfig
+	Security       config.SecurityConfig
+	Limiter        RateLimiter        // optional; nil disables rate limiting
+	ProfileSvc     ProfileService     // optional; nil disables profile endpoints
+	PublicSvc      PublicAuthService  // optional; nil disables /v1/public endpoints
+	DeveloperSvc   DeveloperService   // optional; nil disables /v1/developer endpoints
+	AdminAppRegSvc AdminAppRegService // optional; nil disables /v1/admin/app-requests endpoints
 }
 
 type LoginFlowResult struct {
@@ -156,6 +158,8 @@ type server struct {
 	accountSvc         AccountService
 	profileSvc         ProfileService
 	publicSvc          PublicAuthService
+	developerSvc       DeveloperService
+	adminAppRegSvc     AdminAppRegService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -165,10 +169,19 @@ type server struct {
 type contextKey string
 
 const adminActorIDKey contextKey = "admin_actor_id"
+const adminAuthMethodKey contextKey = "admin_auth_method"
 const appActorKey contextKey = "app_actor"
 const accountIdentityIDKey contextKey = "account_identity_id"
+const developerIdentityIDKey contextKey = "developer_identity_id"
 
 const consentCSRFCookieName = "idol_auth_consent_csrf"
+
+type adminAuthMethod string
+
+const (
+	adminAuthMethodBootstrap adminAuthMethod = "bootstrap"
+	adminAuthMethodSession   adminAuthMethod = "session"
+)
 
 func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessChecker, authSvc AuthService, accountSvcs ...AccountService) http.Handler {
 	var accountSvc AccountService
@@ -182,6 +195,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		accountSvc:         accountSvc,
 		profileSvc:         cfg.ProfileSvc,
 		publicSvc:          cfg.PublicSvc,
+		developerSvc:       cfg.DeveloperSvc,
+		adminAppRegSvc:     cfg.AdminAppRegSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -229,6 +244,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
 		r.Use(s.adminAuth)
+		r.Use(s.adminSessionCSRFMiddleware)
 		r.Get("/apps", s.handleListApps)
 		r.Post("/apps", s.handleCreateApp)
 		r.Post("/apps/{appID}/management-token", s.handleIssueManagementToken)
@@ -241,6 +257,11 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/users/{userRef}/revoke-sessions", s.handleRevokeIdentitySessions)
 		r.Delete("/users/{userRef}", s.handleDeleteIdentity)
 		r.Get("/audit-logs", s.handleListAuditLogs)
+		r.Get("/app-requests", s.handleListAdminAppRequests)
+		r.Get("/app-requests/{id}", s.handleGetAdminAppRequest)
+		r.Post("/app-requests/{id}/approve", s.handleApproveAppRequest)
+		r.Post("/app-requests/{id}/reject", s.handleRejectAppRequest)
+		r.Post("/app-requests/{id}/request-changes", s.handleRequestChangesAppRequest)
 	})
 
 	r.Route("/v1/account", func(r chi.Router) {
@@ -269,12 +290,37 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/users/{identityID}/profile", s.handleGetAppUserProfile)
 	})
 
+	if s.developerSvc != nil {
+		r.Route("/developer", func(r chi.Router) {
+			r.Use(s.developerUIAuth)
+			r.Get("/", s.handleDeveloperUIList)
+			r.Get("/new", s.handleDeveloperUINew)
+			r.Get("/applications/{id}", s.handleDeveloperUIDetail)
+		})
+	}
+
+	if s.developerSvc != nil {
+		r.Route("/v1/developer", func(r chi.Router) {
+			if s.config.Limiter != nil {
+				r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
+			}
+			r.Use(s.developerAuth)
+			r.Get("/applications", s.handleListAppRegs)
+			r.Post("/applications", s.handleSubmitAppReg)
+			r.Get("/applications/{id}", s.handleGetAppReg)
+			r.Patch("/applications/{id}", s.handleResubmitAppReg)
+			r.Delete("/applications/{id}", s.handleWithdrawAppReg)
+		})
+	}
+
 	r.Route("/admin-ui", func(r chi.Router) {
 		r.Use(s.adminUIAuth)
 		r.Get("/", s.handleAdminUIOverview)
 		r.Get("/apps", s.handleAdminUIApps)
 		r.Get("/users", s.handleAdminUIUsers)
 		r.Get("/audit-logs", s.handleAdminUIAuditLogs)
+		r.Get("/app-requests", s.handleAdminUIAppRequests)
+		r.Get("/app-requests/{id}", s.handleAdminUIAppRequestDetail)
 	})
 
 	if s.publicSvc != nil {
@@ -1157,6 +1203,7 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
 				// Valid bootstrap token — do not consume the failure rate-limit budget.
 				ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
+				ctx = context.WithValue(ctx, adminAuthMethodKey, adminAuthMethodBootstrap)
 				ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
 					IPAddress: ip,
 					UserAgent: r.UserAgent(),
@@ -1189,6 +1236,7 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 						actorID = session.IdentityID
 					}
 					ctx := context.WithValue(r.Context(), adminActorIDKey, actorID)
+					ctx = context.WithValue(ctx, adminAuthMethodKey, adminAuthMethodSession)
 					ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
 						IPAddress: ip,
 						UserAgent: r.UserAgent(),
@@ -1212,6 +1260,63 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 		}
 		writeError(w, http.StatusUnauthorized, "admin authorization required")
 	})
+}
+
+func (s *server) adminSessionCSRFMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !unsafeHTTPMethod(r.Method) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		method, _ := r.Context().Value(adminAuthMethodKey).(adminAuthMethod)
+		if method != adminAuthMethodSession {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !sameOriginAdminRequest(r) {
+			writeError(w, http.StatusForbidden, "admin csrf validation failed")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func unsafeHTTPMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return false
+	default:
+		return true
+	}
+}
+
+func sameOriginAdminRequest(r *http.Request) bool {
+	switch strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")) {
+	case "same-origin", "same-site", "none":
+		return true
+	case "cross-site":
+		return false
+	}
+
+	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" {
+		return requestOriginMatchesHost(r, origin)
+	}
+	if referer := strings.TrimSpace(r.Header.Get("Referer")); referer != "" {
+		return requestOriginMatchesHost(r, referer)
+	}
+	return false
+}
+
+func requestOriginMatchesHost(r *http.Request, raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+	host := r.Host
+	if host == "" {
+		host = r.URL.Host
+	}
+	return strings.EqualFold(u.Host, host)
 }
 
 func adminIPAllowed(ip string, allowedCIDRs []string) bool {

@@ -668,12 +668,36 @@ func TestAdminMutatingAccessAllowedForSessionAuth(t *testing.T) {
 		"description":"main app"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://example.com")
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
+	}
+}
+
+func TestAdminMutatingSessionAuthRequiresSameOrigin(t *testing.T) {
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated:               true,
+			IdentityID:                  "identity-admin",
+			Email:                       "admin@example.com",
+			AuthenticatorAssuranceLevel: "aal2",
+		},
+	}
+	router := apphttp.NewRouter(apphttp.RouterConfig{
+		Admin: config.AdminConfig{AllowedEmails: []string{"admin@example.com"}},
+	}, &stubAdminService{}, nil, authn)
+	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusForbidden, w.Code, w.Body.String())
 	}
 }
 

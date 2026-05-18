@@ -16,6 +16,15 @@ type Config struct {
 	Admin    AdminConfig
 	Security SecurityConfig
 	Log      LogConfig
+	Mail     MailConfig
+}
+
+type MailConfig struct {
+	Enabled bool   `env:"MAIL_ENABLED"  envDefault:"false"`
+	From    string `env:"MAIL_FROM"`
+	SMTPURL string `env:"MAIL_SMTP_URL"` // smtp://user:pass@host:port
+	AppName string `env:"MAIL_APP_NAME" envDefault:"idol-auth"`
+	BaseURL string `env:"MAIL_BASE_URL"` // dashboard link base; falls back to APP_BASE_URL
 }
 
 type AppConfig struct {

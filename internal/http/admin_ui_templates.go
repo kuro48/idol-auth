@@ -40,6 +40,18 @@ var adminUITpl = template.Must(template.New("admin-ui").Funcs(template.FuncMap{
 			return "badge-failure"
 		case "rotated":
 			return "badge-rotated"
+		case "pending":
+			return "badge-pending"
+		case "under_review":
+			return "badge-review"
+		case "changes_requested":
+			return "badge-changes"
+		case "approved":
+			return "badge-success"
+		case "rejected":
+			return "badge-failure"
+		case "withdrawn":
+			return "badge-inactive"
 		default:
 			return ""
 		}
@@ -93,6 +105,9 @@ tr:hover td{background:#f7f8fb}
 .badge-success{background:#e6f4ef;color:var(--ok)}
 .badge-failure{background:#fce8e8;color:var(--ng)}
 .badge-rotated{background:#fff3e0;color:var(--warn)}
+.badge-pending{background:#e8ecff;color:#0017c1}
+.badge-review{background:#f0e8ff;color:#6200ea}
+.badge-changes{background:#fff3e0;color:#e85500}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:opacity .12s;text-decoration:none}
 .btn:hover{opacity:.84}
 .btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
@@ -137,6 +152,7 @@ input:focus,select:focus{outline:2px solid var(--primary);outline-offset:-1px}
   <a class="nav-link{{if eq .Nav "apps"}} active{{end}}" href="/admin-ui/apps">アプリ</a>
   <a class="nav-link{{if eq .Nav "users"}} active{{end}}" href="/admin-ui/users">ユーザー</a>
   <a class="nav-link{{if eq .Nav "audit-logs"}} active{{end}}" href="/admin-ui/audit-logs">監査ログ</a>
+  <a class="nav-link{{if eq .Nav "app-requests"}} active{{end}}" href="/admin-ui/app-requests">申請管理</a>
 </nav>
 {{end}}
 
@@ -575,6 +591,187 @@ async function saveRoles(){
     <div style="font-size:18px;font-weight:700;margin-bottom:10px">{{.Title}}</div>
     <p style="color:var(--sub);font-size:14px;line-height:1.6">{{.Msg}}</p>
   </div>
+</body></html>
+{{end}}
+
+{{define "app-requests"}}<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>申請管理 — 管理ダッシュボード</title>{{template "head" .}}</head>
+<body>
+{{template "topnav" .}}
+<div class="layout">
+{{template "sidebar" .}}
+<main class="main">
+  <div class="page-header"><h1 class="page-title">申請管理</h1></div>
+  <form method="get" action="/admin-ui/app-requests" class="form-row">
+    <div class="form-group"><label>ステータス</label>
+      <select name="status">
+        <option value=""{{if eq .StatusFilter ""}} selected{{end}}>全て</option>
+        <option value="pending"{{if eq .StatusFilter "pending"}} selected{{end}}>審査待ち</option>
+        <option value="under_review"{{if eq .StatusFilter "under_review"}} selected{{end}}>審査中</option>
+        <option value="changes_requested"{{if eq .StatusFilter "changes_requested"}} selected{{end}}>修正依頼</option>
+        <option value="approved"{{if eq .StatusFilter "approved"}} selected{{end}}>承認済み</option>
+        <option value="rejected"{{if eq .StatusFilter "rejected"}} selected{{end}}>却下</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">絞り込み</button>
+    <a href="/admin-ui/app-requests" class="btn btn-secondary">クリア</a>
+  </form>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>申請名</th><th>タイプ</th><th>申請者ID</th><th>ステータス</th><th>申請日</th><th>操作</th></tr></thead>
+        <tbody>
+          {{range .Requests}}
+          <tr>
+            <td><strong>{{.Name}}</strong>{{if .Slug}} <span style="font-size:11px;color:var(--sub)">/ {{.Slug}}</span>{{end}}</td>
+            <td>{{if .Type}}{{.Type}}{{else}}<span style="color:#ccc">—</span>{{end}}</td>
+            <td><code style="font-size:11px">{{truncate .IdentityID 18}}</code></td>
+            <td><span class="badge {{badgeClass .Status}}">{{.Status}}</span></td>
+            <td style="white-space:nowrap">{{formatTime .CreatedAt}}</td>
+            <td><a class="btn btn-secondary btn-sm" href="/admin-ui/app-requests/{{.ID}}">詳細</a></td>
+          </tr>
+          {{else}}<tr class="empty-row"><td colspan="6">申請はありません</td></tr>{{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+</div>
+{{template "token-modal" .}}
+{{template "base-js" .}}
+</body></html>
+{{end}}
+
+{{define "app-request-detail"}}<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{.Request.Name}} — 申請管理</title>{{template "head" .}}
+<style>
+.kv-table{width:100%;border-collapse:collapse;font-size:13px}
+.kv-table th{width:200px;text-align:left;padding:9px 12px;background:#f7f8fb;border-bottom:1px solid #ececec;font-weight:600;color:var(--sub);vertical-align:top;white-space:nowrap}
+.kv-table td{padding:9px 12px;border-bottom:1px solid #ececec;vertical-align:top;word-break:break-all}
+.kv-empty{color:#ccc}.detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.btn-approve{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn-changes{background:var(--warn);color:#fff;border-color:var(--warn)}
+.detail-title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.back-link{font-size:12px;color:var(--sub);margin-bottom:14px;display:inline-block}
+.uri-list{margin:0;padding-left:18px;font-size:12px}.uri-list li{margin-bottom:2px}
+.modal textarea{width:100%;min-height:96px;padding:8px 10px;border:1px solid var(--border);border-radius:3px;font-size:13px;font-family:inherit;resize:vertical}
+.modal textarea:focus{outline:2px solid var(--primary);outline-offset:-1px}
+</style>
+</head>
+<body>
+{{template "topnav" .}}
+<div class="layout">
+{{template "sidebar" .}}
+<main class="main">
+  <a class="back-link" href="/admin-ui/app-requests">← 申請一覧へ戻る</a>
+  <div class="page-header">
+    <div class="detail-title-row">
+      <h1 class="page-title">{{.Request.Name}}</h1>
+      <span class="badge {{badgeClass .Request.Status}}">{{.Request.Status}}</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">申請内容</div>
+    <table class="kv-table">
+      <tbody>
+        <tr><th>申請ID</th><td><code style="font-size:11px">{{.Request.ID}}</code></td></tr>
+        <tr><th>申請者ID</th><td><code style="font-size:11px">{{.Request.IdentityID}}</code></td></tr>
+        <tr><th>名前</th><td>{{.Request.Name}}</td></tr>
+        <tr><th>スラグ</th><td>{{if .Request.Slug}}<code>{{.Request.Slug}}</code>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>タイプ</th><td>{{if .Request.Type}}{{.Request.Type}}{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>説明</th><td>{{if .Request.Description}}{{.Request.Description}}{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>用途</th><td>{{if .Request.Purpose}}{{.Request.Purpose}}{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>組織</th><td>{{if .Request.Organization}}{{.Request.Organization}}{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>連絡先メール</th><td>{{if .Request.ContactEmail}}{{.Request.ContactEmail}}{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>ホームページ</th><td>{{if .Request.HomepageURL}}<a href="{{.Request.HomepageURL}}" target="_blank" rel="noopener noreferrer">{{.Request.HomepageURL}}</a>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>プライバシーポリシー</th><td>{{if .Request.PrivacyPolicyURL}}<a href="{{.Request.PrivacyPolicyURL}}" target="_blank" rel="noopener noreferrer">{{.Request.PrivacyPolicyURL}}</a>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>利用規約</th><td>{{if .Request.TermsURL}}<a href="{{.Request.TermsURL}}" target="_blank" rel="noopener noreferrer">{{.Request.TermsURL}}</a>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>リダイレクト URI</th><td>{{if .Request.RedirectURIs}}<ul class="uri-list">{{range .Request.RedirectURIs}}<li><code>{{.}}</code></li>{{end}}</ul>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>ログアウト後 URI</th><td>{{if .Request.PostLogoutRedirectURIs}}<ul class="uri-list">{{range .Request.PostLogoutRedirectURIs}}<li><code>{{.}}</code></li>{{end}}</ul>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>スコープ</th><td>{{if .Request.Scopes}}<code style="font-size:12px">{{join .Request.Scopes ", "}}</code>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>レビュー担当</th><td>{{if .Request.ReviewerID}}<code style="font-size:11px">{{.Request.ReviewerID}}</code>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>レビュー メモ</th><td>{{if .Request.ReviewerNote}}{{.Request.ReviewerNote}}{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>決定日時</th><td>{{if .Request.DecidedAt}}{{formatTime .Request.DecidedAt.UTC}}{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>作成済みアプリ ID</th><td>{{if .Request.CreatedAppID}}<code style="font-size:11px">{{.Request.CreatedAppID}}</code>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>作成済みクライアント ID</th><td>{{if .Request.CreatedClientID}}<code style="font-size:11px">{{.Request.CreatedClientID}}</code>{{else}}<span class="kv-empty">—</span>{{end}}</td></tr>
+        <tr><th>バージョン</th><td>{{.Request.Version}}</td></tr>
+        <tr><th>作成日時</th><td>{{formatTime .Request.CreatedAt}}</td></tr>
+        <tr><th>更新日時</th><td>{{formatTime .Request.UpdatedAt}}</td></tr>
+      </tbody>
+    </table>
+    <div class="detail-actions">
+      <button class="btn btn-approve" onclick="openModal('approve-modal')">承認</button>
+      <button class="btn btn-changes" onclick="openModal('changes-modal')">修正依頼</button>
+      <button class="btn btn-danger" onclick="openModal('reject-modal')">却下</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="modal-overlay" id="approve-modal">
+  <div class="modal">
+    <div class="modal-title">申請を承認</div>
+    <div class="modal-desc">アプリと OIDC クライアントが作成されます。パーティタイプを選択してください。</div>
+    <div class="form-group"><label>パーティタイプ</label>
+      <select id="approve-party-type">
+        <option value="first_party">first_party</option>
+        <option value="third_party">third_party</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('approve-modal')">キャンセル</button>
+      <button class="btn btn-approve" onclick="submitApprove()">承認する</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reject-modal">
+  <div class="modal">
+    <div class="modal-title">申請を却下</div>
+    <div class="modal-desc">却下理由を入力してください。申請者に通知されます。</div>
+    <div class="form-group"><label>却下メモ</label>
+      <textarea id="reject-note" placeholder="例: ホームページ URL が無効です"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('reject-modal')">キャンセル</button>
+      <button class="btn btn-danger" onclick="submitReject()">却下する</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changes-modal">
+  <div class="modal">
+    <div class="modal-title">修正を依頼</div>
+    <div class="modal-desc">修正してほしい点を申請者に伝えてください（必須）。</div>
+    <div class="form-group"><label>修正依頼メモ *</label>
+      <textarea id="changes-note" placeholder="例: プライバシーポリシーの URL を追加してください"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('changes-modal')">キャンセル</button>
+      <button class="btn btn-changes" onclick="submitRequestChanges()">送信</button>
+    </div>
+  </div>
+</div>
+
+{{template "token-modal" .}}
+{{template "base-js" .}}
+<script>
+var REQ_ID={{printf "%q" .Request.ID.String}};
+async function appReqSend(path, body, modalId, toastMsg, after){
+  try{
+    var res=await adminFetch('POST','/v1/admin/app-requests/'+REQ_ID+path, body);
+    if(!res.ok){var d=await res.json().catch(function(){return {};});throw new Error(d.error||'HTTP '+res.status);}
+    showToast(toastMsg);closeModal(modalId);setTimeout(after,700);
+  }catch(e){showToast(e.message,'error');}
+}
+function submitApprove(){appReqSend('/approve',{party_type:document.getElementById('approve-party-type').value},'approve-modal','申請を承認しました',function(){location.href='/admin-ui/app-requests';});}
+function submitReject(){appReqSend('/reject',{note:document.getElementById('reject-note').value.trim()},'reject-modal','申請を却下しました',function(){location.href='/admin-ui/app-requests';});}
+function submitRequestChanges(){var note=document.getElementById('changes-note').value.trim();if(!note){showToast('修正依頼メモは必須です','error');return;}appReqSend('/request-changes',{note:note},'changes-modal','修正依頼を送信しました',function(){location.reload();});}
+</script>
 </body></html>
 {{end}}
 `
