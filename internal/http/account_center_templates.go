@@ -3,7 +3,7 @@ package http
 import "html/template"
 
 var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOCTYPE html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,9 +29,11 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       --success:#35a67b;
       --warning:#e9a23b;
     }
-    html[data-theme="dark"]{
-      --bg:#181412; --surface:#221d1a; --surface-2:#2b241f; --text:#fff8f1; --muted:#c8b8ad; --border:#42362f;
-      --shadow:0 16px 40px rgba(0,0,0,.35); --oshi-weak:#372219; --oshi-soft:#5a3829;
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#181412; --surface:#221d1a; --surface-2:#2b241f; --text:#fff8f1; --muted:#c8b8ad; --border:#42362f;
+        --shadow:0 16px 40px rgba(0,0,0,.35); --oshi-weak:#372219; --oshi-soft:#5a3829;
+      }
     }
     *,*::before,*::after{box-sizing:border-box}
     html,body{margin:0;padding:0}
@@ -314,14 +316,6 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       position:fixed; right:22px; bottom:88px; z-index:150;
       display:flex; flex-direction:column; align-items:flex-end; gap:10px;
     }
-    .theme-toggle{
-      width:48px; height:48px; border-radius:50%;
-      background:var(--surface); border:1px solid var(--border);
-      color:var(--text); box-shadow:var(--shadow);
-      display:grid; place-items:center; font-size:20px;
-      transition:transform 160ms ease;
-    }
-    .theme-toggle:hover{transform:translateY(-2px)}
     .color-dots{
       display:flex; gap:8px; padding:10px 12px;
       background:var(--surface); border:1px solid var(--border);
@@ -539,8 +533,6 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       <button class="color-dot" type="button" data-color="#4b7bec" style="background:#4b7bec" aria-pressed="false" title="ブルー"></button>
     </div>
   </div>
-  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="テーマを切り替える" title="テーマ切替"
-    style="position:fixed;right:22px;bottom:22px;z-index:150">☾</button>
 
   <div id="toast" class="toast"></div>
 
@@ -1001,24 +993,6 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       var card = document.querySelector('[data-section="profile"]');
       if (card) applyProfile(card, data);
     }
-
-    (function() {
-      var root = document.documentElement;
-      var btn = document.getElementById('theme-toggle');
-      var stored = null;
-      try { stored = window.localStorage.getItem('oshi-theme'); } catch(_) {}
-      if (stored === 'dark' || stored === 'light') root.setAttribute('data-theme', stored);
-      function syncIcon() {
-        btn.textContent = root.getAttribute('data-theme') === 'dark' ? '☀' : '☾';
-      }
-      syncIcon();
-      btn.addEventListener('click', function() {
-        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        root.setAttribute('data-theme', next);
-        try { window.localStorage.setItem('oshi-theme', next); } catch(_) {}
-        syncIcon();
-      });
-    })();
 
     (function() {
       var dots = document.querySelectorAll('.color-dot');

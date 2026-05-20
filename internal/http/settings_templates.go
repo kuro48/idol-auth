@@ -3,7 +3,7 @@ package http
 import "html/template"
 
 var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,9 +26,11 @@ var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
       --danger:#e85d75;
       --success:#35a67b;
     }
-    html[data-theme="dark"]{
-      --bg:#181412; --surface:#221d1a; --surface-2:#2b241f; --text:#fff8f1; --muted:#c8b8ad; --border:#42362f;
-      --shadow:0 16px 40px rgba(0,0,0,.35); --oshi-weak:#372219; --oshi-soft:#5a3829;
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#181412; --surface:#221d1a; --surface-2:#2b241f; --text:#fff8f1; --muted:#c8b8ad; --border:#42362f;
+        --shadow:0 16px 40px rgba(0,0,0,.35); --oshi-weak:#372219; --oshi-soft:#5a3829;
+      }
     }
     *,*::before,*::after{box-sizing:border-box}
     html,body{margin:0;padding:0}
@@ -110,7 +112,6 @@ var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
       <button class="color-swatch" data-color="#1fa8c9" style="background:#1fa8c9" onclick="setOshi(this)" title="ブルー"></button>
       <button class="color-swatch" data-color="#35a67b" style="background:#35a67b" onclick="setOshi(this)" title="グリーン"></button>
     </div>
-    <button class="icon-btn" id="theme-toggle" title="テーマ切替" onclick="toggleTheme()">🌙</button>
   </div>
 </header>
 
@@ -166,10 +167,6 @@ var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
 
 <script>
 (function(){
-  const saved = localStorage.getItem('oshi_theme');
-  if(saved) document.documentElement.setAttribute('data-theme', saved);
-  const btn = document.getElementById('theme-toggle');
-  if(btn) btn.textContent = (document.documentElement.getAttribute('data-theme')==='dark') ? '☀️' : '🌙';
   const oshi = localStorage.getItem('oshi_color');
   if(oshi){
     document.documentElement.style.setProperty('--oshi', oshi);
@@ -178,13 +175,6 @@ var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
     });
   }
 })();
-function toggleTheme(){
-  const html = document.documentElement;
-  const next = html.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
-  localStorage.setItem('oshi_theme', next);
-  document.getElementById('theme-toggle').textContent = next==='dark' ? '☀️' : '🌙';
-}
 function setOshi(el){
   const c = el.dataset.color;
   document.documentElement.style.setProperty('--oshi', c);

@@ -5,7 +5,7 @@ import "html/template"
 var loginPageTpl = template.Must(template.New("login-page").Parse(loginPageTemplate))
 
 const loginPageTemplate = `<!DOCTYPE html>
-<html lang="ja" data-theme="light">
+<html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -26,16 +26,18 @@ const loginPageTemplate = `<!DOCTYPE html>
       --radius-md:18px;
       --radius-sm:12px;
     }
-    html[data-theme="dark"] {
-      --bg: #181412;
-      --surface: #221d1a;
-      --surface-2: #2b241f;
-      --text: #fff8f1;
-      --muted: #c8b8ad;
-      --border: #42362f;
-      --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-      --oshi-weak: #372219;
-      --oshi-soft: #5a3829;
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #181412;
+        --surface: #221d1a;
+        --surface-2: #2b241f;
+        --text: #fff8f1;
+        --muted: #c8b8ad;
+        --border: #42362f;
+        --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        --oshi-weak: #372219;
+        --oshi-soft: #5a3829;
+      }
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -605,7 +607,7 @@ const loginPageTemplate = `<!DOCTYPE html>
     }
   </style>
 </head>
-<body data-theme="light">
+<body>
   <main class="stage">
     <!-- LEFT: hero -->
     <section class="hero-card" aria-labelledby="hero-heading">
@@ -750,8 +752,6 @@ const loginPageTemplate = `<!DOCTYPE html>
 
   <!-- Floating theme + color panel -->
   <div class="float-panel" role="region" aria-label="推し色を選ぶ">
-    <button id="theme-toggle" type="button" aria-label="テーマ切り替え" title="テーマ切り替え">☀︎</button>
-    <span class="sep" aria-hidden="true"></span>
     <div class="color-dots" role="radiogroup" aria-label="推しメンカラー">
       <button type="button" class="color-dot active" data-color="#ff8a3d" style="background:#ff8a3d" aria-label="オレンジ"></button>
       <button type="button" class="color-dot" data-color="#ef6aa8" style="background:#ef6aa8" aria-label="ピンク"></button>
@@ -764,19 +764,6 @@ const loginPageTemplate = `<!DOCTYPE html>
   <script>
     (function () {
       var root = document.documentElement;
-      var body = document.body;
-
-      // theme toggle
-      var themeBtn = document.getElementById('theme-toggle');
-      function setTheme(mode) {
-        root.setAttribute('data-theme', mode);
-        body.setAttribute('data-theme', mode);
-        themeBtn.textContent = mode === 'dark' ? '☾' : '☀︎';
-      }
-      themeBtn.addEventListener('click', function () {
-        var next = (root.getAttribute('data-theme') === 'light') ? 'dark' : 'light';
-        setTheme(next);
-      });
 
       // color dots (floating panel)
       document.querySelectorAll('.color-dot').forEach(function (dot) {

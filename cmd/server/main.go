@@ -15,11 +15,13 @@ import (
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/appreg"
 	"github.com/kuro48/idol-auth/internal/domain/profile"
 	apphttp "github.com/kuro48/idol-auth/internal/http"
 	"github.com/kuro48/idol-auth/internal/infra/db"
 	"github.com/kuro48/idol-auth/internal/infra/hydra"
 	"github.com/kuro48/idol-auth/internal/infra/kratos"
+	"github.com/kuro48/idol-auth/internal/infra/mail"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -95,15 +97,21 @@ func run() error {
 		cfg.Ory.KratosBrowserURL,
 		cfg.Ory.KratosPublicURL,
 	)
+	appRegService := appreg.NewService(
+		db.NewAppRegistrationRepository(dbPool),
+		mail.NewSMTPNotifier(cfg.Mail),
+		time.Now,
+	)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)
 	router := apphttp.NewRouter(apphttp.RouterConfig{
-		App:        cfg.App,
-		Admin:      cfg.Admin,
-		Ory:        cfg.Ory,
-		Security:   cfg.Security,
-		Limiter:    limiter,
-		ProfileSvc: profileService,
-		PublicSvc:  publicService,
+		App:            cfg.App,
+		Admin:          cfg.Admin,
+		Ory:            cfg.Ory,
+		Security:       cfg.Security,
+		Limiter:        limiter,
+		ProfileSvc:     profileService,
+		PublicSvc:      publicService,
+		AdminAppRegSvc: appRegService,
 	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{

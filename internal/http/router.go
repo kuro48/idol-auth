@@ -45,9 +45,10 @@ type RouterConfig struct {
 	Admin          config.AdminConfig
 	Ory            config.OryConfig
 	Security       config.SecurityConfig
-	Limiter    RateLimiter       // optional; nil disables rate limiting
-	ProfileSvc ProfileService    // optional; nil disables profile endpoints
-	PublicSvc  PublicAuthService // optional; nil disables /v1/public endpoints
+	Limiter        RateLimiter        // optional; nil disables rate limiting
+	ProfileSvc     ProfileService     // optional; nil disables profile endpoints
+	PublicSvc      PublicAuthService  // optional; nil disables /v1/public endpoints
+	AdminAppRegSvc AdminAppRegService // optional; nil disables /v1/admin/app-requests endpoints
 }
 
 type LoginFlowResult struct {
@@ -156,6 +157,7 @@ type server struct {
 	accountSvc         AccountService
 	profileSvc         ProfileService
 	publicSvc          PublicAuthService
+	adminAppRegSvc     AdminAppRegService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -189,6 +191,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		accountSvc:         accountSvc,
 		profileSvc:         cfg.ProfileSvc,
 		publicSvc:          cfg.PublicSvc,
+		adminAppRegSvc:     cfg.AdminAppRegSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -248,6 +251,21 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/users/{userRef}/revoke-sessions", s.handleRevokeIdentitySessions)
 		r.Delete("/users/{userRef}", s.handleDeleteIdentity)
 		r.Get("/audit-logs", s.handleListAuditLogs)
+		r.Get("/app-requests", s.handleListAdminAppRequests)
+		r.Get("/app-requests/{id}", s.handleGetAdminAppRequest)
+		r.Post("/app-requests/{id}/approve", s.handleApproveAppRequest)
+		r.Post("/app-requests/{id}/reject", s.handleRejectAppRequest)
+		r.Post("/app-requests/{id}/request-changes", s.handleRequestChangesAppRequest)
+	})
+
+	r.Route("/admin-ui", func(r chi.Router) {
+		r.Use(s.adminUIAuth)
+		r.Get("/", s.handleAdminUIOverview)
+		r.Get("/apps", s.handleAdminUIApps)
+		r.Get("/users", s.handleAdminUIUsers)
+		r.Get("/audit-logs", s.handleAdminUIAuditLogs)
+		r.Get("/app-requests", s.handleAdminUIAppRequests)
+		r.Get("/app-requests/{id}", s.handleAdminUIAppRequestDetail)
 	})
 
 	r.Route("/v1/account", func(r chi.Router) {
