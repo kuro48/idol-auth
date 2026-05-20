@@ -45,11 +45,9 @@ type RouterConfig struct {
 	Admin          config.AdminConfig
 	Ory            config.OryConfig
 	Security       config.SecurityConfig
-	Limiter        RateLimiter        // optional; nil disables rate limiting
-	ProfileSvc     ProfileService     // optional; nil disables profile endpoints
-	PublicSvc      PublicAuthService  // optional; nil disables /v1/public endpoints
-	DeveloperSvc   DeveloperService   // optional; nil disables /v1/developer endpoints
-	AdminAppRegSvc AdminAppRegService // optional; nil disables /v1/admin/app-requests endpoints
+	Limiter    RateLimiter       // optional; nil disables rate limiting
+	ProfileSvc ProfileService    // optional; nil disables profile endpoints
+	PublicSvc  PublicAuthService // optional; nil disables /v1/public endpoints
 }
 
 type LoginFlowResult struct {
@@ -158,8 +156,6 @@ type server struct {
 	accountSvc         AccountService
 	profileSvc         ProfileService
 	publicSvc          PublicAuthService
-	developerSvc       DeveloperService
-	adminAppRegSvc     AdminAppRegService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -172,8 +168,6 @@ const adminActorIDKey contextKey = "admin_actor_id"
 const adminAuthMethodKey contextKey = "admin_auth_method"
 const appActorKey contextKey = "app_actor"
 const accountIdentityIDKey contextKey = "account_identity_id"
-const developerIdentityIDKey contextKey = "developer_identity_id"
-
 const consentCSRFCookieName = "idol_auth_consent_csrf"
 
 type adminAuthMethod string
@@ -195,8 +189,6 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		accountSvc:         accountSvc,
 		profileSvc:         cfg.ProfileSvc,
 		publicSvc:          cfg.PublicSvc,
-		developerSvc:       cfg.DeveloperSvc,
-		adminAppRegSvc:     cfg.AdminAppRegSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -212,8 +204,6 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
 	r.Get("/login", s.handleLoginPage)
-	r.Get("/docs", s.handleDocsIndex)
-	r.Get("/docs/*", s.handleDocs)
 	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)
 	r.Route("/account", func(r chi.Router) {
 		r.Use(s.accountUIAuth)
@@ -258,11 +248,6 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/users/{userRef}/revoke-sessions", s.handleRevokeIdentitySessions)
 		r.Delete("/users/{userRef}", s.handleDeleteIdentity)
 		r.Get("/audit-logs", s.handleListAuditLogs)
-		r.Get("/app-requests", s.handleListAdminAppRequests)
-		r.Get("/app-requests/{id}", s.handleGetAdminAppRequest)
-		r.Post("/app-requests/{id}/approve", s.handleApproveAppRequest)
-		r.Post("/app-requests/{id}/reject", s.handleRejectAppRequest)
-		r.Post("/app-requests/{id}/request-changes", s.handleRequestChangesAppRequest)
 	})
 
 	r.Route("/v1/account", func(r chi.Router) {
@@ -289,39 +274,6 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/users", s.handleRegisterAppUser)
 		r.Delete("/users/{identityID}", s.handleRevokeAppUser)
 		r.Get("/users/{identityID}/profile", s.handleGetAppUserProfile)
-	})
-
-	if s.developerSvc != nil {
-		r.Route("/developer", func(r chi.Router) {
-			r.Use(s.developerUIAuth)
-			r.Get("/", s.handleDeveloperUIList)
-			r.Get("/new", s.handleDeveloperUINew)
-			r.Get("/applications/{id}", s.handleDeveloperUIDetail)
-		})
-	}
-
-	if s.developerSvc != nil {
-		r.Route("/v1/developer", func(r chi.Router) {
-			if s.config.Limiter != nil {
-				r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
-			}
-			r.Use(s.developerAuth)
-			r.Get("/applications", s.handleListAppRegs)
-			r.Post("/applications", s.handleSubmitAppReg)
-			r.Get("/applications/{id}", s.handleGetAppReg)
-			r.Patch("/applications/{id}", s.handleResubmitAppReg)
-			r.Delete("/applications/{id}", s.handleWithdrawAppReg)
-		})
-	}
-
-	r.Route("/admin-ui", func(r chi.Router) {
-		r.Use(s.adminUIAuth)
-		r.Get("/", s.handleAdminUIOverview)
-		r.Get("/apps", s.handleAdminUIApps)
-		r.Get("/users", s.handleAdminUIUsers)
-		r.Get("/audit-logs", s.handleAdminUIAuditLogs)
-		r.Get("/app-requests", s.handleAdminUIAppRequests)
-		r.Get("/app-requests/{id}", s.handleAdminUIAppRequestDetail)
 	})
 
 	if s.publicSvc != nil {

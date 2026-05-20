@@ -63,55 +63,6 @@ func TestHandleReadyz(t *testing.T) {
 	}
 }
 
-func TestHandleDocs(t *testing.T) {
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/docs/index.html", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
-	}
-	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
-		t.Fatalf("expected Content-Type %q, got %q", "text/html; charset=utf-8", ct)
-	}
-	if csp := w.Header().Get("Content-Security-Policy"); csp == "" {
-		t.Fatal("expected docs handler to set Content-Security-Policy")
-	}
-	body := w.Body.String()
-	for _, fragment := range []string{
-		`<title>Swagger UI</title>`,
-		`swagger-ui.css`,
-		`SwaggerUIBundle`,
-		`doc.json`,
-		`StandaloneLayout`,
-	} {
-		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected body to contain %q", fragment)
-		}
-	}
-}
-
-func TestHandleDocsIndexRendersHTML(t *testing.T) {
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/docs", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
-	}
-	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
-		t.Fatalf("expected Content-Type text/html, got %q", ct)
-	}
-}
-
 func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
@@ -132,66 +83,6 @@ func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected login page to contain account center design fragment %q", fragment)
-		}
-	}
-}
-
-func TestDeveloperUIUsesAccountCenterDesignSystem(t *testing.T) {
-	cfg := testConfig()
-	cfg.DeveloperSvc = &stubDeveloperService{}
-	router := apphttp.NewRouter(cfg, nil, nil, &stubAuthService{
-		session: apphttp.SessionView{
-			Authenticated: true,
-			IdentityID:    "identity-123",
-			Email:         "dev@example.com",
-		},
-	})
-	req := httptest.NewRequest(http.MethodGet, "/developer/", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
-	}
-	body := w.Body.String()
-	for _, fragment := range []string{
-		"--oshi-weak:#fff1e8",
-		"--surface-2:#fffaf6",
-		"--radius-lg:28px",
-		"brand-mark",
-		"推し色を選ぶ",
-	} {
-		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected developer UI to contain account center design fragment %q", fragment)
-		}
-	}
-}
-
-func TestHandleSwaggerDocJSON(t *testing.T) {
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{BootstrapToken: "secret"},
-	}, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/docs/doc.json", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
-	}
-	if ct := w.Header().Get("Content-Type"); ct != "application/json; charset=utf-8" {
-		t.Fatalf("expected Content-Type %q, got %q", "application/json; charset=utf-8", ct)
-	}
-	body := w.Body.String()
-	for _, fragment := range []string{
-		`"swagger": "2.0"`,
-		`idol-auth API`,
-		`"/v1/admin/apps"`,
-		`"/v1/account"`,
-	} {
-		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected spec to contain %q", fragment)
 		}
 	}
 }

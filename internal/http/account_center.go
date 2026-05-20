@@ -4,6 +4,7 @@ import (
 	"context"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -91,4 +92,12 @@ func initials(displayName, email string) string {
 		return "?"
 	}
 	return result
+}
+
+func (s *server) kratosLoginURL(returnPath string) string {
+	u, _ := url.Parse(strings.TrimRight(s.config.Ory.KratosBrowserURL, "/") + "/self-service/login/browser")
+	q := u.Query()
+	q.Set("return_to", s.config.App.BaseURL+returnPath)
+	u.RawQuery = q.Encode()
+	return u.String()
 }

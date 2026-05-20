@@ -6,40 +6,25 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	swaggerdocs "github.com/kuro48/idol-auth/docs/swagger"
 	"github.com/kuro48/idol-auth/internal/config"
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
-	"github.com/kuro48/idol-auth/internal/domain/appreg"
 	"github.com/kuro48/idol-auth/internal/domain/profile"
 	apphttp "github.com/kuro48/idol-auth/internal/http"
 	"github.com/kuro48/idol-auth/internal/infra/db"
 	"github.com/kuro48/idol-auth/internal/infra/hydra"
 	"github.com/kuro48/idol-auth/internal/infra/kratos"
-	"github.com/kuro48/idol-auth/internal/infra/mail"
 )
 
 const shutdownTimeout = 10 * time.Second
 const deletionWorkerInterval = time.Minute
 
-// @title idol-auth API
-// @version 1.0.0
-// @description Ory Kratos / Hydra をバックエンドにした認証・認可プラットフォームの API です。
-// @description
-// @description - Auth API: Hydra login / consent / logout を仲介するブラウザ向け API
-// @description - Admin API: アプリ登録、OIDC クライアント発行、ユーザー管理、監査ログ取得 API
-// @BasePath /
-// @schemes http https
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
 func main() {
 	if err := run(); err != nil {
 		slog.Error("server exited with error", "error", err)
@@ -52,7 +37,6 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	configureSwagger(cfg.App.BaseURL)
 
 	setupLogger(cfg.Log.Level)
 
@@ -111,22 +95,15 @@ func run() error {
 		cfg.Ory.KratosBrowserURL,
 		cfg.Ory.KratosPublicURL,
 	)
-	appRegService := appreg.NewService(
-		db.NewAppRegistrationRepository(dbPool),
-		mail.NewSMTPNotifier(cfg.Mail),
-		time.Now,
-	)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)
 	router := apphttp.NewRouter(apphttp.RouterConfig{
-		App:            cfg.App,
-		Admin:          cfg.Admin,
-		Ory:            cfg.Ory,
-		Security:       cfg.Security,
-		Limiter:        limiter,
-		ProfileSvc:     profileService,
-		PublicSvc:      publicService,
-		DeveloperSvc:   appRegService,
-		AdminAppRegSvc: appRegService,
+		App:        cfg.App,
+		Admin:      cfg.Admin,
+		Ory:        cfg.Ory,
+		Security:   cfg.Security,
+		Limiter:    limiter,
+		ProfileSvc: profileService,
+		PublicSvc:  publicService,
 	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{
@@ -180,20 +157,6 @@ func runDeletionWorker(ctx context.Context, accountSvc *account.Service) {
 			}
 		}
 	}
-}
-
-func configureSwagger(baseURL string) {
-	u, err := url.Parse(baseURL)
-	if err != nil {
-		return
-	}
-	if u.Host != "" {
-		swaggerdocs.SwaggerInfo.Host = u.Host
-	}
-	if u.Scheme != "" {
-		swaggerdocs.SwaggerInfo.Schemes = []string{u.Scheme}
-	}
-	swaggerdocs.SwaggerInfo.BasePath = "/"
 }
 
 func setupLogger(level string) {
