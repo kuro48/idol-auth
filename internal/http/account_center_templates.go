@@ -23,6 +23,8 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       --radius-lg:28px;
       --radius-md:18px;
       --radius-sm:12px;
+      --avatar-display-size:146px;
+      --avatar-display-radius:36px;
       --danger:#e85d75;
       --success:#35a67b;
       --warning:#e9a23b;
@@ -116,7 +118,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     }
     .profile-inner{position:relative; display:flex; gap:24px; align-items:center; flex-wrap:wrap}
     .profile-photo{
-      width:146px; height:146px; border-radius:36px;
+      width:var(--avatar-display-size); height:var(--avatar-display-size); border-radius:var(--avatar-display-radius);
       background:
         radial-gradient(circle at 45px 36px, #fff 0 14px, transparent 15px),
         var(--oshi);
@@ -195,11 +197,11 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     }
     .avatar-editor-layout{display:grid; grid-template-columns:180px 1fr; gap:16px; align-items:start}
     .avatar-canvas-wrap{
-      width:180px;
+      width:var(--avatar-display-size);
       aspect-ratio:1;
-      border-radius:24px;
+      border-radius:var(--avatar-display-radius);
       overflow:hidden;
-      border:1px solid var(--border);
+      border:8px solid var(--surface);
       background:var(--surface);
     }
     .avatar-canvas{display:block; width:100%; height:100%}
@@ -336,16 +338,17 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .color-dot[aria-pressed="true"]{box-shadow:0 0 0 2px var(--text)}
 
     @media(max-width:920px){
+      :root{--avatar-display-size:112px; --avatar-display-radius:28px}
       .grid{grid-template-columns:1fr}
       .topbar{padding:12px 18px}
       .shell{padding:20px 18px 120px}
       .user-chip .email{max-width:130px}
       .profile-name h2{font-size:26px}
-      .profile-photo{width:112px; height:112px; border-radius:28px; font-size:36px; border-width:6px}
+      .profile-photo{font-size:36px; border-width:6px}
       .card{padding:18px}
       .profile-hero{padding:22px}
       .avatar-editor-layout{grid-template-columns:1fr}
-      .avatar-canvas-wrap{width:min(100%,220px)}
+      .avatar-canvas-wrap{width:var(--avatar-display-size); border-width:6px}
     }
     @media(max-width:520px){
       .brand-text{display:none}
