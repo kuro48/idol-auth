@@ -153,6 +153,7 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 		`--avatar-display-radius:36px`,
 		`width:var(--avatar-display-size); height:var(--avatar-display-size); border-radius:var(--avatar-display-radius)`,
 		`border-radius:var(--avatar-display-radius)`,
+		`.profile-photo.has-image{color:transparent; background-size:cover; background-position:center; background-repeat:no-repeat}`,
 		`function renderAvatarEditor()`,
 		`function exportEditedAvatarBlob()`,
 		`var AVATAR_MAX_UPLOAD_BYTES = 10 * 1024 * 1024`,

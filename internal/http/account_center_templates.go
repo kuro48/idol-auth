@@ -129,7 +129,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       background-size:auto, cover; background-position:center;
       flex-shrink:0;
     }
-    .profile-photo.has-image{color:transparent}
+    .profile-photo.has-image{color:transparent; background-size:cover; background-position:center; background-repeat:no-repeat}
     .profile-name{flex:1; min-width:200px}
     .profile-name h2{margin:0; font-size:34px; letter-spacing:-.03em; line-height:1.05}
     .profile-name .handle{
