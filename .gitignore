@@ -18,6 +18,10 @@ node_modules/
 
 # Runtime generated
 /backups/
+.playwright-mcp/
+docs-mobile.png
+docs-preview.png
+docs-prod.png
 
 # Go
 *.test

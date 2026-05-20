@@ -172,26 +172,29 @@ func renderHome(w http.ResponseWriter, cfg *demo.Config, oshiColor string) {
   <title>Idol Auth — デモ</title>
   <style>
     :root {
-      --oshi: #b2b2ff;
-      --oshi-deep: #4c4cc6;
-      --oshi-soft: rgba(178,178,255,0.18);
-      --oshi-line: rgba(178,178,255,0.44);
-      --surface: rgba(255,255,255,0.74);
-      --text: #1d2040;
-      --muted: #6f7394;
-      --shadow: 0 24px 80px rgba(72,54,120,0.14);
+      --oshi:#ff8a3d;
+      --oshi-weak:#fff1e8;
+      --oshi-soft:#ffd9c2;
+      --bg:#f8f6f3;
+      --surface:#ffffff;
+      --surface-2:#fffaf6;
+      --text:#26211f;
+      --muted:#776d67;
+      --border:#eadfd7;
+      --shadow:0 16px 40px rgba(48,35,28,.1);
+      --radius-lg:28px;
+      --radius-md:18px;
+      --radius-sm:12px;
+      --oshi-deep:color-mix(in srgb,var(--oshi) 72%,#26211f);
+      --oshi-line:color-mix(in srgb,var(--oshi) 34%,transparent);
     }
     *, *::before, *::after { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at 12% 18%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 28%),
-        radial-gradient(circle at 82% 14%, var(--oshi-soft) 0%, rgba(255,255,255,0) 34%),
-        radial-gradient(circle at 80% 84%, rgba(216,178,255,0.22) 0%, rgba(255,255,255,0) 30%),
-        linear-gradient(160deg, #fff8fb 0%, #f4f6ff 46%, #edfaff 100%);
+      background: var(--bg);
       color: var(--text);
-      font-family: "Avenir Next", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
       padding: 40px 20px 72px;
       position: relative;
       overflow-x: hidden;
@@ -223,8 +226,8 @@ func renderHome(w http.ResponseWriter, cfg *demo.Config, oshiColor string) {
       position: relative;
       overflow: hidden;
       background: var(--surface);
-      border: 1px solid rgba(255,255,255,0.56);
-      border-radius: 36px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       padding: 32px;
       box-shadow: var(--shadow);
       backdrop-filter: blur(24px);
@@ -243,7 +246,7 @@ func renderHome(w http.ResponseWriter, cfg *demo.Config, oshiColor string) {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(255,255,255,0.62);
+      background: var(--surface-2);
       border: 1px solid var(--oshi-line);
       border-radius: 100px;
       padding: 7px 14px;
@@ -255,6 +258,17 @@ func renderHome(w http.ResponseWriter, cfg *demo.Config, oshiColor string) {
       margin-bottom: 18px;
       position: relative;
       z-index: 1;
+    }
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      background: var(--oshi);
+      color: #fff;
+      display: inline-grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: 0 8px 18px color-mix(in srgb,var(--oshi) 28%,transparent);
     }
     .hero-grid {
       display: grid;
@@ -494,7 +508,7 @@ func renderHome(w http.ResponseWriter, cfg *demo.Config, oshiColor string) {
 <body>
   <div class="container">
     <section class="hero">
-      <div class="tag">✦ 推し色で染まる Demo Stage</div>
+      <div class="tag"><span class="brand-mark">推</span>推し色で染まる Demo Stage</div>
       <div class="hero-grid">
         <div>
           <h1>Idol Auth を<br><span class="accent">推しメンカラー</span>で試す。</h1>
@@ -561,8 +575,8 @@ func renderHome(w http.ResponseWriter, cfg *demo.Config, oshiColor string) {
     </div>
     <div class="note">推しメンカラーは右下の <strong>✦</strong> から切り替えられます。ログイン中は選択した色がアカウントに保存され、次回アクセス時も自動で引き継がれます。</div>
   </div>
-  <div id="oshi-picker">
-    <div id="oshi-swatches" aria-label="推しメンカラーパレット"></div>
+  <div id="oshi-picker" aria-label="推し色を選ぶ">
+    <div id="oshi-swatches" aria-label="推し色を選ぶ"></div>
     <button id="oshi-toggle" type="button" title="推しメンカラー">✦</button>
   </div>
   <script>

@@ -75,3 +75,63 @@ func TestFilterOryCookies(t *testing.T) {
 		t.Fatalf("expected non-Ory cookies to be filtered, got %q", got)
 	}
 }
+
+func TestRenderHomeUsesAccountCenterDesignSystem(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	renderHome(rec, "#ffb2d8")
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		"--oshi-weak:#fff1e8",
+		"--surface-2:#fffaf6",
+		"--radius-lg:8px",
+		"brand-mark",
+		"推し色を選ぶ",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected portal home to contain account center design fragment %q", fragment)
+		}
+	}
+}
+
+func TestRenderHomeUsesAccountCenterPortalLayout(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	renderHome(rec, "#ffb2d8")
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		`class="topbar"`,
+		`profile-hero`,
+		`class="service-list"`,
+		`Account Portal`,
+		`class="badge-oshi"`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected portal home to contain account center layout fragment %q", fragment)
+		}
+	}
+}
+
+func TestRenderHomeAvoidsNeumorphicSurfaceTreatment(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	renderHome(rec, "#ffb2d8")
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		"backdrop-filter",
+		"blur(",
+		"0 16px 40px",
+		"0 24px 64px",
+		"rgba(255,255,255,0.9)",
+		"linear-gradient(160deg",
+		"radial-gradient",
+		"border-radius: 28px",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected portal home to avoid neumorphic fragment %q", fragment)
+		}
+	}
+}

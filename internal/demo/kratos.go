@@ -122,24 +122,31 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
   <title>{{ .Title }} — Idol Auth</title>
   <style>
     :root {
-      --oshi: #b2b2ff;
-      --oshi-bg: rgba(178,178,255,0.18);
-      --oshi-border: rgba(178,178,255,0.42);
-      --oshi-text: #4646b0;
-      --oshi-glow: 0 0 0 3px rgba(178,178,255,0.28);
-      --surface: rgba(255,255,255,0.86);
+      --oshi:#ff8a3d;
+      --oshi-weak:#fff1e8;
+      --oshi-soft:#ffd9c2;
+      --bg:#f8f6f3;
+      --surface:#ffffff;
+      --surface-2:#fffaf6;
+      --text:#26211f;
+      --muted:#776d67;
+      --border:#eadfd7;
+      --shadow:0 16px 40px rgba(48,35,28,.1);
+      --radius-lg:28px;
+      --radius-md:18px;
+      --radius-sm:12px;
+      --oshi-bg:color-mix(in srgb,var(--oshi) 14%,transparent);
+      --oshi-border:color-mix(in srgb,var(--oshi) 34%,transparent);
+      --oshi-text:var(--oshi);
+      --oshi-glow:0 0 0 4px color-mix(in srgb,var(--oshi) 18%,transparent);
     }
     *, *::before, *::after { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at 12% 18%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 24%),
-        radial-gradient(circle at 84% 14%, var(--oshi-bg) 0%, rgba(255,255,255,0) 34%),
-        radial-gradient(circle at 75% 84%, rgba(216,178,255,0.18) 0%, rgba(255,255,255,0) 28%),
-        linear-gradient(160deg, #fff8fb 0%, #f4f6ff 50%, #eefcff 100%);
-      color: #1a1a2e;
-      font-family: "Avenir Next", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -175,10 +182,10 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       width: 100%;
       max-width: 470px;
       background: var(--surface);
-      border: 1px solid rgba(255,255,255,0.86);
-      border-radius: 32px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       padding: 32px;
-      box-shadow: 0 26px 70px rgba(59,61,109,0.13);
+      box-shadow: var(--shadow);
       backdrop-filter: blur(24px);
     }
     .card::before {
@@ -211,28 +218,29 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       gap: 10px;
       margin-bottom: 32px;
     }
-    .brand-icon {
+    .brand-mark {
       width: 34px;
       height: 34px;
-      background: var(--oshi-bg);
-      border: 1.5px solid var(--oshi-border);
-      border-radius: 9px;
+      background: var(--oshi);
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 15px;
-      color: var(--oshi-text);
+      color: #fff;
       flex-shrink: 0;
+      font-weight: 900;
+      box-shadow: 0 8px 18px color-mix(in srgb,var(--oshi) 28%,transparent);
     }
     .brand-name {
       font-size: 12px;
       font-weight: 700;
-      color: #9ca3af;
+      color: var(--muted);
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
-    h1 { margin: 0 0 8px; font-size: 30px; font-weight: 800; letter-spacing: -0.05em; color: #111827; line-height: 1.02; }
-    .description { color: #6b7280; margin: 0 0 28px; font-size: 14px; line-height: 1.6; }
+    h1 { margin: 0 0 8px; font-size: 30px; font-weight: 900; letter-spacing: -0.03em; color: var(--text); line-height: 1.02; }
+    .description { color: var(--muted); margin: 0 0 28px; font-size: 14px; line-height: 1.6; }
     .alert {
       padding: 11px 14px;
       border-radius: 9px;
@@ -530,7 +538,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
   <div class="card">
     <div class="eyebrow">✦ {{ .FlowType }} flow</div>
     <div class="brand">
-      <div class="brand-icon">✦</div>
+      <div class="brand-mark">推</div>
       <span class="brand-name">Idol Auth</span>
     </div>
     <h1>{{ .Title }}</h1>
@@ -619,9 +627,9 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       <a href="/settings">設定</a>
     </nav>
   </div>
-  <div id="oshi-picker">
+  <div id="oshi-picker" aria-label="推し色を選ぶ">
     <button id="oshi-toggle" type="button" title="推しメンカラー">✦</button>
-    <div id="oshi-swatches"></div>
+    <div id="oshi-swatches" aria-label="推し色を選ぶ"></div>
   </div>
   <script>
     (function(){

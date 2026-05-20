@@ -119,6 +119,39 @@ func TestRenderPageRendersTOTPImageAndSecretText(t *testing.T) {
 	}
 }
 
+func TestRenderPageUsesAccountCenterDesignSystem(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	err := RenderPage(rec, PageData{
+		Title:       "Login",
+		Description: "Sign in",
+		FlowType:    "login",
+		OshiColor:   "#ffb2d8",
+		Flow: func() KratosFlow {
+			flow := KratosFlow{ID: "flow-123"}
+			flow.UI.Action = "http://kratos/login"
+			flow.UI.Method = "POST"
+			return flow
+		}(),
+	})
+	if err != nil {
+		t.Fatalf("RenderPage() error = %v", err)
+	}
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		"--oshi-weak:#fff1e8",
+		"--surface-2:#fffaf6",
+		"--radius-lg:28px",
+		"brand-mark",
+		"推し色を選ぶ",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected Kratos flow page to contain account center design fragment %q", fragment)
+		}
+	}
+}
+
 func TestRenderPageHidesPrimaryIdentifierTypeAndAutoInfersOnRegistration(t *testing.T) {
 	rec := httptest.NewRecorder()
 

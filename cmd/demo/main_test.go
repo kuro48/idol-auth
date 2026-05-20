@@ -80,6 +80,25 @@ func TestRenderHomeRendersJapaneseLabels(t *testing.T) {
 	}
 }
 
+func TestRenderHomeUsesAccountCenterDesignSystem(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	renderHome(rec, &demo.Config{}, "#ffb2d8")
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		"--oshi-weak:#fff1e8",
+		"--surface-2:#fffaf6",
+		"--radius-lg:28px",
+		"brand-mark",
+		"推し色を選ぶ",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected demo home to contain account center design fragment %q", fragment)
+		}
+	}
+}
+
 func TestRenderTokenRendersJapaneseLabels(t *testing.T) {
 	rec := httptest.NewRecorder()
 

@@ -12,19 +12,19 @@ const loginPageTemplate = `<!DOCTYPE html>
   <title>OshiLink — 共通アカウントでログイン</title>
   <style>
     :root {
-      --oshi: #ff8a3d;
-      --oshi-weak: #fff1e8;
-      --oshi-soft: #ffd9c2;
-      --bg: #f8f6f3;
-      --surface: #ffffff;
-      --surface-2: #fffaf6;
-      --text: #26211f;
-      --muted: #776d67;
-      --border: #eadfd7;
-      --shadow: 0 16px 40px rgba(48, 35, 28, 0.1);
-      --radius-lg: 28px;
-      --radius-md: 18px;
-      --radius-sm: 12px;
+      --oshi:#ff8a3d;
+      --oshi-weak:#fff1e8;
+      --oshi-soft:#ffd9c2;
+      --bg:#f8f6f3;
+      --surface:#ffffff;
+      --surface-2:#fffaf6;
+      --text:#26211f;
+      --muted:#776d67;
+      --border:#eadfd7;
+      --shadow:0 16px 40px rgba(48,35,28,.1);
+      --radius-lg:28px;
+      --radius-md:18px;
+      --radius-sm:12px;
     }
     html[data-theme="dark"] {
       --bg: #181412;
@@ -749,7 +749,7 @@ const loginPageTemplate = `<!DOCTYPE html>
   </main>
 
   <!-- Floating theme + color panel -->
-  <div class="float-panel" role="region" aria-label="表示設定">
+  <div class="float-panel" role="region" aria-label="推し色を選ぶ">
     <button id="theme-toggle" type="button" aria-label="テーマ切り替え" title="テーマ切り替え">☀︎</button>
     <span class="sep" aria-hidden="true"></span>
     <div class="color-dots" role="radiogroup" aria-label="推しメンカラー">

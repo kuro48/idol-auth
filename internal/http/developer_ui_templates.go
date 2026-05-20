@@ -70,65 +70,74 @@ const developerUITemplates = `
 {{define "dev-css"}}
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--primary:#1740c9;--primary-dark:#0017c1;--bg:#f0f2f5;--card:#fff;--border:#d4d6db;--text:#1a1a1a;--sub:#595959;--ok:#007b50;--ng:#bf0000;--warn:#e85500;--sw:56px}
-body{font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--text);min-height:100vh}
-a{color:var(--primary);text-decoration:none}a:hover{text-decoration:underline}
-.topnav{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;background:var(--primary-dark);color:#fff;display:flex;align-items:center;padding:0 24px;gap:16px}
-.topnav-brand{font-size:15px;font-weight:700;letter-spacing:.06em}
+:root{--oshi:#ff8a3d;--oshi-weak:#fff1e8;--oshi-soft:#ffd9c2;--bg:#f8f6f3;--surface:#fff;--surface-2:#fffaf6;--text:#26211f;--muted:#776d67;--border:#eadfd7;--shadow:0 16px 40px rgba(48,35,28,.1);--radius-lg:28px;--radius-md:18px;--radius-sm:12px;--ok:#35a67b;--ng:#e85d75;--warn:#e9a23b}
+html[data-theme="dark"]{--bg:#181412;--surface:#221d1a;--surface-2:#2b241f;--text:#fff8f1;--muted:#c8b8ad;--border:#42362f;--shadow:0 16px 40px rgba(0,0,0,.35);--oshi-weak:#372219;--oshi-soft:#5a3829}
+body{font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;font-size:14px;background:var(--bg);color:var(--text);min-height:100vh;letter-spacing:.01em}
+a{color:var(--oshi);text-decoration:none}a:hover{text-decoration:underline}
+.topnav{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:14px 28px;gap:12px}
+.brand-mark{width:42px;height:42px;border-radius:14px;background:var(--oshi);color:#fff;display:grid;place-items:center;font-weight:900;font-size:20px;box-shadow:0 10px 24px color-mix(in srgb,var(--oshi) 32%,transparent)}
+.topnav-brand{font-size:15px;font-weight:900;letter-spacing:-.01em}
 .topnav-spacer{flex:1}
-.topnav-email{font-size:12px;opacity:.85}
-.topnav a{color:#fff;font-size:12px;opacity:.85}
-.topnav a:hover{opacity:1;text-decoration:underline}
-.main{padding:80px 24px 64px;max-width:900px;margin:0 auto}
+.topnav-email{font-size:12px;color:var(--muted);font-weight:800;padding:8px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topnav a{color:var(--text);font-size:13px;font-weight:800;padding:9px 14px;background:var(--surface);border:1px solid var(--border);border-radius:999px}
+.topnav a:hover{background:var(--surface-2);text-decoration:none}
+.main{padding:28px 28px 110px;max-width:980px;margin:0 auto}
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap}
-.page-title{font-size:22px;font-weight:700;letter-spacing:-.01em}
-.page-sub{color:var(--sub);font-size:13px;margin-top:4px}
-.back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);margin-bottom:14px}
-.back-link:hover{color:var(--primary)}
-.card{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:22px 26px;margin-bottom:18px}
-.card-title{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:14px}
-.card-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eef0f4}
+.page-title{font-size:28px;font-weight:900;letter-spacing:-.03em}
+.page-sub{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.6}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:14px;font-weight:800}
+.back-link:hover{color:var(--oshi)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:20px}
+.card-title{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.card-section{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border)}
 .card-section:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
-.card-section-title{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text)}
+.card-section-title{font-size:14px;font-weight:900;margin-bottom:12px;color:var(--text)}
 .kv{display:grid;grid-template-columns:160px 1fr;gap:10px 16px;font-size:13px}
-.kv dt{color:var(--sub);font-weight:600}
+.kv dt{color:var(--muted);font-weight:800}
 .kv dd{color:var(--text);word-break:break-word;white-space:pre-wrap}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:10px 12px;background:#f7f8fb;border-bottom:2px solid var(--border);font-weight:600;color:var(--sub);white-space:nowrap}
-td{padding:10px 12px;border-bottom:1px solid #ececec;vertical-align:middle}
-tr:hover td{background:#fafbfd}
-.empty-row td{text-align:center;color:#999;padding:36px 12px}
-.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em}
-.st-pending{background:#e8ecff;color:#1740c9}
-.st-review{background:#efe8ff;color:#5a26c0}
-.st-changes{background:#fff1e0;color:#c25500}
-.st-approved{background:#e6f4ef;color:#007b50}
-.st-rejected{background:#fce8e8;color:#bf0000}
-.st-withdrawn{background:#ececec;color:#595959}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:opacity .12s,transform .06s;text-decoration:none;font-family:inherit;line-height:1.2}
-.btn:hover{opacity:.86;text-decoration:none}
+th{text-align:left;padding:12px 14px;background:var(--surface-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-weight:900;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+td{padding:14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:var(--surface-2)}
+.empty-row td{text-align:center;color:var(--muted);padding:36px 12px}
+.badge{display:inline-flex;align-items:center;padding:5px 11px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.03em}
+.st-pending{background:color-mix(in srgb,var(--oshi) 14%,transparent);color:var(--oshi)}
+.st-review{background:color-mix(in srgb,#8e6be8 16%,transparent);color:#8e6be8}
+.st-changes{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.st-approved{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.st-rejected{background:color-mix(in srgb,var(--ng) 16%,transparent);color:var(--ng)}
+.st-withdrawn{background:var(--surface-2);color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:16px;font-size:13px;font-weight:900;cursor:pointer;border:1px solid transparent;transition:transform 160ms ease,box-shadow 160ms ease,background 160ms ease;text-decoration:none;font-family:inherit;line-height:1.2}
+.btn:hover{transform:translateY(-1px);text-decoration:none}
 .btn:active{transform:translateY(1px)}
-.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
-.btn-secondary{background:#fff;color:var(--text);border-color:var(--border)}
+.btn-primary{background:var(--oshi);color:#fff;border-color:var(--oshi);box-shadow:0 12px 24px color-mix(in srgb,var(--oshi) 28%,transparent)}
+.btn-secondary{background:var(--surface-2);color:var(--text);border-color:var(--border)}
 .btn-danger{background:var(--ng);color:#fff;border-color:var(--ng)}
-.btn-sm{padding:4px 10px;font-size:12px}
+.btn-sm{padding:8px 12px;font-size:12px;border-radius:12px}
 .form-grid{display:grid;gap:14px}
 .form-group{display:flex;flex-direction:column;gap:5px}
-.form-group label{font-size:12px;font-weight:700;color:var(--sub);letter-spacing:.02em}
-.form-group .hint{font-size:11px;color:#888;margin-top:2px}
-input[type=text],input[type=email],input[type=url],textarea,select{padding:9px 11px;border:1px solid var(--border);border-radius:4px;font-size:13px;color:var(--text);background:#fff;font-family:inherit;width:100%}
+.form-group label{font-size:12px;font-weight:900;color:var(--muted);letter-spacing:.05em}
+.form-group .hint{font-size:11px;color:var(--muted);margin-top:2px}
+input[type=text],input[type=email],input[type=url],textarea,select{padding:13px 15px;border:1px solid var(--border);border-radius:16px;font-size:13px;color:var(--text);background:var(--surface-2);font-family:inherit;width:100%;outline:none}
 textarea{resize:vertical;min-height:88px;line-height:1.55}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:-1px}
+input:focus,select:focus,textarea:focus{border-color:var(--oshi);box-shadow:0 0 0 4px color-mix(in srgb,var(--oshi) 18%,transparent)}
 .form-actions{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
-.note-block{background:#fff8ec;border:1px solid #f0d9a5;border-radius:4px;padding:14px 16px;color:#7a4a00;font-size:13px;line-height:1.6;white-space:pre-wrap}
+.note-block{background:var(--oshi-weak);border:1px solid var(--border);border-radius:16px;padding:14px 16px;color:var(--text);font-size:13px;line-height:1.6;white-space:pre-wrap}
 .toast-area{position:fixed;bottom:20px;right:20px;z-index:300;display:flex;flex-direction:column;gap:8px}
-.toast{padding:11px 16px;border-radius:3px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:fi .18s ease;max-width:360px}
+.toast{padding:14px 18px;border-radius:18px;font-size:13px;font-weight:800;color:#fff;box-shadow:var(--shadow);animation:fi .18s ease;max-width:360px}
 .toast-success{background:var(--ok)}
 .toast-error{background:var(--ng)}
+.float-tools{position:fixed;right:22px;bottom:22px;z-index:150;display:flex;align-items:center;gap:10px}
+.theme-toggle{width:48px;height:48px;border-radius:50%;background:var(--surface);border:1px solid var(--border);color:var(--text);box-shadow:var(--shadow);display:grid;place-items:center;font-size:20px;cursor:pointer}
+.color-dots{display:flex;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:999px;box-shadow:var(--shadow)}
+.color-dot{width:24px;height:24px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--border);padding:0;cursor:pointer}
 @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (max-width:640px){
-.main{padding:72px 14px 48px}
+.topnav{padding:12px 18px}
+.topnav-email{max-width:120px}
+.main{padding:22px 18px 110px}
+.page-title{font-size:24px}
 .kv{grid-template-columns:1fr}
 .kv dt{margin-bottom:-6px}
 }
@@ -137,6 +146,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline
 
 {{define "dev-nav"}}
 <nav class="topnav">
+  <div class="brand-mark">推</div>
   <div class="topnav-brand">開発者ポータル</div>
   <div class="topnav-spacer"></div>
   <div class="topnav-email">{{.Email}}</div>
@@ -145,8 +155,32 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline
 {{end}}
 
 {{define "dev-js"}}
+<div class="float-tools" aria-label="推し色を選ぶ">
+  <div class="color-dots" role="group" aria-label="推し色を選ぶ">
+    <button class="color-dot" type="button" data-color="#ff8a3d" style="background:#ff8a3d" title="オレンジ"></button>
+    <button class="color-dot" type="button" data-color="#ff5fa2" style="background:#ff5fa2" title="ピンク"></button>
+    <button class="color-dot" type="button" data-color="#7c5cff" style="background:#7c5cff" title="パープル"></button>
+    <button class="color-dot" type="button" data-color="#39b58a" style="background:#39b58a" title="グリーン"></button>
+    <button class="color-dot" type="button" data-color="#4b7bec" style="background:#4b7bec" title="ブルー"></button>
+  </div>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="テーマを切り替える" title="テーマ切替">☾</button>
+</div>
 <div class="toast-area" id="toast-area"></div>
 <script>
+document.addEventListener('click', function(e){
+  var root = document.documentElement;
+  var theme = e.target.closest('#theme-toggle');
+  if(theme){
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    theme.textContent = next === 'dark' ? '☀' : '☾';
+    return;
+  }
+  var dot = e.target.closest('.color-dot');
+  if(dot && dot.dataset.color){
+    root.style.setProperty('--oshi', dot.dataset.color);
+  }
+});
 function showToast(msg, type){
   var area = document.getElementById('toast-area');
   if(!area) return;

@@ -167,80 +167,101 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
   <title>Idol Auth Portal</title>
   <style>
     :root {
-      --oshi: #b2b2ff;
-      --oshi-deep: #4c4cc6;
-      --oshi-soft: rgba(178,178,255,0.18);
-      --oshi-line: rgba(178,178,255,0.44);
-      --surface: rgba(255,255,255,0.74);
-      --text: #1d2040;
-      --muted: #6f7394;
-      --shadow: 0 24px 80px rgba(72,54,120,0.14);
+      --oshi:#ff8a3d;
+      --oshi-weak:#fff1e8;
+      --oshi-soft:#ffd9c2;
+      --bg:#f8f6f3;
+      --surface:#ffffff;
+      --surface-2:#fffaf6;
+      --text:#26211f;
+      --muted:#776d67;
+      --border:#eadfd7;
+      --shadow:none;
+      --radius-lg:8px;
+      --radius-md:6px;
+      --radius-sm:4px;
+      --oshi-deep:color-mix(in srgb,var(--oshi) 72%,#26211f);
+      --oshi-line:color-mix(in srgb,var(--oshi) 34%,transparent);
     }
     *, *::before, *::after { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at 12% 18%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 28%),
-        radial-gradient(circle at 82% 14%, var(--oshi-soft) 0%, rgba(255,255,255,0) 34%),
-        radial-gradient(circle at 80% 84%, rgba(216,178,255,0.22) 0%, rgba(255,255,255,0) 30%),
-        linear-gradient(160deg, #fff8fb 0%, #f4f6ff 46%, #edfaff 100%);
+      background: var(--bg);
       color: var(--text);
-      font-family: "Avenir Next", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
-      padding: 40px 20px 72px;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+      padding: 0 0 96px;
       position: relative;
       overflow-x: hidden;
     }
-    body::before, body::after {
-      content: "";
-      position: fixed;
-      border-radius: 999px;
-      filter: blur(14px);
-      opacity: 0.45;
-      pointer-events: none;
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
     }
-    body::before {
-      width: 220px;
-      height: 220px;
-      top: 10%;
-      left: -60px;
-      background: var(--oshi);
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-    body::after {
-      width: 280px;
-      height: 280px;
-      right: -90px;
-      bottom: -40px;
-      background: rgba(178,255,255,0.72);
+    .brand-text strong {
+      display: block;
+      font-size: 16px;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
     }
-    .container { max-width: 1080px; margin: 0 auto; position: relative; z-index: 1; }
+    .brand-text span {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .top-pill {
+      padding: 8px 13px;
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 28px 28px 0; position: relative; z-index: 1; }
+    .container { max-width: none; margin: 0; position: relative; z-index: 1; }
     .hero {
       position: relative;
       overflow: hidden;
       background: var(--surface);
-      border: 1px solid rgba(255,255,255,0.56);
-      border-radius: 36px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       padding: 32px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(24px);
       margin-bottom: 20px;
     }
-    .hero::before {
-      content: "";
-      position: absolute;
-      inset: -25% auto auto -10%;
-      width: 320px;
-      height: 320px;
-      background: radial-gradient(circle, var(--oshi-soft) 0%, rgba(255,255,255,0) 70%);
-      pointer-events: none;
+    .profile-hero {
+      padding: 30px;
+      background: var(--surface);
     }
     .tag {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(255,255,255,0.62);
+      background: var(--surface-2);
       border: 1px solid var(--oshi-line);
-      border-radius: 100px;
+      border-radius: var(--radius-md);
       padding: 7px 14px;
       font-size: 11px;
       font-weight: 700;
@@ -250,6 +271,36 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
       margin-bottom: 18px;
       position: relative;
       z-index: 1;
+    }
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: var(--oshi);
+      color: #fff;
+      display: inline-grid;
+      place-items: center;
+      font-size: 20px;
+      font-weight: 900;
+    }
+    .badge-oshi {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 8px 13px;
+      border-radius: var(--radius-md);
+      background: var(--oshi-weak);
+      color: var(--oshi);
+      font-weight: 900;
+      font-size: 12px;
+    }
+    .badge-oshi .swatch-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--oshi);
+      border: 1px solid var(--border);
     }
     .hero-grid {
       display: grid;
@@ -265,7 +316,7 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
       line-height: 0.96;
       letter-spacing: -0.06em;
     }
-    .accent { color: var(--oshi-deep); text-shadow: 0 0 30px rgba(255,255,255,0.45); }
+    .accent { color: var(--oshi-deep); }
     .subtitle {
       color: var(--muted);
       font-size: 16px;
@@ -283,26 +334,25 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
     }
     .microcopy li {
       padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.7);
-      border: 1px solid rgba(29,32,64,0.08);
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
       font-size: 12px;
-      color: #5f6484;
+      color: var(--muted);
     }
     .feature-panel {
-      background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
-      border: 1px solid rgba(255,255,255,0.84);
-      border-radius: 28px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       padding: 22px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
     }
     .feature-panel h2 { margin: 0 0 10px; font-size: 20px; letter-spacing: -0.03em; }
     .feature-panel p { margin: 0 0 18px; color: var(--muted); line-height: 1.75; font-size: 14px; }
     .feature-stack { display: grid; gap: 12px; }
     .feature-card {
-      background: rgba(255,255,255,0.66);
-      border: 1px solid rgba(29,32,64,0.08);
-      border-radius: 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
       padding: 14px 16px;
     }
     .feature-card strong { display: block; margin-bottom: 5px; color: #252849; font-size: 14px; }
@@ -312,46 +362,37 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
       grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 14px;
     }
+    .service-list { margin-top: 20px; }
     .card {
       grid-column: span 4;
       position: relative;
       overflow: hidden;
       background: var(--surface);
-      border: 1px solid rgba(255,255,255,0.68);
-      border-radius: 28px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
       padding: 24px;
       text-decoration: none;
       color: var(--text);
       display: flex;
       flex-direction: column;
       gap: 10px;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-      box-shadow: 0 18px 50px rgba(58,61,109,0.1);
+      transition: background 0.18s ease, border-color 0.18s ease;
       min-height: 180px;
-      backdrop-filter: blur(24px);
-    }
-    .card::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0));
-      pointer-events: none;
     }
     .card:hover {
-      transform: translateY(-4px);
       border-color: var(--oshi-line);
-      box-shadow: 0 24px 64px rgba(58,61,109,0.14);
+      background: var(--surface-2);
     }
     .card-wide { grid-column: span 6; }
     .card-tall { min-height: 210px; }
     .card-icon {
       width: 52px;
       height: 52px;
-      border-radius: 18px;
+      border-radius: var(--radius-md);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(180deg, rgba(255,255,255,0.96), var(--oshi-soft));
+      background: var(--surface-2);
       border: 1px solid var(--oshi-line);
       font-size: 20px;
       color: var(--oshi-deep);
@@ -384,33 +425,30 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
       z-index: 1;
     }
     .card-primary {
-      background: linear-gradient(160deg, rgba(255,255,255,0.92), var(--oshi-soft));
+      background: var(--oshi-weak);
       border-color: var(--oshi-line);
     }
     .card-meta { margin-top: auto; font-size: 12px; color: #5f6484; position: relative; z-index: 1; }
     .note {
       margin-top: 18px;
       padding: 18px 20px;
-      border-radius: 22px;
-      background: rgba(255,255,255,0.62);
-      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      border: 1px solid var(--border);
       color: var(--muted);
       font-size: 13px;
       line-height: 1.8;
-      box-shadow: 0 12px 34px rgba(58,61,109,0.08);
     }
-    #oshi-picker { position: fixed; right: 18px; bottom: 18px; z-index: 20; }
+    #oshi-picker { position: fixed; right: 22px; bottom: 22px; z-index: 20; }
     #oshi-toggle {
       width: 58px;
       height: 58px;
-      border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.84);
-      background: linear-gradient(180deg, rgba(255,255,255,0.96), var(--oshi-soft));
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
       color: var(--oshi-deep);
       font-size: 24px;
       cursor: pointer;
-      box-shadow: 0 18px 44px rgba(59,61,109,0.16);
-      backdrop-filter: blur(24px);
     }
     #oshi-swatches {
       display: none;
@@ -419,11 +457,9 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
       width: 188px;
       margin-bottom: 12px;
       padding: 14px;
-      border-radius: 22px;
-      background: rgba(255,255,255,0.86);
-      border: 1px solid rgba(255,255,255,0.84);
-      box-shadow: 0 18px 44px rgba(59,61,109,0.16);
-      backdrop-filter: blur(24px);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      border: 1px solid var(--border);
     }
     .swatch {
       width: 100%;
@@ -433,29 +469,24 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
       cursor: pointer;
       transition: transform 0.12s ease, border-color 0.12s ease;
     }
-    .swatch:hover { transform: scale(1.08); }
+    .swatch:hover { border-color: var(--text); }
     .swatch.active { border-color: #1d2040; }
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(18px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .hero, .card, .note { animation: rise 0.55s ease both; }
-    .grid .card:nth-child(2) { animation-delay: 0.04s; }
-    .grid .card:nth-child(3) { animation-delay: 0.08s; }
-    .grid .card:nth-child(4) { animation-delay: 0.12s; }
-    .grid .card:nth-child(5) { animation-delay: 0.16s; }
     @media (max-width: 920px) {
       .hero-grid { grid-template-columns: 1fr; }
       .card { grid-column: span 6; }
       .card-wide { grid-column: span 12; }
     }
     @media (max-width: 640px) {
-      body { padding: 18px 14px 92px; }
-      .hero { padding: 24px; border-radius: 28px; }
+      body { padding-bottom: 92px; }
+      .topbar { padding: 12px 18px; }
+      .brand-text span { display: none; }
+      .top-pill { display: none; }
+      .shell { padding: 20px 18px 0; }
+      .hero { padding: 24px; }
       .grid { grid-template-columns: 1fr; }
       .card, .card-wide { grid-column: span 1; min-height: 0; }
       h1 { font-size: 42px; }
-      #oshi-toggle { width: 52px; height: 52px; border-radius: 18px; }
+      #oshi-toggle { width: 52px; height: 52px; }
       #oshi-swatches { width: 168px; }
     }
   </style>
@@ -487,13 +518,28 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
   </script>
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">推</div>
+      <div class="brand-text">
+        <strong>Idol Auth</strong>
+        <span>Account Portal</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="top-pill">Kratos self-service</span>
+      <a class="top-pill" href="/logout">ログアウト</a>
+    </div>
+  </header>
+  <main class="shell">
   <div class="container">
-    <section class="hero">
-      <div class="tag">✦ Idol Auth Portal</div>
+    <section class="profile-hero hero">
+      <div class="tag">Account Portal</div>
       <div class="hero-grid">
         <div>
           <h1>推しメンカラーで<br><span class="accent">認証を彩る。</span></h1>
           <p class="subtitle">ログイン、新規登録、MFA 設定、アカウント復旧——すべての認証体験をひとつのポータルに。右下のパレットから色を選ぶと、各フロー画面の雰囲気がそのまま切り替わります。</p>
+          <span class="badge-oshi"><span class="swatch-dot"></span>推し色設定を各フローへ反映</span>
           <ul class="microcopy">
             <li>12 色の推しメンカラー対応</li>
             <li>Kratos self-service flow を完全サポート</li>
@@ -520,44 +566,47 @@ func renderHome(w http.ResponseWriter, oshiColor string) {
         </aside>
       </div>
     </section>
-    <div class="grid">
-      <a class="card card-primary card-wide card-tall" href="/login">
-        <div class="card-icon">◉</div>
-        <div class="card-kicker">Entry</div>
-        <div class="card-title">ログイン</div>
-        <div class="card-desc">既存の shared account でサインインします。セッション状態に応じたログイン UI が開きます。</div>
-        <div class="card-meta">Kratos self-service login flow</div>
-      </a>
-      <a class="card card-wide" href="/registration">
-        <div class="card-icon">+</div>
-        <div class="card-kicker">Onboarding</div>
-        <div class="card-title">アカウントを作成</div>
-        <div class="card-desc">新しい shared account を登録します。Kratos の新規登録フローが開きます。</div>
-        <div class="card-meta">Kratos self-service registration flow</div>
-      </a>
-      <a class="card" href="/settings">
-        <div class="card-icon">◈</div>
-        <div class="card-kicker">Security</div>
-        <div class="card-title">セキュリティ設定</div>
-        <div class="card-desc">MFA、パスワード変更などのセキュリティ設定を管理します。</div>
-      </a>
-      <a class="card" href="/recovery">
-        <div class="card-icon">↺</div>
-        <div class="card-kicker">Recovery</div>
-        <div class="card-title">アカウント復旧</div>
-        <div class="card-desc">パスワードを忘れた場合など、アカウント復旧フローを開始します。</div>
-      </a>
-      <a class="card" href="/verification">
-        <div class="card-icon">✓</div>
-        <div class="card-kicker">Verify</div>
-        <div class="card-title">確認フロー</div>
-        <div class="card-desc">メールアドレスや識別子の確認と検証を行います。</div>
-      </a>
+    <div class="service-list">
+      <div class="grid">
+        <a class="card card-primary card-wide card-tall" href="/login">
+          <div class="card-icon">◉</div>
+          <div class="card-kicker">Entry</div>
+          <div class="card-title">ログイン</div>
+          <div class="card-desc">既存の shared account でサインインします。セッション状態に応じたログイン UI が開きます。</div>
+          <div class="card-meta">Kratos self-service login flow</div>
+        </a>
+        <a class="card card-wide" href="/registration">
+          <div class="card-icon">+</div>
+          <div class="card-kicker">Onboarding</div>
+          <div class="card-title">アカウントを作成</div>
+          <div class="card-desc">新しい shared account を登録します。Kratos の新規登録フローが開きます。</div>
+          <div class="card-meta">Kratos self-service registration flow</div>
+        </a>
+        <a class="card" href="/settings">
+          <div class="card-icon">◈</div>
+          <div class="card-kicker">Security</div>
+          <div class="card-title">セキュリティ設定</div>
+          <div class="card-desc">MFA、パスワード変更などのセキュリティ設定を管理します。</div>
+        </a>
+        <a class="card" href="/recovery">
+          <div class="card-icon">↺</div>
+          <div class="card-kicker">Recovery</div>
+          <div class="card-title">アカウント復旧</div>
+          <div class="card-desc">パスワードを忘れた場合など、アカウント復旧フローを開始します。</div>
+        </a>
+        <a class="card" href="/verification">
+          <div class="card-icon">✓</div>
+          <div class="card-kicker">Verify</div>
+          <div class="card-title">確認フロー</div>
+          <div class="card-desc">メールアドレスや識別子の確認と検証を行います。</div>
+        </a>
+      </div>
     </div>
     <div class="note">推しメンカラーは右下の <strong>✦</strong> から切り替えられます。ログイン中は選択した色がアカウントに保存され、次回アクセス時も自動で引き継がれます。</div>
   </div>
-  <div id="oshi-picker">
-    <div id="oshi-swatches" aria-label="推しメンカラーパレット"></div>
+  </main>
+  <div id="oshi-picker" aria-label="推し色を選ぶ">
+    <div id="oshi-swatches" aria-label="推し色を選ぶ"></div>
     <button id="oshi-toggle" type="button" title="推しメンカラー">✦</button>
   </div>
   <script>

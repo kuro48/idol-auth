@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/kuro48/idol-auth/internal/config"
+	"github.com/kuro48/idol-auth/internal/domain/appreg"
 	apphttp "github.com/kuro48/idol-auth/internal/http"
 )
 
@@ -107,6 +109,62 @@ func TestHandleDocsIndexRendersHTML(t *testing.T) {
 	}
 	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
 		t.Fatalf("expected Content-Type text/html, got %q", ct)
+	}
+}
+
+func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	body := w.Body.String()
+	for _, fragment := range []string{
+		"--oshi-weak:#fff1e8",
+		"--surface-2:#fffaf6",
+		"--radius-lg:28px",
+		"brand-mark",
+		"推し色を選ぶ",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected login page to contain account center design fragment %q", fragment)
+		}
+	}
+}
+
+func TestDeveloperUIUsesAccountCenterDesignSystem(t *testing.T) {
+	cfg := testConfig()
+	cfg.DeveloperSvc = &stubDeveloperService{}
+	router := apphttp.NewRouter(cfg, nil, nil, &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+			Email:         "dev@example.com",
+		},
+	})
+	req := httptest.NewRequest(http.MethodGet, "/developer/", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	body := w.Body.String()
+	for _, fragment := range []string{
+		"--oshi-weak:#fff1e8",
+		"--surface-2:#fffaf6",
+		"--radius-lg:28px",
+		"brand-mark",
+		"推し色を選ぶ",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected developer UI to contain account center design fragment %q", fragment)
+		}
 	}
 }
 
@@ -234,6 +292,28 @@ func TestPublicLoginDoesNotExposeUpstreamError(t *testing.T) {
 	if strings.Contains(body, "kratos") || strings.Contains(body, "password policy") {
 		t.Fatalf("expected upstream details to be hidden, got %s", body)
 	}
+}
+
+type stubDeveloperService struct{}
+
+func (s *stubDeveloperService) Submit(_ context.Context, _ string, input appreg.SubmitInput) (appreg.Request, error) {
+	return appreg.Request{ID: uuid.New(), Name: input.Name}, nil
+}
+
+func (s *stubDeveloperService) GetForOwner(_ context.Context, id uuid.UUID, _ string) (appreg.Request, error) {
+	return appreg.Request{ID: id, Name: "Demo App"}, nil
+}
+
+func (s *stubDeveloperService) ListMine(_ context.Context, _ string) ([]appreg.Request, error) {
+	return []appreg.Request{}, nil
+}
+
+func (s *stubDeveloperService) Withdraw(_ context.Context, id uuid.UUID, _ string) (appreg.Request, error) {
+	return appreg.Request{ID: id, Name: "Demo App"}, nil
+}
+
+func (s *stubDeveloperService) Resubmit(_ context.Context, id uuid.UUID, _ string, input appreg.SubmitInput) (appreg.Request, error) {
+	return appreg.Request{ID: id, Name: input.Name}, nil
 }
 
 func TestPublicRegisterRejectsUnknownJSONFields(t *testing.T) {
