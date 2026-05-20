@@ -185,6 +185,41 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .field input[type=file]{padding:11px 14px; font-size:13px}
     .field-note{font-size:11px; color:var(--muted); line-height:1.5}
 
+    .avatar-editor{
+      display:grid;
+      gap:14px;
+      padding:14px;
+      border:1px solid var(--border);
+      border-radius:18px;
+      background:var(--surface-2);
+    }
+    .avatar-editor-layout{display:grid; grid-template-columns:180px 1fr; gap:16px; align-items:start}
+    .avatar-canvas-wrap{
+      width:180px;
+      aspect-ratio:1;
+      border-radius:24px;
+      overflow:hidden;
+      border:1px solid var(--border);
+      background:var(--surface);
+    }
+    .avatar-canvas{display:block; width:100%; height:100%}
+    .avatar-controls{display:grid; gap:12px; min-width:0}
+    .avatar-control{display:grid; gap:6px}
+    .avatar-control label{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:11px;
+      font-weight:800;
+      color:var(--muted);
+      letter-spacing:.05em;
+    }
+    .avatar-control input[type=range]{
+      width:100%;
+      accent-color:var(--oshi);
+    }
+    .avatar-rotate-actions{display:flex; gap:8px; flex-wrap:wrap}
+
     .check-grid{display:grid; gap:10px; padding:14px; background:var(--surface-2); border:1px solid var(--border); border-radius:16px}
     .check-row{display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text); cursor:pointer}
     .check-row input[type=checkbox]{
@@ -309,6 +344,8 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       .profile-photo{width:112px; height:112px; border-radius:28px; font-size:36px; border-width:6px}
       .card{padding:18px}
       .profile-hero{padding:22px}
+      .avatar-editor-layout{grid-template-columns:1fr}
+      .avatar-canvas-wrap{width:min(100%,220px)}
     }
     @media(max-width:520px){
       .brand-text{display:none}
@@ -400,8 +437,35 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             <div class="field"><label>ファン歴（YYYY または YYYY-MM）</label><input name="fan_since" type="text" placeholder="2022-03"></div>
             <div class="field">
               <label>アバター画像</label>
-              <input name="avatar_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp">
+              <input id="avatar-file" name="avatar_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp">
               <div class="field-note">PNG / JPEG / GIF / WebP、10MBまで。保存時に512px四方のJPEGへ変換されます。</div>
+              <div class="avatar-editor" id="avatar-editor" aria-label="アバター画像を加工">
+                <div class="avatar-editor-layout">
+                  <div class="avatar-canvas-wrap">
+                    <canvas class="avatar-canvas" id="avatar-canvas" width="512" height="512"></canvas>
+                  </div>
+                  <div class="avatar-controls">
+                    <div class="avatar-control">
+                      <label for="avatar-zoom"><span>拡大</span><span id="avatar-zoom-value">100%</span></label>
+                      <input id="avatar-zoom" type="range" min="1" max="3" step="0.01" value="1">
+                    </div>
+                    <div class="avatar-control">
+                      <label for="avatar-crop-x"><span>左右</span><span id="avatar-crop-x-value">0</span></label>
+                      <input id="avatar-crop-x" type="range" min="-100" max="100" step="1" value="0">
+                    </div>
+                    <div class="avatar-control">
+                      <label for="avatar-crop-y"><span>上下</span><span id="avatar-crop-y-value">0</span></label>
+                      <input id="avatar-crop-y" type="range" min="-100" max="100" step="1" value="0">
+                    </div>
+                    <div class="avatar-rotate-actions">
+                      <button type="button" class="btn btn-secondary btn-sm" id="avatar-rotate-left">左へ回転</button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="avatar-rotate-right">右へ回転</button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="avatar-reset-edit">リセット</button>
+                    </div>
+                    <div class="field-note">プレビューの正方形が保存されます。保存後もサーバー側で512px JPEGへ再変換します。</div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="field"><label>ロケール</label><input name="locale" type="text" placeholder="ja-JP"></div>
             <div class="field"><label>タイムゾーン</label><input name="timezone" type="text" placeholder="Asia/Tokyo"></div>
@@ -496,6 +560,150 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       return v.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
     }
 
+    var AVATAR_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+    var avatarEditState = {
+      image: null,
+      rotation: 0,
+      ready: false
+    };
+
+    function assertAvatarSize(blob) {
+      if (blob && blob.size > AVATAR_MAX_UPLOAD_BYTES) {
+        throw new Error('画像サイズが10MBを超えています。加工後の画像を小さくするか、別の画像を選択してください。');
+      }
+    }
+
+    function avatarFileInput(form) {
+      return form ? form.querySelector('input[name="avatar_file"]') : null;
+    }
+
+    function avatarEditorElements() {
+      return {
+        editor: document.getElementById('avatar-editor'),
+        canvas: document.getElementById('avatar-canvas'),
+        zoom: document.getElementById('avatar-zoom'),
+        cropX: document.getElementById('avatar-crop-x'),
+        cropY: document.getElementById('avatar-crop-y'),
+        zoomValue: document.getElementById('avatar-zoom-value'),
+        cropXValue: document.getElementById('avatar-crop-x-value'),
+        cropYValue: document.getElementById('avatar-crop-y-value')
+      };
+    }
+
+    function resetAvatarEditor() {
+      avatarEditState.image = null;
+      avatarEditState.rotation = 0;
+      avatarEditState.ready = false;
+      var els = avatarEditorElements();
+      if (els.editor) els.editor.classList.remove('is-open');
+      if (els.zoom) els.zoom.value = '1';
+      if (els.cropX) els.cropX.value = '0';
+      if (els.cropY) els.cropY.value = '0';
+      if (els.canvas) {
+        var ctx = els.canvas.getContext('2d');
+        ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+      }
+    }
+
+    function updateAvatarEditorLabels(els) {
+      if (els.zoomValue && els.zoom) els.zoomValue.textContent = Math.round(Number(els.zoom.value) * 100) + '%';
+      if (els.cropXValue && els.cropX) els.cropXValue.textContent = els.cropX.value;
+      if (els.cropYValue && els.cropY) els.cropYValue.textContent = els.cropY.value;
+    }
+
+    function renderAvatarEditor() {
+      var els = avatarEditorElements();
+      if (!els.canvas || !avatarEditState.image) return;
+      var ctx = els.canvas.getContext('2d');
+      var size = els.canvas.width;
+      var img = avatarEditState.image;
+      var rotation = avatarEditState.rotation * Math.PI / 180;
+      var zoom = Number(els.zoom.value || 1);
+      var panX = Number(els.cropX.value || 0) / 100 * size * 0.5;
+      var panY = Number(els.cropY.value || 0) / 100 * size * 0.5;
+      var cos = Math.abs(Math.cos(rotation));
+      var sin = Math.abs(Math.sin(rotation));
+      var rotatedWidth = img.naturalWidth * cos + img.naturalHeight * sin;
+      var rotatedHeight = img.naturalWidth * sin + img.naturalHeight * cos;
+      var scale = Math.max(size / rotatedWidth, size / rotatedHeight) * zoom;
+
+      updateAvatarEditorLabels(els);
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.save();
+      ctx.translate(size / 2 + panX, size / 2 + panY);
+      ctx.rotate(rotation);
+      ctx.drawImage(img, -img.naturalWidth * scale / 2, -img.naturalHeight * scale / 2, img.naturalWidth * scale, img.naturalHeight * scale);
+      ctx.restore();
+    }
+
+    function loadAvatarEditorFile(file) {
+      if (!file) {
+        resetAvatarEditor();
+        return;
+      }
+      try {
+        assertAvatarSize(file);
+      } catch (err) {
+        resetAvatarEditor();
+        showError(err);
+        var form = document.getElementById('form-profile');
+        var input = avatarFileInput(form);
+        if (input) input.value = '';
+        return;
+      }
+      if (!/^image\/(png|jpe?g|gif|webp)$/.test(file.type)) {
+        resetAvatarEditor();
+        showError(new Error('PNG / JPEG / GIF / WebP の画像を選択してください'));
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function() {
+        var img = new Image();
+        img.onload = function() {
+          var els = avatarEditorElements();
+          avatarEditState.image = img;
+          avatarEditState.rotation = 0;
+          avatarEditState.ready = true;
+          if (els.zoom) els.zoom.value = '1';
+          if (els.cropX) els.cropX.value = '0';
+          if (els.cropY) els.cropY.value = '0';
+          if (els.editor) els.editor.classList.add('is-open');
+          renderAvatarEditor();
+        };
+        img.onerror = function() {
+          resetAvatarEditor();
+          showError(new Error('画像を読み込めませんでした'));
+        };
+        img.src = String(reader.result || '');
+      };
+      reader.onerror = function() {
+        resetAvatarEditor();
+        showError(new Error('画像を読み込めませんでした'));
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function exportEditedAvatarBlob() {
+      return new Promise(function(resolve, reject) {
+        var els = avatarEditorElements();
+        if (!avatarEditState.ready || !els.canvas) {
+          resolve(null);
+          return;
+        }
+        renderAvatarEditor();
+        els.canvas.toBlob(function(blob) {
+          if (!blob) {
+            reject(new Error('アバター画像の加工に失敗しました'));
+            return;
+          }
+          resolve(blob);
+        }, 'image/jpeg', 0.92);
+      });
+    }
+
     async function req(method, path, body) {
       var opts = { method: method, credentials: 'same-origin', headers: {} };
       if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
@@ -550,6 +758,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
         form.querySelectorAll('input').forEach(function(inp){
           if (inp.type === 'file') {
             inp.value = '';
+            resetAvatarEditor();
             return;
           }
           if (inp.dataset.snapshot === undefined) return;
@@ -620,7 +829,9 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       form.oshi_color.value = data.oshi_color || '';
       form.oshi_ids.value = (data.oshi_ids || []).join(',');
       form.fan_since.value = data.fan_since || '';
-      form.avatar_file.value = '';
+      var avatarInput = avatarFileInput(form);
+      if (avatarInput) avatarInput.value = '';
+      resetAvatarEditor();
       form.locale.value = data.locale || '';
       form.timezone.value = data.timezone || '';
       form.birthdate.value = data.birthdate || '';
@@ -654,9 +865,13 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             app_membership_notifications: this.notify_app_membership_notifications.checked
           }
         });
-        if (this.avatar_file.files.length) {
+        var avatarInput = avatarFileInput(this);
+        if (avatarInput && avatarInput.files.length) {
           var fd = new FormData();
-          fd.append('avatar', this.avatar_file.files[0]);
+          var editedAvatar = await exportEditedAvatarBlob();
+          var uploadAvatar = editedAvatar || avatarInput.files[0];
+          assertAvatarSize(uploadAvatar);
+          fd.append('avatar', uploadAvatar, 'avatar.jpg');
           var res = await fetch('/v1/account/profile/avatar', {
             method: 'POST',
             credentials: 'same-origin',
@@ -674,6 +889,44 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
         showError(err);
       }
     });
+
+    (function() {
+      var form = document.getElementById('form-profile');
+      var input = avatarFileInput(form);
+      if (!input) return;
+      var els = avatarEditorElements();
+      input.addEventListener('change', function() {
+        loadAvatarEditorFile(this.files && this.files.length ? this.files[0] : null);
+      });
+      [els.zoom, els.cropX, els.cropY].forEach(function(input) {
+        if (!input) return;
+        input.addEventListener('input', renderAvatarEditor);
+      });
+      var rotateLeft = document.getElementById('avatar-rotate-left');
+      var rotateRight = document.getElementById('avatar-rotate-right');
+      var resetButton = document.getElementById('avatar-reset-edit');
+      if (rotateLeft) {
+        rotateLeft.addEventListener('click', function() {
+          avatarEditState.rotation = (avatarEditState.rotation + 270) % 360;
+          renderAvatarEditor();
+        });
+      }
+      if (rotateRight) {
+        rotateRight.addEventListener('click', function() {
+          avatarEditState.rotation = (avatarEditState.rotation + 90) % 360;
+          renderAvatarEditor();
+        });
+      }
+      if (resetButton) {
+        resetButton.addEventListener('click', function() {
+          if (els.zoom) els.zoom.value = '1';
+          if (els.cropX) els.cropX.value = '0';
+          if (els.cropY) els.cropY.value = '0';
+          avatarEditState.rotation = 0;
+          renderAvatarEditor();
+        });
+      }
+    })();
 
     function renderMemberships(items) {
       var root = document.getElementById('memberships');

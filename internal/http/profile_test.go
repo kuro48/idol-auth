@@ -141,6 +141,21 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 		"連携中アプリ",
 		"アカウント削除",
 		`name="avatar_file"`,
+		`id="avatar-file"`,
+		`id="avatar-editor"`,
+		`id="avatar-crop-x"`,
+		`id="avatar-crop-y"`,
+		`id="avatar-zoom"`,
+		`id="avatar-rotate-left"`,
+		`id="avatar-rotate-right"`,
+		`id="avatar-canvas"`,
+		`function renderAvatarEditor()`,
+		`function exportEditedAvatarBlob()`,
+		`var AVATAR_MAX_UPLOAD_BYTES = 10 * 1024 * 1024`,
+		`function assertAvatarSize(blob)`,
+		`function avatarFileInput(form)`,
+		`querySelector('input[name="avatar_file"]')`,
+		`画像サイズが10MBを超えています`,
 		`/v1/account/profile/avatar`,
 		`name="locale"`,
 		`name="timezone"`,
@@ -157,6 +172,9 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 	}
 	if strings.Contains(body, "innerHTML = value") {
 		t.Fatalf("expected profile display rendering to avoid raw innerHTML")
+	}
+	if strings.Contains(body, "form.avatar_file") || strings.Contains(body, "this.avatar_file") {
+		t.Fatalf("expected avatar file input access to use explicit selector")
 	}
 }
 
