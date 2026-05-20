@@ -111,13 +111,19 @@ func rateLimitMiddleware(limiter RateLimiter, trustedProxies []string) func(http
 	}
 }
 
-// clientIP returns the best-effort real client IP, preferring X-Real-IP over
-// X-Forwarded-For over RemoteAddr. Header values are validated with
+// clientIP returns the best-effort real client IP, preferring Cloudflare's
+// CF-Connecting-IP over X-Real-IP over X-Forwarded-For over RemoteAddr.
+// Header values are validated with
 // netip.ParseAddr; malformed values are skipped.
 func clientIP(r *http.Request, trustedProxies []string) string {
 	remoteIP := remoteAddrIP(r.RemoteAddr)
 	if !requestViaTrustedProxy(r, trustedProxies) {
 		return remoteIP
+	}
+	if raw := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); raw != "" {
+		if addr, err := netip.ParseAddr(raw); err == nil {
+			return addr.String()
+		}
 	}
 	if raw := strings.TrimSpace(r.Header.Get("X-Real-IP")); raw != "" {
 		if addr, err := netip.ParseAddr(raw); err == nil {

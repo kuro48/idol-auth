@@ -74,6 +74,23 @@ func TestRateLimitMiddlewareUsesXRealIPWhenPresent(t *testing.T) {
 	}
 }
 
+func TestRateLimitMiddlewareUsesCFConnectingIPWhenPresent(t *testing.T) {
+	stub := &stubRateLimiter{allow: true}
+	handler := rateLimitMiddleware(stub, []string{"10.0.0.1/32"})(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "10.0.0.1:1234"
+	req.Header.Set("CF-Connecting-IP", "203.0.113.88")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if stub.lastKey != "203.0.113.88" {
+		t.Fatalf("expected CF-Connecting-IP key %q, got %q", "203.0.113.88", stub.lastKey)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Sliding window limiter
 // ---------------------------------------------------------------------------
