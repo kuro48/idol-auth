@@ -525,6 +525,9 @@ const loginPageTemplate = `<!DOCTYPE html>
       background: var(--border);
     }
 
+    .site-footer{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;padding:24px 28px 32px;border-top:1px solid var(--border);margin-top:8px}
+    .site-footer a{font-size:12px;color:var(--muted);transition:color .15s}
+    .site-footer a:hover{color:var(--oshi)}
     .auth-note {
       color: var(--muted);
       font-size: 12px;
@@ -742,13 +745,20 @@ const loginPageTemplate = `<!DOCTYPE html>
               アカウントを作成する →
             </a>
             <p class="auth-note">
-              「アカウント作成」を押すと <a href="/docs">利用規約</a> と <a href="/docs">プライバシーポリシー</a> に同意したことになります。
+              「アカウント作成」を押すと <a href="/legal/terms">利用規約</a> と <a href="/legal/privacy">プライバシーポリシー</a> に同意したことになります。
             </p>
           </div>
         </div>
       </div>
     </section>
   </main>
+
+  <footer class="site-footer" aria-label="サイト情報">
+    <a href="/legal/terms">利用規約</a>
+    <a href="/legal/privacy">プライバシーポリシー</a>
+    <a href="/legal/contact">問い合わせ先</a>
+    <a href="/legal/incident">障害時連絡先</a>
+  </footer>
 
   <!-- Floating theme + color panel -->
   <div class="float-panel" role="region" aria-label="推し色を選ぶ">
