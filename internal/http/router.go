@@ -208,6 +208,12 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Get("/readyz", s.handleReadyz)
 	r.Get("/login", s.handleLoginPage)
 	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)
+	r.Route("/legal", func(r chi.Router) {
+		r.Get("/terms", s.handleLegalTerms)
+		r.Get("/privacy", s.handleLegalPrivacy)
+		r.Get("/contact", s.handleLegalContact)
+		r.Get("/incident", s.handleLegalIncident)
+	})
 	r.Route("/account", func(r chi.Router) {
 		r.Use(s.accountUIAuth)
 		r.Get("/", s.handleAccountCenter)

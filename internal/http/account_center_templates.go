@@ -47,6 +47,9 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     button,input,select{font:inherit;color:inherit}
     button{cursor:pointer}
     a{color:var(--oshi);text-decoration:none}
+    .site-footer{padding:24px 28px 40px;display:flex;flex-wrap:wrap;gap:8px 24px;border-top:1px solid var(--border);margin-top:8px}
+    .site-footer a{font-size:12px;color:var(--muted);transition:color .15s}
+    .site-footer a:hover{color:var(--oshi)}
 
     .topbar{
       position:sticky; top:0; z-index:20;
@@ -523,6 +526,13 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       </div>
     </div>
   </main>
+
+  <footer class="site-footer" aria-label="サイト情報">
+    <a href="/legal/terms">利用規約</a>
+    <a href="/legal/privacy">プライバシーポリシー</a>
+    <a href="/legal/contact">問い合わせ先</a>
+    <a href="/legal/incident">障害時連絡先</a>
+  </footer>
 
   <div class="float-tools">
     <div class="color-dots" role="group" aria-label="推し色を選ぶ">
