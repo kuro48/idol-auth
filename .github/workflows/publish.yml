@@ -17,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [app, migrate, portal, configcheck]
+        target: [app, migrate, configcheck]
 
     steps:
       - uses: actions/checkout@v4
