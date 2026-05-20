@@ -211,6 +211,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
+	r.Get("/login", s.handleLoginPage)
 	r.Get("/docs", s.handleDocsIndex)
 	r.Get("/docs/*", s.handleDocs)
 	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)

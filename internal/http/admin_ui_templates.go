@@ -1,7 +1,8 @@
 package http
 
 // Callers: admin_ui.go — adminUITpl.ExecuteTemplate for each admin UI handler.
-// User instruction: 「管理者用のダッシュボードって作れる？」「操作系も最初から含めて」
+// CSS lives in admin_ui_styles.go (const adminUIStyles) and is concatenated below.
+// User instruction: 「./idol_common_account_dashboard.htmlを参考にして、ログイン画面やアカウント登録画面、管理者ダッシュボードを作成してほしい」
 
 import (
 	"fmt"
@@ -62,98 +63,59 @@ var adminUITpl = template.Must(template.New("admin-ui").Funcs(template.FuncMap{
 		}
 		return logs[0].OccurredAt.Format("01/02 15:04")
 	},
-}).Parse(adminUITemplates))
+}).Parse(adminUIStyles + adminUITemplates))
 
 const adminUITemplates = `
-{{define "head"}}
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --primary:#0017c1;--primary-dark:#00106e;--bg:#f0f2f5;--card:#fff;
-  --border:#d4d6db;--text:#1a1a1a;--sub:#595959;
-  --ok:#007b50;--ng:#bf0000;--warn:#e85500;--sw:220px
-}
-body{font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--text);min-height:100vh}
-a{color:var(--primary);text-decoration:none}a:hover{text-decoration:underline}
-.topnav{position:fixed;top:0;left:0;right:0;z-index:100;height:52px;background:var(--primary-dark);color:#fff;display:flex;align-items:center;padding:0 24px;gap:16px}
-.topnav-brand{font-size:15px;font-weight:700;letter-spacing:.06em}
-.topnav-spacer{flex:1}
-.topnav-email{font-size:12px;opacity:.8}
-.layout{display:flex;padding-top:52px;min-height:100vh}
-.sidebar{position:fixed;top:52px;left:0;bottom:0;width:var(--sw);background:#fff;border-right:1px solid var(--border);padding:12px 0;overflow-y:auto}
-.sidebar-section{padding:10px 18px 4px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa}
-.nav-link{display:flex;align-items:center;gap:10px;padding:10px 18px;color:var(--sub);font-size:14px;font-weight:500;transition:background .1s;text-decoration:none}
-.nav-link:hover{background:#f0f2f5;color:var(--text);text-decoration:none}
-.nav-link.active{background:#e8ecff;color:var(--primary);font-weight:700;text-decoration:none}
-.main{margin-left:var(--sw);flex:1;padding:28px 32px}
-.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
-.page-title{font-size:20px;font-weight:700}
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:16px 20px}
-.stat-val{font-size:32px;font-weight:700;color:var(--primary);line-height:1}
-.stat-label{font-size:12px;color:var(--sub);margin-top:6px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:3px;padding:20px 24px;margin-bottom:20px}
-.card-title{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sub);margin-bottom:14px}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:9px 12px;background:#f7f8fb;border-bottom:2px solid var(--border);font-weight:600;color:var(--sub);white-space:nowrap}
-td{padding:9px 12px;border-bottom:1px solid #ececec;vertical-align:middle}
-tr:hover td{background:#f7f8fb}
-.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:2px;font-size:11px;font-weight:600}
-.badge-active{background:#e6f4ef;color:var(--ok)}
-.badge-inactive{background:#fce8e8;color:var(--ng)}
-.badge-success{background:#e6f4ef;color:var(--ok)}
-.badge-failure{background:#fce8e8;color:var(--ng)}
-.badge-rotated{background:#fff3e0;color:var(--warn)}
-.badge-pending{background:#e8ecff;color:#0017c1}
-.badge-review{background:#f0e8ff;color:#6200ea}
-.badge-changes{background:#fff3e0;color:#e85500}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:opacity .12s;text-decoration:none}
-.btn:hover{opacity:.84}
-.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
-.btn-secondary{background:#fff;color:var(--text);border-color:var(--border)}
-.btn-danger{background:var(--ng);color:#fff;border-color:var(--ng)}
-.btn-sm{padding:4px 9px;font-size:12px}
-.form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}
-.form-group{display:flex;flex-direction:column;gap:3px}
-.form-group label{font-size:12px;font-weight:600;color:var(--sub)}
-input[type=text],input[type=password],select{padding:7px 10px;border:1px solid var(--border);border-radius:3px;font-size:13px;color:var(--text);background:#fff;min-width:160px}
-input:focus,select:focus{outline:2px solid var(--primary);outline-offset:-1px}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
-.modal{background:#fff;border-radius:3px;padding:28px;width:520px;max-width:94vw;box-shadow:0 8px 40px rgba(0,0,0,.18)}
-.modal-title{font-size:16px;font-weight:700;margin-bottom:10px}
-.modal-desc{margin-bottom:16px;color:var(--sub);font-size:13px;line-height:1.6}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
-.modal .form-group{margin-bottom:12px}
-.modal input[type=text],.modal input[type=password],.modal select{width:100%;min-width:0}
-.toast-area{position:fixed;bottom:20px;right:20px;z-index:300;display:flex;flex-direction:column;gap:8px}
-.toast{padding:11px 16px;border-radius:3px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:fi .18s ease}
-.toast-success{background:var(--ok)}.toast-error{background:var(--ng)}
-@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.empty-row td{text-align:center;color:#aaa;padding:24px}
-.actions-cell{display:flex;gap:6px;flex-wrap:wrap}
-</style>
-{{end}}
-
 {{define "topnav"}}
 <header class="topnav">
-  <span class="topnav-brand">idol-auth</span>
-  <span style="font-size:11px;opacity:.45;letter-spacing:.08em">ADMIN</span>
+  <div class="topnav-mark">★</div>
+  <div class="topnav-brand">
+    <strong>OshiLink Admin</strong>
+    <span>idol-auth console</span>
+  </div>
   <span class="topnav-spacer"></span>
   <span class="topnav-email">{{.Email}}</span>
 </header>
 {{end}}
 
 {{define "sidebar"}}
-<nav class="sidebar">
-  <div class="sidebar-section">メニュー</div>
-  <a class="nav-link{{if eq .Nav "overview"}} active{{end}}" href="/admin-ui/">概要</a>
-  <a class="nav-link{{if eq .Nav "apps"}} active{{end}}" href="/admin-ui/apps">アプリ</a>
-  <a class="nav-link{{if eq .Nav "users"}} active{{end}}" href="/admin-ui/users">ユーザー</a>
-  <a class="nav-link{{if eq .Nav "audit-logs"}} active{{end}}" href="/admin-ui/audit-logs">監査ログ</a>
-  <a class="nav-link{{if eq .Nav "app-requests"}} active{{end}}" href="/admin-ui/app-requests">申請管理</a>
-</nav>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">★</div>
+    <div class="brand-text">
+      <strong>OshiLink Admin</strong>
+      <span>Common Account Console</span>
+    </div>
+  </div>
+  <div>
+    <div class="nav-section-title">ダッシュボード</div>
+    <div class="nav-list">
+      <a class="nav-link{{if eq .Nav "overview"}} active{{end}}" href="/admin-ui/"><span class="nav-icon">📊</span>概要</a>
+      <a class="nav-link{{if eq .Nav "apps"}} active{{end}}" href="/admin-ui/apps"><span class="nav-icon">🧩</span>アプリ</a>
+      <a class="nav-link{{if eq .Nav "users"}} active{{end}}" href="/admin-ui/users"><span class="nav-icon">👥</span>ユーザー</a>
+    </div>
+  </div>
+  <div>
+    <div class="nav-section-title">運用</div>
+    <div class="nav-list">
+      <a class="nav-link{{if eq .Nav "audit-logs"}} active{{end}}" href="/admin-ui/audit-logs"><span class="nav-icon">📜</span>監査ログ</a>
+      <a class="nav-link{{if eq .Nav "app-requests"}} active{{end}}" href="/admin-ui/app-requests"><span class="nav-icon">📝</span>申請管理</a>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="theme-row">
+      <strong>表示設定</strong>
+      <button type="button" class="theme-toggle" id="themeToggle">🌙 Dark</button>
+    </div>
+    <div class="color-dots" aria-label="推しメンカラー">
+      <button type="button" class="color-dot" style="background:#ff8a3d" data-color="#ff8a3d" title="Orange"></button>
+      <button type="button" class="color-dot" style="background:#ef6aa8" data-color="#ef6aa8" title="Pink"></button>
+      <button type="button" class="color-dot" style="background:#5a8dee" data-color="#5a8dee" title="Blue"></button>
+      <button type="button" class="color-dot" style="background:#35a67b" data-color="#35a67b" title="Green"></button>
+      <button type="button" class="color-dot" style="background:#8e6be8" data-color="#8e6be8" title="Purple"></button>
+    </div>
+  </div>
+</aside>
 {{end}}
 
 {{define "token-modal"}}
@@ -176,11 +138,13 @@ input:focus,select:focus{outline:2px solid var(--primary);outline-offset:-1px}
 <div class="toast-area" id="toast-area"></div>
 <script>
 var TOKEN_KEY='idol_auth_admin_token';
+var THEME_KEY='idol_auth_admin_theme';
+var OSHI_KEY='idol_auth_admin_oshi';
 var _tokenCb=null;
 function getToken(){return sessionStorage.getItem(TOKEN_KEY);}
 function clearToken(){sessionStorage.removeItem(TOKEN_KEY);}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
-function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){var el=document.getElementById(id);if(el)el.classList.remove('open');}
+function openModal(id){var el=document.getElementById(id);if(el)el.classList.add('open');}
 function confirmToken(){
   var t=document.getElementById('token-input').value.trim();
   if(!t)return;
@@ -190,6 +154,7 @@ function confirmToken(){
 }
 function showToast(msg,type){
   var area=document.getElementById('toast-area');
+  if(!area)return;
   var el=document.createElement('div');
   el.className='toast toast-'+(type||'success');
   el.textContent=msg;
@@ -216,35 +181,79 @@ function adminFetch(method,path,body){
     return res;
   });
 }
+(function(){
+  var root=document.documentElement;
+  var savedTheme=localStorage.getItem(THEME_KEY)||'light';
+  root.setAttribute('data-theme',savedTheme);
+  var savedOshi=localStorage.getItem(OSHI_KEY);
+  if(savedOshi)root.style.setProperty('--oshi',savedOshi);
+  function updateLabel(){
+    var t=document.getElementById('themeToggle');
+    if(!t)return;
+    t.textContent=root.getAttribute('data-theme')==='dark'?'☀️ Light':'🌙 Dark';
+  }
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('#themeToggle');
+    if(t){
+      var next=root.getAttribute('data-theme')==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      localStorage.setItem(THEME_KEY,next);
+      updateLabel();
+      return;
+    }
+    var dot=e.target.closest('.color-dot');
+    if(dot&&dot.dataset.color){
+      root.style.setProperty('--oshi',dot.dataset.color);
+      localStorage.setItem(OSHI_KEY,dot.dataset.color);
+    }
+  });
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',updateLabel);
+  else updateLabel();
+})();
 </script>
 {{end}}
 
 {{define "overview"}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>概要 — 管理ダッシュボード</title>{{template "head" .}}</head>
+<title>概要 — OshiLink Admin</title>{{template "head" .}}</head>
 <body>
 {{template "topnav" .}}
 <div class="layout">
 {{template "sidebar" .}}
 <main class="main">
-  <div class="page-header"><h1 class="page-title">概要</h1></div>
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-val">{{.AppCount}}</div>
-      <div class="stat-label">登録アプリ数</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val">{{len .RecentLogs}}</div>
-      <div class="stat-label">直近イベント数（最大20件）</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-val" style="font-size:18px">{{firstLogTime .RecentLogs}}</div>
-      <div class="stat-label">最終監査イベント</div>
+  <div class="page-header">
+    <div class="page-title-block">
+      <h1>概要ダッシュボード</h1>
+      <p>登録アプリ・監査イベント・利用状況をひと目で把握できます。</p>
     </div>
   </div>
-  <div class="card">
-    <div class="card-title">最近の監査ログ</div>
+  <div class="metric-grid">
+    <article class="metric-card">
+      <div class="metric-top"><span>登録アプリ</span><div class="metric-icon">🧩</div></div>
+      <strong>{{.AppCount}}</strong><p>連携可能なアプリ総数</p>
+    </article>
+    <article class="metric-card">
+      <div class="metric-top"><span>直近イベント</span><div class="metric-icon">⚡</div></div>
+      <strong>{{len .RecentLogs}}</strong><p>過去20件までの監査</p>
+    </article>
+    <article class="metric-card">
+      <div class="metric-top"><span>最終イベント</span><div class="metric-icon">🕒</div></div>
+      <strong style="font-size:22px">{{firstLogTime .RecentLogs}}</strong><p>最新の監査ログ時刻</p>
+    </article>
+    <article class="metric-card">
+      <div class="metric-top"><span>システム状態</span><div class="metric-icon">💚</div></div>
+      <strong style="font-size:22px;color:var(--success)">Healthy</strong><p>稼働中サービス</p>
+    </article>
+  </div>
+  <div class="table-card">
+    <div class="table-head">
+      <div>
+        <h3>最近の監査ログ</h3>
+        <p>直近のイベントを20件まで表示します。</p>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="/admin-ui/audit-logs">すべて見る</a>
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>日時</th><th>イベント</th><th>アクター</th><th>対象 ID</th><th>結果</th></tr></thead>
@@ -270,19 +279,22 @@ function adminFetch(method,path,body){
 {{end}}
 
 {{define "apps"}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>アプリ — 管理ダッシュボード</title>{{template "head" .}}</head>
+<title>アプリ — OshiLink Admin</title>{{template "head" .}}</head>
 <body>
 {{template "topnav" .}}
 <div class="layout">
 {{template "sidebar" .}}
 <main class="main">
   <div class="page-header">
-    <h1 class="page-title">アプリ</h1>
-    <button class="btn btn-primary" onclick="openModal('app-modal')">+ アプリ作成</button>
+    <div class="page-title-block">
+      <h1>アプリ管理</h1>
+      <p>共通アカウントと連携するアプリと OIDC クライアントを作成・確認します。</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('app-modal')">＋ アプリ作成</button>
   </div>
-  <div class="card">
+  <div class="table-card">
     <div class="table-wrap">
       <table>
         <thead><tr><th>名前</th><th>スラグ</th><th>タイプ</th><th>パーティ</th><th>ステータス</th><th>作成日</th><th>操作</th></tr></thead>
@@ -397,15 +409,20 @@ async function submitCreateClient(){
 {{end}}
 
 {{define "users"}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ユーザー — 管理ダッシュボード</title>{{template "head" .}}</head>
+<title>ユーザー — OshiLink Admin</title>{{template "head" .}}</head>
 <body>
 {{template "topnav" .}}
 <div class="layout">
 {{template "sidebar" .}}
 <main class="main">
-  <div class="page-header"><h1 class="page-title">ユーザー</h1></div>
+  <div class="page-header">
+    <div class="page-title-block">
+      <h1>ユーザー管理</h1>
+      <p>共通アカウントの利用者を検索し、状態・ロール・セッションを操作します。</p>
+    </div>
+  </div>
   <form method="get" action="/admin-ui/users" class="form-row">
     <div class="form-group"><label>メール / 識別子</label>
       <input type="text" name="q" value="{{.Query}}" placeholder="user@example.com">
@@ -420,7 +437,7 @@ async function submitCreateClient(){
     <button type="submit" class="btn btn-primary">検索</button>
     <a href="/admin-ui/users" class="btn btn-secondary">クリア</a>
   </form>
-  <div class="card">
+  <div class="table-card">
     <div class="table-wrap">
       <table>
         <thead><tr><th>メール / Phone</th><th>ID</th><th>ステータス</th><th>ロール</th><th>操作</th></tr></thead>
@@ -430,7 +447,7 @@ async function submitCreateClient(){
             <td>{{if .Email}}{{.Email}}{{else}}{{.Phone}}{{end}}</td>
             <td><code style="font-size:11px">{{truncate .ID 18}}</code></td>
             <td><span class="badge {{badgeClass .State}}">{{.State}}</span></td>
-            <td>{{if .Roles}}<span style="font-size:12px;color:var(--sub)">{{join .Roles ", "}}</span>{{else}}<span style="color:#ccc">—</span>{{end}}</td>
+            <td>{{if .Roles}}<span class="role-pill">{{join .Roles ", "}}</span>{{else}}<span style="color:var(--muted);opacity:.5">—</span>{{end}}</td>
             <td>
               <div class="actions-cell">
                 {{if eq .State "active"}}
@@ -519,15 +536,20 @@ async function saveRoles(){
 {{end}}
 
 {{define "audit-logs"}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>監査ログ — 管理ダッシュボード</title>{{template "head" .}}</head>
+<title>監査ログ — OshiLink Admin</title>{{template "head" .}}</head>
 <body>
 {{template "topnav" .}}
 <div class="layout">
 {{template "sidebar" .}}
 <main class="main">
-  <div class="page-header"><h1 class="page-title">監査ログ</h1></div>
+  <div class="page-header">
+    <div class="page-title-block">
+      <h1>監査ログ</h1>
+      <p>システムで発生したイベントを絞り込みながら追跡します。</p>
+    </div>
+  </div>
   <form method="get" action="/admin-ui/audit-logs" class="form-row">
     <div class="form-group"><label>イベントタイプ</label>
       <select name="event_type">
@@ -555,7 +577,7 @@ async function saveRoles(){
     <button type="submit" class="btn btn-primary">絞り込み</button>
     <a href="/admin-ui/audit-logs" class="btn btn-secondary">クリア</a>
   </form>
-  <div class="card">
+  <div class="table-card">
     <div class="table-wrap">
       <table>
         <thead><tr><th>日時</th><th>イベント</th><th>アクター</th><th>対象 ID</th><th>結果</th><th>IP</th></tr></thead>
@@ -567,13 +589,13 @@ async function saveRoles(){
             <td>{{.ActorID}}</td>
             <td><code style="font-size:11px">{{truncate .TargetID 22}}</code></td>
             <td><span class="badge {{badgeClass .Result}}">{{.Result}}</span></td>
-            <td style="font-size:11px;color:var(--sub)">{{.IPAddress}}</td>
+            <td style="font-size:11px;color:var(--muted)">{{.IPAddress}}</td>
           </tr>
           {{else}}<tr class="empty-row"><td colspan="6">ログはありません</td></tr>{{end}}
         </tbody>
       </table>
     </div>
-    {{if .HasMore}}<p style="margin-top:12px;font-size:12px;color:var(--sub)">表示上限（50件）に達しました。絞り込みで件数を減らしてください。</p>{{end}}
+    {{if .HasMore}}<p style="padding:14px 24px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);background:var(--surface-2)">表示上限（50件）に達しました。絞り込みで件数を減らしてください。</p>{{end}}
   </div>
 </main>
 </div>
@@ -583,27 +605,33 @@ async function saveRoles(){
 {{end}}
 
 {{define "error"}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>エラー — 管理ダッシュボード</title>{{template "head" .}}</head>
-<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">
-  <div style="background:#fff;border:1px solid var(--border);border-radius:3px;padding:40px 48px;max-width:440px;text-align:center">
-    <div style="font-size:18px;font-weight:700;margin-bottom:10px">{{.Title}}</div>
-    <p style="color:var(--sub);font-size:14px;line-height:1.6">{{.Msg}}</p>
+<title>エラー — OshiLink Admin</title>{{template "head" .}}</head>
+<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);padding:24px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:36px 40px;max-width:480px;text-align:center">
+    <div style="width:56px;height:56px;border-radius:18px;background:var(--oshi-weak);color:var(--oshi);font-size:28px;display:grid;place-items:center;margin:0 auto 18px">⚠️</div>
+    <div style="font-size:20px;font-weight:900;margin-bottom:10px;letter-spacing:-0.02em">{{.Title}}</div>
+    <p style="color:var(--muted);font-size:14px;line-height:1.7">{{.Msg}}</p>
   </div>
 </body></html>
 {{end}}
 
 {{define "app-requests"}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>申請管理 — 管理ダッシュボード</title>{{template "head" .}}</head>
+<title>申請管理 — OshiLink Admin</title>{{template "head" .}}</head>
 <body>
 {{template "topnav" .}}
 <div class="layout">
 {{template "sidebar" .}}
 <main class="main">
-  <div class="page-header"><h1 class="page-title">申請管理</h1></div>
+  <div class="page-header">
+    <div class="page-title-block">
+      <h1>アプリ申請管理</h1>
+      <p>サードパーティ申請の審査・承認・修正依頼を行います。</p>
+    </div>
+  </div>
   <form method="get" action="/admin-ui/app-requests" class="form-row">
     <div class="form-group"><label>ステータス</label>
       <select name="status">
@@ -618,15 +646,15 @@ async function saveRoles(){
     <button type="submit" class="btn btn-primary">絞り込み</button>
     <a href="/admin-ui/app-requests" class="btn btn-secondary">クリア</a>
   </form>
-  <div class="card">
+  <div class="table-card">
     <div class="table-wrap">
       <table>
         <thead><tr><th>申請名</th><th>タイプ</th><th>申請者ID</th><th>ステータス</th><th>申請日</th><th>操作</th></tr></thead>
         <tbody>
           {{range .Requests}}
           <tr>
-            <td><strong>{{.Name}}</strong>{{if .Slug}} <span style="font-size:11px;color:var(--sub)">/ {{.Slug}}</span>{{end}}</td>
-            <td>{{if .Type}}{{.Type}}{{else}}<span style="color:#ccc">—</span>{{end}}</td>
+            <td><strong>{{.Name}}</strong>{{if .Slug}} <span style="font-size:11px;color:var(--muted)">/ {{.Slug}}</span>{{end}}</td>
+            <td>{{if .Type}}{{.Type}}{{else}}<span style="color:var(--muted);opacity:.5">—</span>{{end}}</td>
             <td><code style="font-size:11px">{{truncate .IdentityID 18}}</code></td>
             <td><span class="badge {{badgeClass .Status}}">{{.Status}}</span></td>
             <td style="white-space:nowrap">{{formatTime .CreatedAt}}</td>
@@ -645,23 +673,9 @@ async function saveRoles(){
 {{end}}
 
 {{define "app-request-detail"}}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{.Request.Name}} — 申請管理</title>{{template "head" .}}
-<style>
-.kv-table{width:100%;border-collapse:collapse;font-size:13px}
-.kv-table th{width:200px;text-align:left;padding:9px 12px;background:#f7f8fb;border-bottom:1px solid #ececec;font-weight:600;color:var(--sub);vertical-align:top;white-space:nowrap}
-.kv-table td{padding:9px 12px;border-bottom:1px solid #ececec;vertical-align:top;word-break:break-all}
-.kv-empty{color:#ccc}.detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
-.btn-approve{background:var(--ok);color:#fff;border-color:var(--ok)}
-.btn-changes{background:var(--warn);color:#fff;border-color:var(--warn)}
-.detail-title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.back-link{font-size:12px;color:var(--sub);margin-bottom:14px;display:inline-block}
-.uri-list{margin:0;padding-left:18px;font-size:12px}.uri-list li{margin-bottom:2px}
-.modal textarea{width:100%;min-height:96px;padding:8px 10px;border:1px solid var(--border);border-radius:3px;font-size:13px;font-family:inherit;resize:vertical}
-.modal textarea:focus{outline:2px solid var(--primary);outline-offset:-1px}
-</style>
-</head>
+<title>{{.Request.Name}} — 申請管理</title>{{template "head" .}}</head>
 <body>
 {{template "topnav" .}}
 <div class="layout">
@@ -669,9 +683,12 @@ async function saveRoles(){
 <main class="main">
   <a class="back-link" href="/admin-ui/app-requests">← 申請一覧へ戻る</a>
   <div class="page-header">
-    <div class="detail-title-row">
-      <h1 class="page-title">{{.Request.Name}}</h1>
-      <span class="badge {{badgeClass .Request.Status}}">{{.Request.Status}}</span>
+    <div class="page-title-block">
+      <div class="detail-title-row">
+        <h1>{{.Request.Name}}</h1>
+        <span class="badge {{badgeClass .Request.Status}}">{{.Request.Status}}</span>
+      </div>
+      <p>申請内容を確認し、承認・修正依頼・却下を行えます。</p>
     </div>
   </div>
   <div class="card">

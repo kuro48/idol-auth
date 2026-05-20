@@ -3,104 +3,373 @@ package http
 import "html/template"
 
 var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>アカウントセンター</title>
+  <title>アカウントセンター | OshiLink</title>
   <style>
+    :root{
+      --oshi:{{.OshiColor}};
+      --oshi-weak:#fff1e8;
+      --oshi-soft:#ffd9c2;
+      --bg:#f8f6f3;
+      --surface:#ffffff;
+      --surface-2:#fffaf6;
+      --text:#26211f;
+      --muted:#776d67;
+      --border:#eadfd7;
+      --shadow:0 16px 40px rgba(48,35,28,.1);
+      --radius-lg:28px;
+      --radius-md:18px;
+      --radius-sm:12px;
+      --danger:#e85d75;
+      --success:#35a67b;
+      --warning:#e9a23b;
+    }
+    html[data-theme="dark"]{
+      --bg:#181412; --surface:#221d1a; --surface-2:#2b241f; --text:#fff8f1; --muted:#c8b8ad; --border:#42362f;
+      --shadow:0 16px 40px rgba(0,0,0,.35); --oshi-weak:#372219; --oshi-soft:#5a3829;
+    }
     *,*::before,*::after{box-sizing:border-box}
-    body{margin:0;font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",system-ui,sans-serif;background:#f0f3fa;color:#1b2440}
-    .profile-header{background:#fff;border-bottom:1px solid #e4e9f5;margin-bottom:24px}
-    .cover{height:110px;background:linear-gradient(135deg,{{.OshiColor}} 0%,#6390f5 100%);opacity:.8}
-    .profile-bar{display:flex;justify-content:space-between;align-items:flex-end;padding:0 28px;margin-top:-36px}
-    .avatar{width:72px;height:72px;border-radius:50%;background:{{.OshiColor}};color:#fff;font-size:26px;font-weight:800;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.15);letter-spacing:.02em;flex-shrink:0;background-size:cover;background-position:center}
-    .avatar.has-image{color:transparent}
-    .profile-identity{padding:10px 28px 20px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-    .profile-identity h1{margin:0;font-size:22px;font-weight:800;line-height:1.1}
-    .handle{font-size:12px;color:#8898b8;font-weight:500;word-break:break-all}
-    .shell{max-width:1040px;margin:0 auto;padding:0 20px 80px}
-    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
-    .col{display:flex;flex-direction:column;gap:18px}
-    .card{background:#fff;border:1px solid #e4e9f5;border-radius:20px;padding:20px;box-shadow:0 2px 8px rgba(18,42,88,.05)}
-    .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-    .card-head h2{margin:0;font-size:15px;font-weight:700;color:#1b2440}
-    .card-danger{border-color:#f3d1c9;background:linear-gradient(160deg,#fff5f2 0%,#fff 60%)}
-    .card-danger .card-head h2{color:#9f2417}
-    .field-row{display:flex;align-items:flex-start;gap:14px;padding:9px 0;border-bottom:1px solid #f0f3fa}
-    .field-row:last-of-type{border-bottom:none}
-    .field-label{min-width:96px;font-size:11px;font-weight:700;color:#8898b8;text-transform:uppercase;letter-spacing:.07em;padding-top:2px;flex-shrink:0}
-    .field-value{font-size:14px;color:#1b2440;flex:1;word-break:break-all}
-    .empty{color:#c0cadc;font-style:italic}
+    html,body{margin:0;padding:0}
+    body{
+      min-height:100vh;
+      font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;
+      color:var(--text);
+      background:var(--bg);
+      letter-spacing:.01em;
+    }
+    button,input,select{font:inherit;color:inherit}
+    button{cursor:pointer}
+    a{color:var(--oshi);text-decoration:none}
+
+    .topbar{
+      position:sticky; top:0; z-index:20;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:16px; padding:14px 28px;
+      background:color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter:saturate(160%) blur(14px);
+      -webkit-backdrop-filter:saturate(160%) blur(14px);
+      border-bottom:1px solid var(--border);
+    }
+    .brand{display:flex; align-items:center; gap:12px}
+    .brand-mark{
+      width:42px; height:42px; border-radius:14px;
+      background:var(--oshi); color:#fff;
+      display:grid; place-items:center;
+      font-weight:900; font-size:20px; letter-spacing:-.02em;
+      box-shadow:0 10px 24px color-mix(in srgb,var(--oshi) 32%,transparent);
+    }
+    .brand-text strong{display:block; font-size:16px; line-height:1.1; letter-spacing:-.01em}
+    .brand-text span{font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.12em}
+    .top-actions{display:flex; align-items:center; gap:12px}
+    .user-chip{
+      display:flex; align-items:center; gap:10px;
+      padding:6px 12px 6px 6px; border-radius:999px;
+      background:var(--surface-2); border:1px solid var(--border);
+      font-size:13px; color:var(--text); max-width:280px;
+    }
+    .user-chip .dot{
+      width:32px; height:32px; border-radius:50%;
+      background:var(--oshi); color:#fff;
+      display:grid; place-items:center; font-weight:900; font-size:13px;
+    }
+    .user-chip .email{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; color:var(--muted)}
+    .logout-btn{
+      border:1px solid var(--border); background:var(--surface);
+      color:var(--text); padding:9px 14px; border-radius:999px;
+      font-weight:800; font-size:13px;
+      transition:transform 160ms ease, background 160ms ease;
+    }
+    .logout-btn:hover{transform:translateY(-1px); background:var(--surface-2)}
+
+    .shell{max-width:1180px; margin:0 auto; padding:28px 28px 120px}
+    .grid{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:20px}
+    .col{display:flex; flex-direction:column; gap:20px; min-width:0}
+
+    .card{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      box-shadow:var(--shadow);
+      padding:24px;
+    }
+    .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
+    .card-head h2{margin:0; font-size:20px; font-weight:700; letter-spacing:-.01em}
+    .hint{margin:0 0 14px; color:var(--muted); font-size:13px; line-height:1.7}
+
+    .profile-hero{
+      position:relative; overflow:hidden;
+      padding:30px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--radius-lg);
+      box-shadow:var(--shadow);
+    }
+    .profile-hero::before{
+      content:""; position:absolute; inset:0;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--oshi) 15%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(0deg, color-mix(in srgb, var(--oshi) 15%, transparent) 1px, transparent 1px) 0 0 / 28px 28px;
+      opacity:.5; pointer-events:none;
+    }
+    .profile-inner{position:relative; display:flex; gap:24px; align-items:center; flex-wrap:wrap}
+    .profile-photo{
+      width:146px; height:146px; border-radius:36px;
+      background:
+        radial-gradient(circle at 45px 36px, #fff 0 14px, transparent 15px),
+        var(--oshi);
+      border:8px solid var(--surface);
+      box-shadow:0 16px 34px color-mix(in srgb,var(--oshi) 24%,transparent);
+      display:grid; place-items:center;
+      color:#fff; font-size:48px; font-weight:1000;
+      background-size:auto, cover; background-position:center;
+      flex-shrink:0;
+    }
+    .profile-photo.has-image{color:transparent}
+    .profile-name{flex:1; min-width:200px}
+    .profile-name h2{margin:0; font-size:34px; letter-spacing:-.03em; line-height:1.05}
+    .profile-name .handle{
+      margin:8px 0 0; color:var(--muted); font-size:13px;
+      word-break:break-all; line-height:1.5;
+    }
+    .badge-oshi{
+      display:inline-flex; align-items:center; gap:8px;
+      margin-top:14px;
+      padding:8px 13px; border-radius:999px;
+      background:var(--oshi-weak); color:var(--oshi);
+      font-weight:800; font-size:12px;
+    }
+    .badge-oshi .swatch{
+      width:14px; height:14px; border-radius:50%;
+      background:var(--oshi);
+      box-shadow:0 0 0 2px color-mix(in srgb,var(--oshi) 35%,transparent);
+    }
+    .profile-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:18px}
+
+    .info-list{display:grid; gap:10px}
+    .info-item{
+      display:flex; justify-content:space-between; align-items:center; gap:14px;
+      padding:14px; border-radius:16px;
+      background:var(--surface-2); border:1px solid var(--border);
+    }
+    .info-item .k{font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em}
+    .info-item .v{font-size:14px; color:var(--text); font-weight:600; text-align:right; word-break:break-all; max-width:62%}
+    .empty{color:var(--muted); font-style:italic; font-weight:500}
+
     [data-mode="display"] .section-edit{display:none}
     [data-mode="edit"] .section-display{display:none}
-    .section-edit{padding-top:6px}
-    .field{display:grid;gap:5px;margin-bottom:12px}
-    .field label{font-size:11px;font-weight:700;color:#65748f;text-transform:uppercase;letter-spacing:.07em}
-    .field input{width:100%;border:1px solid #d9e0f0;border-radius:12px;padding:10px 12px;font-size:14px;background:#fff;font-family:inherit;color:#1b2440}
-    .field input[type="checkbox"]{width:18px;height:18px;padding:0;border-radius:5px;accent-color:#1740c9;flex-shrink:0}
-    .field input:focus{outline:2px solid #1740c9;outline-offset:1px;border-color:#1740c9}
-    .field-note{font-size:11px;color:#8898b8;line-height:1.45}
-    .check-grid{display:grid;gap:8px;margin:4px 0 14px}
-    .check-row{display:flex;align-items:center;gap:9px;font-size:13px;color:#4d5c76}
-    .check-row span{line-height:1.4}
-    .form-error{font-size:13px;color:#c73a2b;min-height:18px;margin-bottom:6px}
-    .form-actions{display:flex;gap:8px;margin-top:4px}
-    .btn{appearance:none;border:none;border-radius:12px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;font-family:inherit;transition:opacity .15s}
-    .btn:hover{opacity:.82}
-    .btn-primary{background:#1740c9;color:#fff}
-    .btn-ghost{background:#fff;border:1px solid rgba(23,64,201,.22);color:#1740c9}
-    .btn-danger{background:#c73a2b;color:#fff}
-    .btn-danger-ghost{color:#9f2417;border-color:rgba(199,58,43,.28)}
-    .btn-sm{padding:6px 10px;font-size:12px;border-radius:10px}
-    .hint{font-size:13px;color:#65748f;line-height:1.6;margin:0 0 12px}
-    .status{font-size:13px;color:#4d5c76;margin-top:8px;line-height:1.5}
-    .contact-footer{padding-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid #f0f3fa;margin-top:4px}
-    .contact-note{font-size:11px;color:#8898b8;line-height:1.4}
-    .membership{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px;border:1px solid #e8edf8;border-radius:14px;background:#fbfcff;margin-bottom:10px}
-    .membership:last-child{margin-bottom:0}
-    .membership h3{margin:0 0 3px;font-size:14px;font-weight:700}
-    .membership p{margin:0;color:#65748f;font-size:12px;line-height:1.5}
-    .badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#edf7ef;color:#13643a;font-size:11px;font-weight:700;margin-bottom:5px}
-    .empty-state{text-align:center;padding:20px 0;color:#b0bdd4;font-size:13px}
-    .toast{position:fixed;right:20px;bottom:20px;background:#162a5c;color:#fff;padding:12px 16px;border-radius:14px;display:none;max-width:320px;box-shadow:0 18px 40px rgba(14,24,54,.24);font-size:14px;z-index:100;line-height:1.5}
-    .toast.error{background:#9f2417}
-    .toast.show{display:block}
-    @media(max-width:840px){.grid{grid-template-columns:1fr}.profile-bar{margin-top:-28px}.avatar{width:60px;height:60px;font-size:20px}.profile-identity h1{font-size:19px}}
+    .section-edit{display:grid; gap:14px}
+
+    .field{display:grid; gap:6px}
+    .field label{font-size:12px; font-weight:800; color:var(--muted); letter-spacing:.05em}
+    .field input[type=text],
+    .field input[type=date],
+    .field input[type=file]{
+      width:100%;
+      border:1px solid var(--border);
+      background:var(--surface-2);
+      color:var(--text);
+      padding:14px 16px;
+      border-radius:16px;
+      outline:none;
+      transition:border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .field input[type=text]:focus,
+    .field input[type=date]:focus,
+    .field input[type=file]:focus{
+      border-color:var(--oshi);
+      box-shadow:0 0 0 4px color-mix(in srgb,var(--oshi) 18%,transparent);
+    }
+    .field input[type=file]{padding:11px 14px; font-size:13px}
+    .field-note{font-size:11px; color:var(--muted); line-height:1.5}
+
+    .check-grid{display:grid; gap:10px; padding:14px; background:var(--surface-2); border:1px solid var(--border); border-radius:16px}
+    .check-row{display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text); cursor:pointer}
+    .check-row input[type=checkbox]{
+      width:18px; height:18px; border-radius:5px;
+      accent-color:var(--oshi); flex-shrink:0;
+    }
+
+    .form-error{
+      font-size:13px; color:var(--danger);
+      min-height:18px; padding:0 4px;
+      font-weight:700;
+    }
+    .form-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px}
+
+    .btn{
+      border:0; border-radius:16px; padding:14px 18px;
+      font-weight:900; font-size:14px; line-height:1;
+      display:inline-flex; align-items:center; gap:8px;
+      transition:transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{
+      background:var(--oshi); color:#fff;
+      box-shadow:0 12px 24px color-mix(in srgb,var(--oshi) 28%,transparent);
+    }
+    .btn-secondary{
+      background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    }
+    .btn-danger{background:var(--danger); color:#fff}
+    .btn-sm{padding:9px 13px; font-size:12px; border-radius:12px}
+    .btn-ghost-danger{
+      background:transparent; border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);
+      color:var(--danger);
+    }
+
+    .service-list{display:grid; gap:12px}
+    .service-card{
+      padding:18px; border-radius:22px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      transition:transform 160ms ease, border-color 160ms ease;
+      display:flex; justify-content:space-between; align-items:flex-start; gap:14px;
+    }
+    .service-card:hover{transform:translateY(-2px); border-color:var(--oshi)}
+    .service-card h4{margin:6px 0 4px; font-size:16px; font-weight:800; letter-spacing:-.01em}
+    .service-card p{margin:0; color:var(--muted); font-size:12px; line-height:1.6}
+    .status-pill{
+      padding:5px 10px; border-radius:999px; font-size:11px; font-weight:900;
+      background:color-mix(in srgb,var(--success) 14%,transparent); color:var(--success);
+      text-transform:uppercase; letter-spacing:.08em;
+    }
+    .empty-state{
+      padding:28px 14px; text-align:center; color:var(--muted); font-size:13px;
+      border:1px dashed var(--border); border-radius:18px; background:var(--surface-2);
+    }
+
+    .card-danger{
+      border-color:color-mix(in srgb,var(--danger) 24%,var(--border));
+      background:
+        linear-gradient(180deg, color-mix(in srgb,var(--danger) 6%,transparent) 0%, transparent 60%),
+        var(--surface);
+    }
+    .card-danger .card-head h2{color:var(--danger)}
+    .status-line{
+      margin-top:10px; padding:14px; border-radius:16px;
+      background:var(--surface-2); border:1px solid var(--border);
+      font-size:13px; color:var(--text); line-height:1.6;
+    }
+
+    .contact-footer{
+      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+      padding-top:14px; margin-top:14px;
+      border-top:1px solid var(--border);
+    }
+    .contact-note{font-size:11px; color:var(--muted); line-height:1.5; flex:1; min-width:180px}
+
+    .toast{
+      position:fixed; right:22px; bottom:22px;
+      background:var(--text); color:var(--surface);
+      padding:14px 18px; border-radius:18px;
+      display:none; max-width:340px; font-size:14px; line-height:1.5;
+      box-shadow:0 18px 40px rgba(0,0,0,.2);
+      z-index:200; font-weight:700;
+    }
+    .toast.error{background:var(--danger); color:#fff}
+    .toast.show{display:block; animation:toastIn 220ms ease both}
+    @keyframes toastIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+
+    .float-tools{
+      position:fixed; right:22px; bottom:88px; z-index:150;
+      display:flex; flex-direction:column; align-items:flex-end; gap:10px;
+    }
+    .theme-toggle{
+      width:48px; height:48px; border-radius:50%;
+      background:var(--surface); border:1px solid var(--border);
+      color:var(--text); box-shadow:var(--shadow);
+      display:grid; place-items:center; font-size:20px;
+      transition:transform 160ms ease;
+    }
+    .theme-toggle:hover{transform:translateY(-2px)}
+    .color-dots{
+      display:flex; gap:8px; padding:10px 12px;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:999px; box-shadow:var(--shadow);
+    }
+    .color-dot{
+      width:24px; height:24px; border-radius:50%;
+      border:3px solid var(--surface);
+      box-shadow:0 0 0 1px var(--border);
+      transition:transform 160ms ease;
+      padding:0;
+    }
+    .color-dot:hover{transform:scale(1.1)}
+    .color-dot[aria-pressed="true"]{box-shadow:0 0 0 2px var(--text)}
+
+    @media(max-width:920px){
+      .grid{grid-template-columns:1fr}
+      .topbar{padding:12px 18px}
+      .shell{padding:20px 18px 120px}
+      .user-chip .email{max-width:130px}
+      .profile-name h2{font-size:26px}
+      .profile-photo{width:112px; height:112px; border-radius:28px; font-size:36px; border-width:6px}
+      .card{padding:18px}
+      .profile-hero{padding:22px}
+    }
+    @media(max-width:520px){
+      .brand-text{display:none}
+      .user-chip .email{max-width:90px}
+      .float-tools{right:14px; bottom:80px}
+    }
   </style>
 </head>
 <body>
 
-  <header class="profile-header">
-    <div class="cover"></div>
-    <div class="profile-bar">
-      <div class="avatar" data-initials="{{.Initials}}">{{.Initials}}</div>
-      <div style="padding-bottom:6px">
-        <a class="btn btn-ghost btn-sm" href="{{.LogoutURL}}">ログアウト</a>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">推</div>
+      <div class="brand-text">
+        <strong>OshiLink</strong>
+        <span>Account Center</span>
       </div>
     </div>
-    <div class="profile-identity">
-      <h1>{{if .DisplayName}}{{.DisplayName}}{{else}}アカウント{{end}}</h1>
-      <span class="handle">{{.IdentityID}}</span>
+    <div class="top-actions">
+      <div class="user-chip" title="{{if .Email}}{{.Email}}{{else}}{{.IdentityID}}{{end}}">
+        <span class="dot">{{.Initials}}</span>
+        <span class="email">{{if .Email}}{{.Email}}{{else}}{{.IdentityID}}{{end}}</span>
+      </div>
+      <a class="logout-btn" href="{{.LogoutURL}}">ログアウト</a>
     </div>
   </header>
 
   <main class="shell">
     <div class="grid">
+
       <div class="col">
+
+        <section class="profile-hero">
+          <div class="profile-inner">
+            <div class="profile-photo avatar" data-initials="{{.Initials}}">{{.Initials}}</div>
+            <div class="profile-name">
+              <h2>{{if .DisplayName}}{{.DisplayName}}{{else}}アカウント{{end}}</h2>
+              <p class="handle">{{.IdentityID}}</p>
+              <span class="badge-oshi"><span class="swatch"></span>推し色設定済み</span>
+              <div class="profile-actions">
+                <button type="button" class="btn btn-primary" id="btn-edit-profile">プロフィール編集</button>
+                <a class="btn btn-secondary" href="{{.KratosSettingsURL}}">設定を変更</a>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <article class="card">
           <div class="card-head"><h2>連絡先情報</h2></div>
-          <div class="field-row">
-            <span class="field-label">メール</span>
-            <span class="field-value">{{if .Email}}{{.Email}}{{else}}<span class="empty">未登録</span>{{end}}</span>
-          </div>
-          <div class="field-row">
-            <span class="field-label">電話番号</span>
-            <span class="field-value">{{if .Phone}}{{.Phone}}{{else}}<span class="empty">未登録</span>{{end}}</span>
+          <div class="info-list">
+            <div class="info-item">
+              <span class="k">メール</span>
+              <span class="v">{{if .Email}}{{.Email}}{{else}}<span class="empty">未登録</span>{{end}}</span>
+            </div>
+            <div class="info-item">
+              <span class="k">電話番号</span>
+              <span class="v">{{if .Phone}}{{.Phone}}{{else}}<span class="empty">未登録</span>{{end}}</span>
+            </div>
           </div>
           <div class="contact-footer">
-            <a href="{{.KratosSettingsURL}}" class="btn btn-ghost btn-sm">連絡先を変更 →</a>
+            <a href="{{.KratosSettingsURL}}" class="btn btn-secondary btn-sm">連絡先を変更 →</a>
             <span class="contact-note">メール・電話番号の変更はKratosの設定画面で行います</span>
           </div>
         </article>
@@ -108,29 +377,39 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
         <article class="card" data-section="profile" data-mode="display">
           <div class="card-head">
             <h2>共有プロフィール</h2>
-            <button class="btn btn-ghost btn-sm" data-action="edit">編集</button>
+            <button class="btn btn-secondary btn-sm" data-action="edit">編集</button>
           </div>
           <div class="section-display">
-            <p class="hint" style="margin-bottom:8px">各アプリは連携済みユーザーに対してこのプロフィールを参照できます。</p>
-            <div class="field-row"><span class="field-label">表示名</span><span class="field-value" data-display="display_name"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">推し色</span><span class="field-value" data-display="oshi_color"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">推しID</span><span class="field-value" data-display="oshi_ids"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">ファン歴</span><span class="field-value" data-display="fan_since"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">アバター</span><span class="field-value" data-display="avatar_url"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">ロケール</span><span class="field-value" data-display="locale"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">タイムゾーン</span><span class="field-value" data-display="timezone"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">生年月日</span><span class="field-value" data-display="birthdate"><span class="empty">—</span></span></div>
-            <div class="field-row"><span class="field-label">通知設定</span><span class="field-value" data-display="notification_preferences"><span class="empty">—</span></span></div>
+            <p class="hint">各アプリは連携済みユーザーに対してこのプロフィールを参照できます。</p>
+            <div class="info-list">
+              <div class="info-item"><span class="k">表示名</span><span class="v" data-display="display_name"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">推し色</span><span class="v" data-display="oshi_color"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">推しID</span><span class="v" data-display="oshi_ids"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">ファン歴</span><span class="v" data-display="fan_since"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">アバター</span><span class="v" data-display="avatar_url"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">ロケール</span><span class="v" data-display="locale"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">タイムゾーン</span><span class="v" data-display="timezone"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">生年月日</span><span class="v" data-display="birthdate"><span class="empty">—</span></span></div>
+              <div class="info-item"><span class="k">通知設定</span><span class="v" data-display="notification_preferences"><span class="empty">—</span></span></div>
+            </div>
           </div>
           <form class="section-edit" id="form-profile">
-            <div class="field"><label>表示名<input name="display_name" type="text" maxlength="50"></label></div>
-            <div class="field"><label>推し色（#rrggbb）<input name="oshi_color" type="text" placeholder="#ff88cc"></label></div>
-            <div class="field"><label>推しID（カンマ区切り、最大10件）<input name="oshi_ids" type="text"></label></div>
-            <div class="field"><label>ファン歴（YYYY または YYYY-MM）<input name="fan_since" type="text" placeholder="2022-03"></label></div>
-            <div class="field"><label>アバター画像<input name="avatar_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp"></label><div class="field-note">PNG / JPEG / GIF / WebP、10MBまで。保存時に512px四方のJPEGへ変換されます。</div></div>
-            <div class="field"><label>ロケール<input name="locale" type="text" placeholder="ja-JP"></label></div>
-            <div class="field"><label>タイムゾーン<input name="timezone" type="text" placeholder="Asia/Tokyo"></label></div>
-            <div class="field"><label>生年月日<input name="birthdate" type="date"></label><div class="field-note">本人向けアカウント情報として保存します。連携アプリ向け公開プロフィールには含まれません。</div></div>
+            <div class="field"><label>表示名</label><input name="display_name" type="text" maxlength="50"></div>
+            <div class="field"><label>推し色（#rrggbb）</label><input name="oshi_color" type="text" placeholder="#ff88cc"></div>
+            <div class="field"><label>推しID（カンマ区切り、最大10件）</label><input name="oshi_ids" type="text"></div>
+            <div class="field"><label>ファン歴（YYYY または YYYY-MM）</label><input name="fan_since" type="text" placeholder="2022-03"></div>
+            <div class="field">
+              <label>アバター画像</label>
+              <input name="avatar_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp">
+              <div class="field-note">PNG / JPEG / GIF / WebP、10MBまで。保存時に512px四方のJPEGへ変換されます。</div>
+            </div>
+            <div class="field"><label>ロケール</label><input name="locale" type="text" placeholder="ja-JP"></div>
+            <div class="field"><label>タイムゾーン</label><input name="timezone" type="text" placeholder="Asia/Tokyo"></div>
+            <div class="field">
+              <label>生年月日</label>
+              <input name="birthdate" type="date">
+              <div class="field-note">本人向けアカウント情報として保存します。連携アプリ向け公開プロフィールには含まれません。</div>
+            </div>
             <div class="field">
               <label>通知設定</label>
               <div class="check-grid">
@@ -144,37 +423,39 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
             <div class="form-error" id="profile-error" role="alert"></div>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">保存</button>
-              <button type="button" class="btn btn-ghost" data-action="cancel">キャンセル</button>
+              <button type="button" class="btn btn-secondary" data-action="cancel">キャンセル</button>
             </div>
           </form>
         </article>
 
       </div>
+
       <div class="col">
 
         <article class="card">
           <div class="card-head"><h2>連携中アプリ</h2></div>
           <p class="hint">各アプリでアカウント削除をする場合は、まずここで連携を解除してください。</p>
-          <div id="memberships"></div>
+          <div id="memberships" class="service-list"></div>
         </article>
 
         <article class="card card-danger" data-section="deletion" data-mode="display">
           <div class="card-head">
             <h2>アカウント削除</h2>
-            <button class="btn btn-ghost btn-sm btn-danger-ghost" data-action="edit">予約・管理</button>
+            <button class="btn btn-ghost-danger btn-sm" data-action="edit">予約・管理</button>
           </div>
           <div class="section-display">
             <p class="hint"><strong>注意:</strong> 削除予約すると連携中の全アプリに影響します。各アプリだけをやめたい場合は連携解除を使ってください。</p>
-            <div id="deletion-status" class="status">削除予約はありません。</div>
+            <div id="deletion-status" class="status-line">削除予約はありません。</div>
           </div>
           <div class="section-edit">
             <p class="hint">削除予約するか、予約中の場合は取り消せます。</p>
-            <div class="field"><label>理由（省略可）<input id="delete-reason" type="text" placeholder="user_requested"></label></div>
+            <div class="field"><label>理由（省略可）</label><input id="delete-reason" type="text" placeholder="user_requested"></div>
             <div class="form-actions">
               <button class="btn btn-danger btn-sm" type="button" id="btn-schedule">削除を予約</button>
-              <button class="btn btn-ghost btn-sm" type="button" id="btn-cancel-del">予約を取り消す</button>
+              <button class="btn btn-secondary btn-sm" type="button" id="btn-cancel-del">予約を取り消す</button>
+              <button class="btn btn-secondary btn-sm" type="button" data-action="cancel">閉じる</button>
             </div>
-            <div id="deletion-status-edit" class="status"></div>
+            <div id="deletion-status-edit" class="status-line" style="display:none"></div>
           </div>
         </article>
 
@@ -182,7 +463,20 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     </div>
   </main>
 
+  <div class="float-tools">
+    <div class="color-dots" role="group" aria-label="推し色を選ぶ">
+      <button class="color-dot" type="button" data-color="#ff8a3d" style="background:#ff8a3d" aria-pressed="true" title="オレンジ"></button>
+      <button class="color-dot" type="button" data-color="#ff5fa2" style="background:#ff5fa2" aria-pressed="false" title="ピンク"></button>
+      <button class="color-dot" type="button" data-color="#7c5cff" style="background:#7c5cff" aria-pressed="false" title="パープル"></button>
+      <button class="color-dot" type="button" data-color="#39b58a" style="background:#39b58a" aria-pressed="false" title="グリーン"></button>
+      <button class="color-dot" type="button" data-color="#4b7bec" style="background:#4b7bec" aria-pressed="false" title="ブルー"></button>
+    </div>
+  </div>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="テーマを切り替える" title="テーマ切替"
+    style="position:fixed;right:22px;bottom:22px;z-index:150">☾</button>
+
   <div id="toast" class="toast"></div>
+
   <script>
     function showToast(msg, type) {
       var el = document.getElementById('toast');
@@ -279,6 +573,16 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       if (e.target.closest('[data-action="cancel"]')) { exitEdit(card); return; }
     });
 
+    var heroEditBtn = document.getElementById('btn-edit-profile');
+    if (heroEditBtn) {
+      heroEditBtn.addEventListener('click', function() {
+        var card = document.querySelector('[data-section="profile"]');
+        if (!card) return;
+        enterEdit(card);
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+
     function applyProfile(card, data) {
       var avatar = document.querySelector('.avatar');
       if (avatar) {
@@ -297,6 +601,9 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
           avatar.style.backgroundImage = '';
           avatar.classList.remove('has-image');
         }
+      }
+      if (data.oshi_color && /^#[0-9a-fA-F]{6}$/.test(data.oshi_color)) {
+        document.documentElement.style.setProperty('--oshi', data.oshi_color);
       }
       setDisplay(card, 'display_name', data.display_name || null);
       setDisplay(card, 'oshi_color', data.oshi_color || null);
@@ -377,12 +684,14 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       }
       items.forEach(function(item) {
         var row = document.createElement('div');
-        row.className = 'membership';
+        row.className = 'service-card';
         row.innerHTML =
-          '<div><span class="badge">' + item.status + '</span>' +
-          '<h3>' + item.app_name + '</h3>' +
-          '<p>slug: ' + item.app_slug + ' / party: ' + item.party_type + '</p></div>' +
-          '<button class="btn btn-ghost btn-sm" data-app-id="' + item.app_id + '">連携解除</button>';
+          '<div style="min-width:0;flex:1">' +
+            '<span class="status-pill">' + item.status + '</span>' +
+            '<h4>' + item.app_name + '</h4>' +
+            '<p>slug: ' + item.app_slug + ' / party: ' + item.party_type + '</p>' +
+          '</div>' +
+          '<button class="btn btn-secondary btn-sm" data-app-id="' + item.app_id + '">連携解除</button>';
         row.querySelector('button').addEventListener('click', async function() {
           if (!confirm(item.app_name + ' との連携を解除しますか？')) return;
           try {
@@ -400,12 +709,12 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       var ste = document.getElementById('deletion-status-edit');
       if (!deletion) {
         st.textContent = '削除予約はありません。';
-        if (ste) ste.textContent = '';
+        if (ste) { ste.textContent = ''; ste.style.display = 'none'; }
         return;
       }
       var msg = '状態: ' + deletion.status + ' / 実行予定: ' + new Date(deletion.scheduled_for).toLocaleString('ja-JP');
       st.textContent = msg;
-      if (ste) ste.textContent = msg;
+      if (ste) { ste.textContent = msg; ste.style.display = 'block'; }
     }
 
     document.getElementById('btn-schedule').addEventListener('click', async function() {
@@ -436,6 +745,44 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       var card = document.querySelector('[data-section="profile"]');
       if (card) applyProfile(card, data);
     }
+
+    (function() {
+      var root = document.documentElement;
+      var btn = document.getElementById('theme-toggle');
+      var stored = null;
+      try { stored = window.localStorage.getItem('oshi-theme'); } catch(_) {}
+      if (stored === 'dark' || stored === 'light') root.setAttribute('data-theme', stored);
+      function syncIcon() {
+        btn.textContent = root.getAttribute('data-theme') === 'dark' ? '☀' : '☾';
+      }
+      syncIcon();
+      btn.addEventListener('click', function() {
+        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        try { window.localStorage.setItem('oshi-theme', next); } catch(_) {}
+        syncIcon();
+      });
+    })();
+
+    (function() {
+      var dots = document.querySelectorAll('.color-dot');
+      var stored = null;
+      try { stored = window.localStorage.getItem('oshi-color'); } catch(_) {}
+      if (stored) {
+        document.documentElement.style.setProperty('--oshi', stored);
+        dots.forEach(function(d) {
+          d.setAttribute('aria-pressed', d.dataset.color === stored ? 'true' : 'false');
+        });
+      }
+      dots.forEach(function(d) {
+        d.addEventListener('click', function() {
+          var c = d.dataset.color;
+          document.documentElement.style.setProperty('--oshi', c);
+          try { window.localStorage.setItem('oshi-color', c); } catch(_) {}
+          dots.forEach(function(x) { x.setAttribute('aria-pressed', x === d ? 'true' : 'false'); });
+        });
+      });
+    })();
 
     Promise.all([loadOverview(), loadProfile()]).catch(showError);
   </script>
