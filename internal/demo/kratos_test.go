@@ -112,9 +112,14 @@ func TestRenderPageRendersTOTPImageAndSecretText(t *testing.T) {
 			t.Fatalf("expected theme fragment %q, got %s", fragment, body)
 		}
 	}
-	for _, fragment := range []string{"ホーム", "ログイン", "新規登録", "復旧", "確認", "設定"} {
+	for _, fragment := range []string{"ログイン", "新規登録", "セキュリティ設定"} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected nav label %q, got %s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{`href="/"`, "復旧", "確認"} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected flow nav not to contain central portal link %q, got %s", fragment, body)
 		}
 	}
 }
@@ -145,6 +150,8 @@ func TestRenderPageUsesAccountCenterDesignSystem(t *testing.T) {
 		"--radius-lg:28px",
 		"brand-mark",
 		"推し色を選ぶ",
+		`href="/recovery"`,
+		"パスワードを忘れた場合",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected Kratos flow page to contain account center design fragment %q", fragment)

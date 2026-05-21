@@ -387,7 +387,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
               <span class="badge-oshi"><span class="swatch"></span>推し色設定済み</span>
               <div class="profile-actions">
                 <button type="button" class="btn btn-primary" id="btn-edit-profile">プロフィール編集</button>
-                <a class="btn btn-secondary" href="{{.KratosSettingsURL}}">設定を変更</a>
+                <a class="btn btn-secondary" href="{{.KratosSettingsURL}}">セキュリティ設定</a>
               </div>
             </div>
           </div>

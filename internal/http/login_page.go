@@ -7,6 +7,7 @@ import (
 
 type loginPageData struct {
 	KratosFlowURL string
+	RecoveryURL   string
 	AltPageURL    string
 	AltPageLabel  string
 	Nonce         string
@@ -28,6 +29,7 @@ func (s *server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", loginPageCSP(nonce))
 	_ = loginPageTpl.Execute(w, loginPageData{
 		KratosFlowURL: base + "/self-service/login/browser",
+		RecoveryURL:   base + "/self-service/recovery/browser",
 		AltPageURL:    "/register",
 		AltPageLabel:  "アカウント登録",
 		Nonce:         nonce,

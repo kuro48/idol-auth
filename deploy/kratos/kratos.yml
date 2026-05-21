@@ -24,7 +24,7 @@ serve:
     base_url: http://kratos:4434/
 
 selfservice:
-  default_browser_return_url: http://localhost:3002/
+  default_browser_return_url: http://localhost:8080/account/
 
   allowed_return_urls:
     - http://localhost:3002
@@ -75,7 +75,7 @@ selfservice:
       ui_url: http://localhost:3002/verification
       use: code
       after:
-        default_browser_return_url: http://localhost:3002/
+        default_browser_return_url: http://localhost:8080/account/
 
 session:
   lifespan: 24h

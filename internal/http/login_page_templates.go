@@ -378,7 +378,7 @@ const loginPageBody = `
         <div class="field">
           <label for="login-password">パスワード</label>
           <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••" />
-          <span class="field-hint">パスワードを忘れた場合は、Kratosの再設定フローへ遷移します。</span>
+          <span class="field-hint"><a href="{{ .RecoveryURL }}">パスワードを忘れた場合</a></span>
         </div>
         <a class="btn btn-primary" href="{{ .KratosFlowURL }}">共通アカウントでログイン →</a>
         <p class="auth-note">

@@ -132,6 +132,8 @@ func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 		"--radius-lg:28px",
 		"brand-mark",
 		"/register",
+		"self-service/recovery/browser",
+		"パスワードを忘れた場合",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected login page to contain fragment %q", fragment)

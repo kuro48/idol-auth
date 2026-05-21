@@ -12,9 +12,9 @@ import (
 )
 
 type KratosFlow struct {
-	ID string `json:"id"`
+	ID    string `json:"id"`
 	State string `json:"state"`
-	UI struct {
+	UI    struct {
 		Action string       `json:"action"`
 		Method string       `json:"method"`
 		Nodes  []KratosNode `json:"nodes"`
@@ -618,13 +618,13 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         {{ end }}
       {{ end }}
     </form>
+    {{ if eq .FlowType "login" }}
+    <p class="auth-note"><a href="/recovery">パスワードを忘れた場合</a></p>
+    {{ end }}
     <nav class="nav">
-      <a href="/">ホーム</a>
       <a href="/login">ログイン</a>
       <a href="/registration">新規登録</a>
-      <a href="/recovery">復旧</a>
-      <a href="/verification">確認</a>
-      <a href="/settings">設定</a>
+      <a href="/settings">セキュリティ設定</a>
     </nav>
   </div>
   <div id="oshi-picker" aria-label="推し色を選ぶ">

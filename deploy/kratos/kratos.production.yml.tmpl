@@ -11,7 +11,7 @@ serve:
     base_url: http://kratos:4434/
 
 selfservice:
-  default_browser_return_url: {{PORTAL_APP_URL}}/
+  default_browser_return_url: {{APP_BASE_URL}}/account/
 
   allowed_return_urls:
     - {{PORTAL_APP_URL}}
@@ -64,7 +64,7 @@ selfservice:
       ui_url: {{PORTAL_APP_URL}}/verification
       use: code
       after:
-        default_browser_return_url: {{PORTAL_APP_URL}}/
+        default_browser_return_url: {{APP_BASE_URL}}/account/
 
 session:
   lifespan: 24h

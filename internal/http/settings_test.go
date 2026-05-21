@@ -49,6 +49,9 @@ func TestHandleAccountCenterLinksToLocalSettingsPage(t *testing.T) {
 	if !strings.Contains(w.Body.String(), `href="/settings"`) {
 		t.Fatalf("expected account center to link to local settings page, got body %q", w.Body.String())
 	}
+	if !strings.Contains(w.Body.String(), "セキュリティ設定") {
+		t.Fatalf("expected account center to label settings as security settings, got body %q", w.Body.String())
+	}
 }
 
 func TestHandleSettingsRendersFlowWithProxySubmitAction(t *testing.T) {
