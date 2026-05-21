@@ -152,9 +152,59 @@ func TestRenderPageUsesAccountCenterDesignSystem(t *testing.T) {
 		"推し色を選ぶ",
 		`href="/recovery"`,
 		"パスワードを忘れた場合",
+		`href="/legal/terms"`,
+		`href="/legal/privacy"`,
+		"利用規約",
+		"プライバシーポリシー",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected Kratos flow page to contain account center design fragment %q", fragment)
+		}
+	}
+	for _, fragment := range []string{`href="/settings"`, "セキュリティ設定"} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected login page not to link to settings, got %s", body)
+		}
+	}
+}
+
+func TestRenderPageUsesLegalLinksOnRegistration(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	err := RenderPage(rec, PageData{
+		Title:        "Registration",
+		Description:  "Create account",
+		FlowType:     "registration",
+		LegalBaseURL: "https://auth.example.com",
+		Flow: KratosFlow{
+			UI: struct {
+				Action string       `json:"action"`
+				Method string       `json:"method"`
+				Nodes  []KratosNode `json:"nodes"`
+			}{
+				Action: "http://kratos/registration",
+				Method: http.MethodPost,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RenderPage() error = %v", err)
+	}
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		`href="https://auth.example.com/legal/terms"`,
+		`href="https://auth.example.com/legal/privacy"`,
+		"利用規約",
+		"プライバシーポリシー",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected registration page to contain legal fragment %q, got %s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{`href="/settings"`, "セキュリティ設定"} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected registration page not to link to settings, got %s", body)
 		}
 	}
 }

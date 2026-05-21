@@ -43,6 +43,16 @@ func TestPortalRootRedirectFallbackUsesAppURL(t *testing.T) {
 	}
 }
 
+func TestLegalBaseURLUsesAccountCenterOrigin(t *testing.T) {
+	got := legalBaseURL(&demo.PortalConfig{
+		AppURL:           "https://accounts.example.com",
+		AccountCenterURL: "https://auth.example.com/account/",
+	})
+	if got != "https://auth.example.com" {
+		t.Fatalf("expected account center origin, got %q", got)
+	}
+}
+
 func TestHandleLogoutRedirectsToKratosLogoutURL(t *testing.T) {
 	kratos := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/self-service/logout/browser" {

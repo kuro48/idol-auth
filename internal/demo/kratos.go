@@ -105,11 +105,12 @@ func (c *KratosFlowClient) GetFlow(ctx context.Context, r *http.Request, flowTyp
 }
 
 type PageData struct {
-	Title       string
-	Description string
-	FlowType    string
-	OshiColor   string
-	Flow        KratosFlow
+	Title        string
+	Description  string
+	FlowType     string
+	OshiColor    string
+	LegalBaseURL string
+	Flow         KratosFlow
 }
 
 func RenderPage(w http.ResponseWriter, data PageData) error {
@@ -624,7 +625,12 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     <nav class="nav">
       <a href="/login">ログイン</a>
       <a href="/registration">新規登録</a>
+      {{ if isPublicAuthFlow .FlowType }}
+      <a href="{{ legalURL .LegalBaseURL "/legal/terms" }}">利用規約</a>
+      <a href="{{ legalURL .LegalBaseURL "/legal/privacy" }}">プライバシーポリシー</a>
+      {{ else }}
       <a href="/settings">セキュリティ設定</a>
+      {{ end }}
     </nav>
   </div>
   <div id="oshi-picker" aria-label="推し色を選ぶ">
@@ -862,6 +868,15 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 				}
 			}
 			return false
+		},
+		"isPublicAuthFlow": func(flowType string) bool {
+			return flowType == "login" || flowType == "registration"
+		},
+		"legalURL": func(base, path string) string {
+			if strings.TrimSpace(base) == "" {
+				return path
+			}
+			return strings.TrimRight(base, "/") + path
 		},
 		"nodeLabel": func(node KratosNode) string {
 			if node.Meta.Label != nil && node.Meta.Label.Text != "" {
