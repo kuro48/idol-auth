@@ -28,7 +28,7 @@ curl -X POST https://<AUTH_HOST>/v1/admin/apps \
   }'
 ```
 
-`type` は `web` / `spa` / `native` / `m2m` から選んでください。
+`type` は `web` / `spa` / `native` / `m2m` から選んでください。`party_type` を省略した場合は `third_party` として作成されます。
 
 レスポンス例:
 
@@ -47,6 +47,25 @@ curl -X POST https://<AUTH_HOST>/v1/admin/apps \
 ```
 
 `management_token` は安全に保管してください。後から `/v1/apps/self/*` で自アプリのユーザー管理に使います。
+
+アプリ作成時に OIDC クライアントも同時に作りたい場合は、`client` ブロックを含めます。
+
+```bash
+curl -X POST https://<AUTH_HOST>/v1/admin/apps \
+  -H "Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My App",
+    "slug": "my-app",
+    "type": "web",
+    "client": {
+      "client_type": "public",
+      "redirect_uris": ["https://myapp.example.com/callback"],
+      "post_logout_redirect_uris": ["https://myapp.example.com/"],
+      "scopes": ["openid", "email", "profile", "offline_access"]
+    }
+  }'
+```
 
 ### OIDC クライアントを発行する
 
@@ -191,6 +210,26 @@ curl -X DELETE https://<AUTH_HOST>/v1/apps/self/users/<IDENTITY_ID> \
 
 Management Token は Kratos identity 本体を削除する権限を持ちません。自アプリの membership のみ操作できます。
 
+アプリ側で招待や事前作成が必要な場合は、Management Token で membership 付き identity を作成できます。
+
+```bash
+curl -X POST https://<AUTH_HOST>/v1/apps/self/users \
+  -H "Authorization: Bearer <MANAGEMENT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "temporary-password",
+    "display_name": "Alice"
+  }'
+```
+
+アプリユーザー向けに公開できるプロフィールは次で取得します。
+
+```bash
+curl https://<AUTH_HOST>/v1/apps/self/users/<IDENTITY_ID>/profile \
+  -H "Authorization: Bearer <MANAGEMENT_TOKEN>"
+```
+
 ---
 
 ## エラーハンドリング
@@ -218,7 +257,8 @@ try {
 
 詳細なリクエスト/レスポンス仕様は Swagger UI を参照してください。
 
-- `https://<AUTH_HOST>/docs`
+- `https://<AUTH_HOST>/docs/index.html`
+- `https://<AUTH_HOST>/docs/doc.json`
 
 主要エンドポイント一覧:
 
@@ -236,7 +276,11 @@ try {
 | `POST /v1/public/api/register` | Headless 登録 |
 | `POST /v1/public/api/login` | Headless ログイン |
 | `GET /v1/apps/self/users` | 自アプリのユーザー一覧 |
+| `POST /v1/apps/self/users` | 自アプリのユーザー事前登録 |
 | `DELETE /v1/apps/self/users/{id}` | 自アプリのユーザー連携解除 |
+| `GET /v1/apps/self/users/{id}/profile` | 自アプリユーザーの公開プロフィール取得 |
+| `GET /v1/developer/app-requests` | 自分のアプリ申請一覧 |
+| `POST /v1/developer/app-requests` | アプリ申請を提出 |
 
 ---
 

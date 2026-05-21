@@ -19,11 +19,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	_ "github.com/kuro48/idol-auth/docs/swagger"
 	"github.com/kuro48/idol-auth/internal/config"
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
 	"github.com/kuro48/idol-auth/internal/domain/profile"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 var (
@@ -41,15 +43,15 @@ type AuthAction string
 const AuthActionRedirect AuthAction = "redirect"
 
 type RouterConfig struct {
-	App            config.AppConfig
-	Admin          config.AdminConfig
-	Ory            config.OryConfig
-	Security       config.SecurityConfig
-	Limiter             RateLimiter             // optional; nil disables rate limiting
-	ProfileSvc          ProfileService          // optional; nil disables profile endpoints
-	PublicSvc           PublicAuthService       // optional; nil disables /v1/public endpoints
-	AdminAppRegSvc      AdminAppRegService      // optional; nil disables /v1/admin/app-requests endpoints
-	DeveloperAppRegSvc  DeveloperAppRegService  // optional; nil disables /developer/app-requests endpoints
+	App                config.AppConfig
+	Admin              config.AdminConfig
+	Ory                config.OryConfig
+	Security           config.SecurityConfig
+	Limiter            RateLimiter            // optional; nil disables rate limiting
+	ProfileSvc         ProfileService         // optional; nil disables profile endpoints
+	PublicSvc          PublicAuthService      // optional; nil disables /v1/public endpoints
+	AdminAppRegSvc     AdminAppRegService     // optional; nil disables /v1/admin/app-requests endpoints
+	DeveloperAppRegSvc DeveloperAppRegService // optional; nil disables /developer/app-requests endpoints
 }
 
 type LoginFlowResult struct {
@@ -156,11 +158,11 @@ type server struct {
 	adminSvc           AdminService
 	authSvc            AuthService
 	accountSvc         AccountService
-	profileSvc            ProfileService
-	publicSvc             PublicAuthService
-	adminAppRegSvc        AdminAppRegService
-	developerAppRegSvc    DeveloperAppRegService
-	readiness             readinessChecker
+	profileSvc         ProfileService
+	publicSvc          PublicAuthService
+	adminAppRegSvc     AdminAppRegService
+	developerAppRegSvc DeveloperAppRegService
+	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
 	themeLimiter       RateLimiter // moderate per-IP limiter for /v1/auth/theme
@@ -191,11 +193,11 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		adminSvc:           adminSvc,
 		authSvc:            authSvc,
 		accountSvc:         accountSvc,
-		profileSvc:            cfg.ProfileSvc,
-		publicSvc:             cfg.PublicSvc,
-		adminAppRegSvc:        cfg.AdminAppRegSvc,
-		developerAppRegSvc:    cfg.DeveloperAppRegSvc,
-		readiness:             readiness,
+		profileSvc:         cfg.ProfileSvc,
+		publicSvc:          cfg.PublicSvc,
+		adminAppRegSvc:     cfg.AdminAppRegSvc,
+		developerAppRegSvc: cfg.DeveloperAppRegSvc,
+		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
 		themeLimiter:       NewInMemoryRateLimiter(10, time.Minute),
@@ -209,6 +211,10 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
+	r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/docs/index.html", http.StatusMovedPermanently)
+	})
+	r.Get("/docs/*", httpSwagger.WrapHandler)
 	r.Get("/login", s.handleLoginPage)
 	r.Get("/register", s.handleRegistrationPage)
 	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)
@@ -665,6 +671,9 @@ func (s *server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list apps")
 		return
+	}
+	if apps == nil {
+		apps = []app.App{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": apps})
 }

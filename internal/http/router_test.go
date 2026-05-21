@@ -63,6 +63,58 @@ func TestHandleReadyz(t *testing.T) {
 	}
 }
 
+func TestSwaggerDocsAreServed(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
+
+	t.Run("ui", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/docs/index.html", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+		}
+		if !strings.Contains(w.Body.String(), "Swagger UI") {
+			t.Fatalf("expected Swagger UI response")
+		}
+	})
+
+	t.Run("short path redirects to ui", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/docs", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusMovedPermanently {
+			t.Fatalf("expected status %d, got %d", http.StatusMovedPermanently, w.Code)
+		}
+		if location := w.Header().Get("Location"); location != "/docs/index.html" {
+			t.Fatalf("expected redirect to /docs/index.html, got %q", location)
+		}
+	})
+
+	t.Run("spec", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/docs/doc.json", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+		}
+		if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+			t.Fatalf("expected JSON Content-Type, got %q", ct)
+		}
+		body := w.Body.String()
+		for _, fragment := range []string{`"swagger": "2.0"`, `"title": "idol-auth API"`} {
+			if !strings.Contains(body, fragment) {
+				t.Fatalf("expected spec to contain %q", fragment)
+			}
+		}
+	})
+}
+
 func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)

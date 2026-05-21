@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/kuro48/idol-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/kuro48/idol-auth/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](go.mod)
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](go.mod)
 
 **OAuth2/OIDC 認証基盤**。Ory Hydra + Kratos を使い、複数アプリで 1 つの ID プールを共有するための認証サーバーです。
 
-このリポジトリには次の 2 つが入っています。
+このリポジトリには主に次が入っています。
 
 - Hydra の login / consent / logout を処理する認証ブリッジ API
 - アプリ登録、OIDC クライアント発行、共有アカウント連携、監査ログ取得を行う API 群
@@ -17,7 +17,7 @@
 - 言語: Go
 - 主要依存: `chi`, `pgx`, Ory Hydra, Ory Kratos
 - ローカル起動: `docker compose` または `make up`
-- 本番想定: `Caddy + Docker Compose`
+- 本番想定: `Cloudflare Tunnel + Docker Compose`
 
 ## クイックスタート
 
@@ -39,7 +39,8 @@ make wait
 | サービス | URL |
 |---------|-----|
 | API | http://localhost:8080 |
-| API Docs (Swagger UI) | http://localhost:8080/docs |
+| API Docs (Swagger UI) | http://localhost:8080/docs/index.html |
+| Swagger JSON | http://localhost:8080/docs/doc.json |
 | Account Center | http://localhost:8080/account/ |
 | Demo UI | http://localhost:3002 |
 | Kratos public | http://localhost:4433 |
@@ -73,8 +74,9 @@ go run ./cmd/configcheck
 ## リポジトリの見方
 
 - `cmd/server`: メイン API
-- `cmd/demo`: ローカル開発用デモクライアント
-- `cmd/portal`: 本番向け Kratos self-service UI
+- `cmd/migrate`: idol-auth 管理 DB のマイグレーター
+- `cmd/adminctl`: 管理用 CLI
+- `cmd/configcheck`: 本番設定の軽量バリデーター
 - `internal/http`: HTTP ルーティングと auth/admin フロー
 - `internal/domain`: アプリ登録、管理操作、監査ログのドメイン
 - `internal/infra`: DB、Hydra、Kratos 連携
@@ -83,10 +85,12 @@ go run ./cmd/configcheck
 
 ## ドキュメント
 
-- 開発者向け API サイト: `http://localhost:8080/docs`
+- [Docs index](docs/README.md)
+- 開発者向け API サイト: `http://localhost:8080/docs/index.html`
 - Swagger JSON: `http://localhost:8080/docs/doc.json`
 - [アーキテクチャ](docs/ARCHITECTURE.md)
 - [連携ガイド（API 利用者向け）](docs/integration.md)
+- [図解](docs/diagrams.md)
 - [デプロイと運用](docs/deployment.md)
 - [セキュリティポリシー](SECURITY.md)
 - [ライセンス](LICENSE)

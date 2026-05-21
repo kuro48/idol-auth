@@ -156,7 +156,7 @@ headless registration/login は Kratos の API-mode self-service flow を開始�
 
 エンドポイント一覧と request / response の一次情報は Swagger UI を参照。
 
-- `http://localhost:8080/docs`
+- `http://localhost:8080/docs/index.html`
 - `http://localhost:8080/docs/doc.json`
 
 主要な責務は次の 3 系統。
@@ -286,8 +286,6 @@ Kratos の ID データ（メール・パスワード・MFA・`metadata_public.r
 
 ## 環境変数
 
-<!-- AUTO-GENERATED from internal/config/config.go + .env.example -->
-
 ### 必須
 
 | 変数 | 説明 |
@@ -310,13 +308,19 @@ Kratos の ID データ（メール・パスワード・MFA・`metadata_public.r
 | `ADMIN_BOOTSTRAP_TOKEN` | `` | Admin API の Bootstrap Token。本番では必須 |
 | `ADMIN_ALLOWED_EMAILS` | `` | カンマ区切りの管理者メール |
 | `ADMIN_ALLOWED_ROLES` | `` | カンマ区切りの管理者ロール |
+| `ADMIN_ALLOWED_CIDR` | `` | カンマ区切り CIDR。本番では必須。`/v1/admin/*` と `/admin-ui/*` の到達制御に使う |
 | `KRATOS_BROWSER_URL` | `http://localhost:4433` | ブラウザリダイレクト用 Kratos URL。本番では `https://` 必須 |
 | `HYDRA_BROWSER_URL` | `http://localhost:4444` | ブラウザリダイレクト用 Hydra URL。本番では `https://` 必須 |
 | `SESSION_COOKIE_SECURE` | `true` | 本番では `true` 必須 |
+| `SESSION_COOKIE_DOMAIN` | `` | Cookie domain。複数サブドメインで共有する場合に設定 |
 | `TRUSTED_PROXIES` | `` | カンマ区切り CIDR。本番では必須 |
+| `CORS_ALLOWED_ORIGINS` | `` | Public API の CORS 許可 origin。ブラウザから直接呼ぶ場合に設定 |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error`。本番では `debug` 不可 |
-
-<!-- /AUTO-GENERATED -->
+| `MAIL_ENABLED` | `false` | アプリ登録フローのメール通知を有効化 |
+| `MAIL_FROM` | `` | 通知メールの From |
+| `MAIL_SMTP_URL` | `` | `smtp://user:pass@host:port` 形式の SMTP URL |
+| `MAIL_APP_NAME` | `idol-auth` | 通知メールに表示するアプリ名 |
+| `MAIL_BASE_URL` | `` | 通知メール内リンクの base URL。未設定時は `APP_BASE_URL` 相当 |
 
 ---
 
@@ -327,13 +331,10 @@ cmd/
 ├── server/      常時稼働する HTTP サーバー
 ├── migrate/     init container として 1 回だけ実行するマイグレーター
 ├── adminctl/    オペレーターが手動実行する管理 CLI (set-roles, set-first-party)
-├── demo/        OIDC デモクライアント + Kratos UI（開発・ステージングのみ）
-├── portal/      Kratos self-service UI（本番・ステージング）
 └── configcheck/ 設定読み込みのみ行う軽量バリデーター（CI / startupProbe）
 ```
 
-各 `cmd/` は独立した Docker イメージとしてビルドされる（`Dockerfile` の multi-stage `target` を参照）。  
-本番イメージには `app` / `migrate` / `portal` を含める。
+現在の Go ソースツリーにあるバイナリは上記です。`docker-compose.production.yml` は本番用に `app` / `migrate` と、別イメージとして配布される `portal` を起動する構成です。
 
 ---
 
@@ -350,6 +351,7 @@ cmd/
 ## Production Assets
 
 - `docker-compose.production.yml` は `demo` / `mailpit` を含まない本番向け構成
+- 公開入口は `cloudflared`。app / portal / Hydra / Kratos / PostgreSQL は Compose network 内に閉じる
 - `deploy/kratos/kratos.production.yml.tmpl` と `deploy/hydra/hydra.production.yml.tmpl` は本番テンプレート
 - `scripts/render-production-config.sh` で `dist/kratos/kratos.yml` と `dist/hydra/hydra.yml` を生成する
 
