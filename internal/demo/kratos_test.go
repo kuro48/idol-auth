@@ -209,6 +209,51 @@ func TestRenderPageUsesLegalLinksOnRegistration(t *testing.T) {
 	}
 }
 
+func TestRenderPageSettingsOnlyLinksBackToAccountCenter(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	err := RenderPage(rec, PageData{
+		Title:            "Settings",
+		Description:      "Manage security settings",
+		FlowType:         "settings",
+		AccountCenterURL: "https://auth.example.com/account/",
+		Flow: KratosFlow{
+			UI: struct {
+				Action string       `json:"action"`
+				Method string       `json:"method"`
+				Nodes  []KratosNode `json:"nodes"`
+			}{
+				Action: "http://kratos/settings",
+				Method: http.MethodPost,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RenderPage() error = %v", err)
+	}
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		`href="https://auth.example.com/account/"`,
+		"アカウントセンター",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected settings page to contain account center fragment %q, got %s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		`href="/login"`,
+		`href="/registration"`,
+		"ログイン",
+		"新規登録",
+		"セキュリティ設定",
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected settings page not to contain auth nav fragment %q, got %s", fragment, body)
+		}
+	}
+}
+
 func TestRenderPageHidesPrimaryIdentifierTypeAndAutoInfersOnRegistration(t *testing.T) {
 	rec := httptest.NewRecorder()
 

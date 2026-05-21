@@ -105,12 +105,13 @@ func (c *KratosFlowClient) GetFlow(ctx context.Context, r *http.Request, flowTyp
 }
 
 type PageData struct {
-	Title        string
-	Description  string
-	FlowType     string
-	OshiColor    string
-	LegalBaseURL string
-	Flow         KratosFlow
+	Title            string
+	Description      string
+	FlowType         string
+	OshiColor        string
+	LegalBaseURL     string
+	AccountCenterURL string
+	Flow             KratosFlow
 }
 
 func RenderPage(w http.ResponseWriter, data PageData) error {
@@ -621,17 +622,21 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     </form>
     {{ if eq .FlowType "login" }}
     <p class="auth-note"><a href="/recovery">パスワードを忘れた場合</a></p>
-    {{ end }}
-    <nav class="nav">
-      <a href="/login">ログイン</a>
-      <a href="/registration">新規登録</a>
-      {{ if isPublicAuthFlow .FlowType }}
-      <a href="{{ legalURL .LegalBaseURL "/legal/terms" }}">利用規約</a>
-      <a href="{{ legalURL .LegalBaseURL "/legal/privacy" }}">プライバシーポリシー</a>
-      {{ else }}
-      <a href="/settings">セキュリティ設定</a>
-      {{ end }}
-    </nav>
+	    {{ end }}
+	    <nav class="nav">
+	      {{ if eq .FlowType "settings" }}
+	      <a href="{{ accountCenterURL .AccountCenterURL }}">アカウントセンター</a>
+	      {{ else }}
+	      <a href="/login">ログイン</a>
+	      <a href="/registration">新規登録</a>
+	      {{ if isPublicAuthFlow .FlowType }}
+	      <a href="{{ legalURL .LegalBaseURL "/legal/terms" }}">利用規約</a>
+	      <a href="{{ legalURL .LegalBaseURL "/legal/privacy" }}">プライバシーポリシー</a>
+	      {{ else }}
+	      <a href="/settings">セキュリティ設定</a>
+	      {{ end }}
+	      {{ end }}
+	    </nav>
   </div>
   <div id="oshi-picker" aria-label="推し色を選ぶ">
     <button id="oshi-toggle" type="button" title="推しメンカラー">✦</button>
@@ -877,6 +882,12 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 				return path
 			}
 			return strings.TrimRight(base, "/") + path
+		},
+		"accountCenterURL": func(target string) string {
+			if strings.TrimSpace(target) == "" {
+				return "/account/"
+			}
+			return target
 		},
 		"nodeLabel": func(node KratosNode) string {
 			if node.Meta.Label != nil && node.Meta.Label.Text != "" {

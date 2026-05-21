@@ -71,11 +71,12 @@ func newPortalHandler(cfg *demo.PortalConfig, httpClient *http.Client) (http.Han
 		demo.HandleThemePreference(w, r, sessionClient, themeUpdater)
 	})
 	legalBase := legalBaseURL(cfg)
-	registerFlow(mux, kratosClient, sessionClient, legalBase, "login", "Login", "Sign in with the shared account.")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, "registration", "Registration", "Create a shared account.")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, "recovery", "Recovery", "Recover your account.")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, "verification", "Verification", "Verify your identifier.")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, "settings", "Settings", "Manage security settings and MFA.")
+	accountCenter := accountCenterURL(cfg)
+	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "login", "Login", "Sign in with the shared account.")
+	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "registration", "Registration", "Create a shared account.")
+	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "recovery", "Recovery", "Recover your account.")
+	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "verification", "Verification", "Verify your identifier.")
+	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "settings", "Settings", "Manage security settings and MFA.")
 	mux.HandleFunc("/error", func(w http.ResponseWriter, r *http.Request) {
 		demo.HandleKratosError(w, r, kratosClient)
 	})
@@ -89,7 +90,7 @@ func accountCenterURL(cfg *demo.PortalConfig) string {
 	return strings.TrimRight(cfg.AppURL, "/") + "/account/"
 }
 
-func registerFlow(mux *http.ServeMux, kratosClient *demo.KratosFlowClient, sessionClient demo.SessionReader, legalBaseURL, flowType, title, description string) {
+func registerFlow(mux *http.ServeMux, kratosClient *demo.KratosFlowClient, sessionClient demo.SessionReader, legalBaseURL, accountCenterURL, flowType, title, description string) {
 	mux.HandleFunc("/"+flowType, func(w http.ResponseWriter, r *http.Request) {
 		flowID := r.URL.Query().Get("flow")
 		if flowID == "" {
@@ -102,12 +103,13 @@ func registerFlow(mux *http.ServeMux, kratosClient *demo.KratosFlowClient, sessi
 			return
 		}
 		if err := demo.RenderPage(w, demo.PageData{
-			Title:        title,
-			Description:  description,
-			FlowType:     flowType,
-			OshiColor:    demo.ResolveSessionOshiColor(r.Context(), sessionClient, r),
-			LegalBaseURL: legalBaseURL,
-			Flow:         flow,
+			Title:            title,
+			Description:      description,
+			FlowType:         flowType,
+			OshiColor:        demo.ResolveSessionOshiColor(r.Context(), sessionClient, r),
+			LegalBaseURL:     legalBaseURL,
+			AccountCenterURL: accountCenterURL,
+			Flow:             flow,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
