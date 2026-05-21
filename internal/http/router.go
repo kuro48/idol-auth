@@ -241,6 +241,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.With(s.accountUIAuth).Get("/settings", s.handleSettings)
 	r.Route("/v1/settings", func(r chi.Router) {
 		r.Use(s.accountUIAuth)
+		r.Use(s.accountSessionCSRFMiddleware)
 		r.Get("/flow", s.handleSettingsFlowGet)
 		r.Post("/flow", s.handleSettingsFlowSubmit)
 	})
@@ -251,7 +252,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		r.Get("/providers", s.handleProviders)
 		r.Get("/session", s.handleSession)
-		r.With(rateLimitMiddleware(s.themeLimiter, s.config.Security.TrustedProxies)).Post("/theme", s.handleThemePreference)
+		r.With(rateLimitMiddleware(s.themeLimiter, s.config.Security.TrustedProxies), s.accountSessionCSRFMiddleware).Post("/theme", s.handleThemePreference)
 		r.Post("/logout", s.handleLogoutStart)
 		r.Get("/logout", s.handleLogout)
 		r.Get("/login", s.handleLogin)
@@ -299,6 +300,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
 		r.Use(s.accountAuth)
+		r.Use(s.accountSessionCSRFMiddleware)
 		r.Get("/", s.handleAccountOverview)
 		r.Delete("/apps/{appID}", s.handleDisconnectAccountApp)
 		r.Get("/deletion", s.handleGetDeletionRequest)
@@ -314,6 +316,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
 		r.Use(s.accountAuth)
+		r.Use(s.accountSessionCSRFMiddleware)
 		r.Get("/", s.handleListMyAppRequests)
 		r.Post("/", s.handleSubmitAppRequest)
 		r.Get("/{id}", s.handleGetMyAppRequest)
@@ -1293,6 +1296,20 @@ func (s *server) adminSessionCSRFMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func (s *server) accountSessionCSRFMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !unsafeHTTPMethod(r.Method) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !sameOriginBrowserRequest(r) {
+			writeError(w, http.StatusForbidden, "csrf validation failed")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func unsafeHTTPMethod(method string) bool {
 	switch method {
 	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
@@ -1300,6 +1317,26 @@ func unsafeHTTPMethod(method string) bool {
 	default:
 		return true
 	}
+}
+
+func sameOriginBrowserRequest(r *http.Request) bool {
+	switch strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")) {
+	case "same-origin", "same-site", "none":
+		return true
+	case "cross-site":
+		return false
+	}
+
+	if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" {
+		return requestOriginMatchesHost(r, origin)
+	}
+	if referer := strings.TrimSpace(r.Header.Get("Referer")); referer != "" {
+		return requestOriginMatchesHost(r, referer)
+	}
+
+	// Non-browser API clients often omit these headers. Browser CSRF attempts
+	// carry Origin/Referer or Fetch Metadata headers, so reject when present.
+	return true
 }
 
 func sameOriginAdminRequest(r *http.Request) bool {

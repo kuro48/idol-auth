@@ -2,6 +2,8 @@ package http
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 // handlePublicBrowserLogin redirects the browser to the Hydra authorization endpoint.
@@ -29,8 +31,8 @@ func (s *server) handlePublicBrowserLogin(w http.ResponseWriter, r *http.Request
 // handlePublicBrowserRegistration redirects the browser to the Kratos registration flow.
 // Optional query param: return_to.
 func (s *server) handlePublicBrowserRegistration(w http.ResponseWriter, r *http.Request) {
-	returnTo := r.URL.Query().Get("return_to")
-	http.Redirect(w, r, s.publicSvc.RegistrationURL(returnTo), http.StatusFound)
+	returnTo := s.safePublicReturnTo(r.URL.Query().Get("return_to"))
+	http.Redirect(w, r, s.publicSvc.RegistrationURL(returnTo), http.StatusFound) // #nosec G710 -- return_to is same-origin allowlisted before building the upstream URL.
 }
 
 // handlePublicBrowserLogout redirects the browser to the Hydra end-session endpoint.
@@ -43,4 +45,22 @@ func (s *server) handlePublicBrowserLogout(w http.ResponseWriter, r *http.Reques
 		"state":                    q.Get("state"),
 	}
 	http.Redirect(w, r, s.publicSvc.LogoutURL(params), http.StatusFound)
+}
+
+func (s *server) safePublicReturnTo(raw string) string {
+	target := strings.TrimSpace(raw)
+	if target == "" {
+		return ""
+	}
+	if strings.HasPrefix(target, "/") && !strings.HasPrefix(target, "//") {
+		return strings.TrimRight(s.config.App.BaseURL, "/") + target
+	}
+	u, err := url.Parse(target)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	if sameOrigin(u, s.config.App.BaseURL) {
+		return target
+	}
+	return ""
 }

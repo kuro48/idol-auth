@@ -375,8 +375,7 @@ const developerDetailBody = `
         <a href="/developer/app-requests/{{.Req.ID}}/edit" class="btn btn-ghost">修正して再申請</a>
         <form method="post" action="/developer/app-requests/{{.Req.ID}}/withdraw" style="display:inline">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          <button type="submit" class="btn btn-danger btn-sm"
-            onclick="return confirm('この申請を取り下げますか？')">取り下げる</button>
+          <button type="submit" class="btn btn-danger btn-sm">取り下げる</button>
         </form>
         {{end}}
         <a href="/developer/app-requests" class="btn btn-ghost btn-sm">一覧に戻る</a>

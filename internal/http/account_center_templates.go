@@ -546,7 +546,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
 
   <div id="toast" class="toast"></div>
 
-  <script>
+  <script nonce="{{.Nonce}}">
     function showToast(msg, type) {
       var el = document.getElementById('toast');
       el.textContent = msg;

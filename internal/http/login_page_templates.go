@@ -485,7 +485,7 @@ const registrationPageBody = `
     <a href="/legal/incident">障害時連絡先</a>
   </footer>
 
-  <script>
+  <script nonce="{{.Nonce}}">
     (function () {
       var root = document.documentElement;
       document.querySelectorAll('.oshi-pick-dot').forEach(function (dot) {

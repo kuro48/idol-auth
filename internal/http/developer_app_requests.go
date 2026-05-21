@@ -178,7 +178,7 @@ func (s *server) handleDeveloperAppRequestsList(w http.ResponseWriter, r *http.R
 	if reqs == nil {
 		reqs = []appreg.Request{}
 	}
-	setAccountCenterHeaders(w)
+	setAccountCenterHeaders(w, "")
 	_ = developerRequestListTpl.Execute(w, developerRequestListData{
 		devPageBase: devPageBaseFromSession(s, session),
 		Requests:    reqs,
@@ -196,7 +196,7 @@ func (s *server) handleDeveloperAppRequestsNew(w http.ResponseWriter, r *http.Re
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	setAccountCenterHeaders(w)
+	setAccountCenterHeaders(w, "")
 	_ = developerRequestFormTpl.Execute(w, developerRequestFormData{
 		devPageBase: devPageBaseFromSession(s, session),
 		CSRFToken:   csrfToken,
@@ -225,7 +225,7 @@ func (s *server) handleDeveloperAppRequestsCreate(w http.ResponseWriter, r *http
 	req, err := s.developerAppRegSvc.Submit(r.Context(), session.IdentityID, input)
 	if err != nil {
 		csrfToken, _ := s.newDeveloperCSRFToken(w, r)
-		setAccountCenterHeaders(w)
+		setAccountCenterHeaders(w, "")
 		_ = developerRequestFormTpl.Execute(w, developerRequestFormData{
 			devPageBase: devPageBaseFromSession(s, session),
 			CSRFToken:   csrfToken,
@@ -260,7 +260,7 @@ func (s *server) handleDeveloperAppRequestDetail(w http.ResponseWriter, r *http.
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	setAccountCenterHeaders(w)
+	setAccountCenterHeaders(w, "")
 	_ = developerRequestDetailTpl.Execute(w, developerRequestDetailData{
 		devPageBase: devPageBaseFromSession(s, session),
 		CSRFToken:   csrfToken,
@@ -292,7 +292,7 @@ func (s *server) handleDeveloperAppRequestEdit(w http.ResponseWriter, r *http.Re
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	setAccountCenterHeaders(w)
+	setAccountCenterHeaders(w, "")
 	_ = developerRequestFormTpl.Execute(w, developerRequestFormData{
 		devPageBase: devPageBaseFromSession(s, session),
 		CSRFToken:   csrfToken,
@@ -327,7 +327,7 @@ func (s *server) handleDeveloperAppRequestResubmit(w http.ResponseWriter, r *htt
 	if err != nil {
 		orig, _ := s.developerAppRegSvc.GetForOwner(r.Context(), id, session.IdentityID)
 		csrfToken, _ := s.newDeveloperCSRFToken(w, r)
-		setAccountCenterHeaders(w)
+		setAccountCenterHeaders(w, "")
 		_ = developerRequestFormTpl.Execute(w, developerRequestFormData{
 			devPageBase: devPageBaseFromSession(s, session),
 			CSRFToken:   csrfToken,

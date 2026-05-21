@@ -392,6 +392,26 @@ func TestAccountDeletionScheduleReturnsAccepted(t *testing.T) {
 	}
 }
 
+func TestAccountMutatingRequestRejectsCrossSiteOrigin(t *testing.T) {
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+		},
+	}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodPost, "/v1/account/deletion", bytes.NewBufferString(`{"reason":"user_requested"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://evil.example")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusForbidden, w.Code, w.Body.String())
+	}
+}
+
 func TestAppScopedListUsersReturnsMemberships(t *testing.T) {
 	appID := uuid.New()
 	accountSvc := &stubAccountService{

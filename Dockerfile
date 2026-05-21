@@ -31,9 +31,14 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/adminctl ./cmd/adminctl
 
 FROM alpine:3.21 AS app
-RUN apk add --no-cache ca-certificates wget
+RUN apk add --no-cache ca-certificates wget \
+    && addgroup -S idol-auth \
+    && adduser -S -G idol-auth -H -h /nonexistent idol-auth \
+    && mkdir -p /var/lib/idol-auth/uploads \
+    && chown -R idol-auth:idol-auth /var/lib/idol-auth
 COPY --from=build-app /out/server /server
 COPY --from=build-app /app/internal/infra/db/migrations /migrations
+USER idol-auth
 ENTRYPOINT ["/server"]
 
 FROM gcr.io/distroless/static-debian12 AS migrate

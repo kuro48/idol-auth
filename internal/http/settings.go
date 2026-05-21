@@ -33,6 +33,7 @@ type settingsData struct {
 	BackURL     string
 	Sections    []settingsSection
 	Messages    []KratosSettingsMessage
+	Nonce       string
 }
 
 func (s *server) handleSettings(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +69,12 @@ func (s *server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		oshiColor = template.CSS(c)
 	}
 
-	setAccountCenterHeaders(w)
+	nonce, err := newCSRFToken()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	setAccountCenterHeaders(w, nonce)
 	_ = settingsTpl.Execute(w, settingsData{
 		Action:      "/v1/settings/flow?flow=" + url.QueryEscape(flow.ID),
 		Method:      http.MethodPost,
@@ -80,6 +86,7 @@ func (s *server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		BackURL:     "/account",
 		Sections:    buildSettingsSections(flow),
 		Messages:    flow.Messages,
+		Nonce:       nonce,
 	})
 }
 
@@ -138,7 +145,12 @@ func (s *server) handleSettingsFlowSubmit(w http.ResponseWriter, r *http.Request
 		if c := session.OshiColor; c != "" {
 			oshiColor = template.CSS(c)
 		}
-		setAccountCenterHeaders(w)
+		nonce, nonceErr := newCSRFToken()
+		if nonceErr != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		setAccountCenterHeaders(w, nonce)
 		w.WriteHeader(http.StatusBadRequest)
 		_ = settingsTpl.Execute(w, settingsData{
 			Action:      "/v1/settings/flow?flow=" + url.QueryEscape(result.Flow.ID),
@@ -151,6 +163,7 @@ func (s *server) handleSettingsFlowSubmit(w http.ResponseWriter, r *http.Request
 			BackURL:     "/account",
 			Sections:    buildSettingsSections(result.Flow),
 			Messages:    result.Flow.Messages,
+			Nonce:       nonce,
 		})
 		return
 	}

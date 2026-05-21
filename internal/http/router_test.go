@@ -300,20 +300,58 @@ func TestPublicRegisterRejectsUnknownJSONFields(t *testing.T) {
 	}
 }
 
+func TestPublicBrowserRegistrationDropsExternalReturnTo(t *testing.T) {
+	publicSvc := &stubPublicService{registrationURL: "http://kratos/register"}
+	cfg := testConfig()
+	cfg.PublicSvc = publicSvc
+	router := apphttp.NewRouter(cfg, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/public/browser/registration?return_to=https://evil.example/phishing", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, w.Code)
+	}
+	if publicSvc.registrationReturnTo != "" {
+		t.Fatalf("expected external return_to to be dropped, got %q", publicSvc.registrationReturnTo)
+	}
+}
+
+func TestPublicBrowserRegistrationAllowsRelativeReturnTo(t *testing.T) {
+	publicSvc := &stubPublicService{registrationURL: "http://kratos/register"}
+	cfg := testConfig()
+	cfg.PublicSvc = publicSvc
+	router := apphttp.NewRouter(cfg, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/public/browser/registration?return_to=/account", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if publicSvc.registrationReturnTo != "http://localhost:8080/account" {
+		t.Fatalf("expected relative return_to to be normalized, got %q", publicSvc.registrationReturnTo)
+	}
+}
+
 type alwaysDenyLimiter struct{}
 
 func (l *alwaysDenyLimiter) Allow(_ string) bool { return false }
 
 type stubPublicService struct {
-	registerResult apphttp.AuthResult
-	registerErr    error
-	loginResult    apphttp.AuthResult
-	loginErr       error
+	registerResult       apphttp.AuthResult
+	registerErr          error
+	loginResult          apphttp.AuthResult
+	loginErr             error
+	registrationURL      string
+	registrationReturnTo string
 }
 
 func (s *stubPublicService) LoginURL(_ map[string]string) string { return "" }
 
-func (s *stubPublicService) RegistrationURL(_ string) string { return "" }
+func (s *stubPublicService) RegistrationURL(returnTo string) string {
+	s.registrationReturnTo = returnTo
+	return s.registrationURL
+}
 
 func (s *stubPublicService) LogoutURL(_ map[string]string) string { return "" }
 

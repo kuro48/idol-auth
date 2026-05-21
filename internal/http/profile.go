@@ -164,7 +164,7 @@ func (s *server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarRequestBytes)
-	if err := r.ParseMultipartForm(maxAvatarUploadBytes); err != nil {
+	if err := r.ParseMultipartForm(maxAvatarUploadBytes); err != nil { // #nosec G120 -- body is capped by MaxBytesReader before multipart parsing.
 		writeError(w, http.StatusBadRequest, "invalid avatar upload")
 		return
 	}

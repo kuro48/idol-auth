@@ -435,6 +435,21 @@ func TestDeveloperAPIWithdrawForbiddenForWrongStatus(t *testing.T) {
 	}
 }
 
+func TestDeveloperAPIMutatingRequestRejectsCrossSiteOrigin(t *testing.T) {
+	router := routerWithDeveloperSvc(&controlledDeveloperService{})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/developer/app-requests",
+		bytes.NewBufferString(`{"Name":"test"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://evil.example")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", w.Code)
+	}
+}
+
 func TestDeveloperAPIResubmitInvalidTransition(t *testing.T) {
 	svc := &controlledDeveloperService{resubmitErr: appreg.ErrCannotResubmit}
 	router := routerWithDeveloperSvc(svc)

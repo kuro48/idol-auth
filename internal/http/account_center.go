@@ -17,6 +17,7 @@ type accountCenterData struct {
 	DisplayName       string
 	Initials          string
 	OshiColor         template.CSS
+	Nonce             string
 }
 
 func (s *server) accountUIAuth(next http.Handler) http.Handler {
@@ -45,7 +46,12 @@ func (s *server) handleAccountCenter(w http.ResponseWriter, r *http.Request) {
 	if c := session.OshiColor; c != "" {
 		oshiColor = template.CSS(c)
 	}
-	setAccountCenterHeaders(w)
+	nonce, err := newCSRFToken()
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	setAccountCenterHeaders(w, nonce)
 	_ = accountCenterTpl.Execute(w, accountCenterData{
 		Email:             session.Email,
 		Phone:             session.Phone,
@@ -55,13 +61,18 @@ func (s *server) handleAccountCenter(w http.ResponseWriter, r *http.Request) {
 		DisplayName:       session.DisplayName,
 		Initials:          initials(session.DisplayName, session.Email),
 		OshiColor:         oshiColor,
+		Nonce:             nonce,
 	})
 }
 
-func setAccountCenterHeaders(w http.ResponseWriter) {
+func setAccountCenterHeaders(w http.ResponseWriter, scriptNonce string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	scriptSrc := "script-src 'none'; "
+	if strings.TrimSpace(scriptNonce) != "" {
+		scriptSrc = "script-src 'nonce-" + scriptNonce + "'; "
+	}
 	w.Header().Set("Content-Security-Policy",
-		"default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "+
+		"default-src 'self'; "+scriptSrc+"style-src 'self' 'unsafe-inline'; "+
 			"img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'")
 }
 

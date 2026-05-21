@@ -19,6 +19,12 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sdk/package-lock.json
+
       - name: Build
         run: go build ./...
 
@@ -27,4 +33,10 @@ jobs:
 
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
-        continue-on-error: true
+
+      - name: gosec
+        run: go run github.com/securego/gosec/v2/cmd/gosec@latest -exclude-dir=dist -exclude=G124,G203,G301,G306,G703,G704 ./...
+
+      - name: SDK npm audit
+        working-directory: sdk
+        run: npm audit --omit=dev

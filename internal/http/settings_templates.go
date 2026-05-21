@@ -106,11 +106,11 @@ var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
       <span class="email">{{ if .Email }}{{ .Email }}{{ else }}{{ .Phone }}{{ end }}</span>
     </div>
     <div class="color-picker" title="推し色を選ぶ">
-      <button class="color-swatch" data-color="#ff8a3d" style="background:#ff8a3d" onclick="setOshi(this)" title="オレンジ"></button>
-      <button class="color-swatch" data-color="#e05c8a" style="background:#e05c8a" onclick="setOshi(this)" title="ピンク"></button>
-      <button class="color-swatch" data-color="#7c5fd4" style="background:#7c5fd4" onclick="setOshi(this)" title="パープル"></button>
-      <button class="color-swatch" data-color="#1fa8c9" style="background:#1fa8c9" onclick="setOshi(this)" title="ブルー"></button>
-      <button class="color-swatch" data-color="#35a67b" style="background:#35a67b" onclick="setOshi(this)" title="グリーン"></button>
+      <button class="color-swatch" data-color="#ff8a3d" style="background:#ff8a3d" title="オレンジ"></button>
+      <button class="color-swatch" data-color="#e05c8a" style="background:#e05c8a" title="ピンク"></button>
+      <button class="color-swatch" data-color="#7c5fd4" style="background:#7c5fd4" title="パープル"></button>
+      <button class="color-swatch" data-color="#1fa8c9" style="background:#1fa8c9" title="ブルー"></button>
+      <button class="color-swatch" data-color="#35a67b" style="background:#35a67b" title="グリーン"></button>
     </div>
   </div>
 </header>
@@ -165,7 +165,7 @@ var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
   {{- end }}
 </div>
 
-<script>
+<script nonce="{{.Nonce}}">
 (function(){
   const oshi = localStorage.getItem('oshi_color');
   if(oshi){
@@ -174,6 +174,9 @@ var settingsTpl = template.Must(template.New("settings").Parse(`<!DOCTYPE html>
       s.classList.toggle('active', s.dataset.color===oshi);
     });
   }
+  document.querySelectorAll('.color-swatch').forEach(s=>{
+    s.addEventListener('click',()=>setOshi(s));
+  });
 })();
 function setOshi(el){
   const c = el.dataset.color;
