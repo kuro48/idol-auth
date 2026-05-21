@@ -45,10 +45,11 @@ type RouterConfig struct {
 	Admin          config.AdminConfig
 	Ory            config.OryConfig
 	Security       config.SecurityConfig
-	Limiter        RateLimiter        // optional; nil disables rate limiting
-	ProfileSvc     ProfileService     // optional; nil disables profile endpoints
-	PublicSvc      PublicAuthService  // optional; nil disables /v1/public endpoints
-	AdminAppRegSvc AdminAppRegService // optional; nil disables /v1/admin/app-requests endpoints
+	Limiter             RateLimiter             // optional; nil disables rate limiting
+	ProfileSvc          ProfileService          // optional; nil disables profile endpoints
+	PublicSvc           PublicAuthService       // optional; nil disables /v1/public endpoints
+	AdminAppRegSvc      AdminAppRegService      // optional; nil disables /v1/admin/app-requests endpoints
+	DeveloperAppRegSvc  DeveloperAppRegService  // optional; nil disables /developer/app-requests endpoints
 }
 
 type LoginFlowResult struct {
@@ -155,10 +156,11 @@ type server struct {
 	adminSvc           AdminService
 	authSvc            AuthService
 	accountSvc         AccountService
-	profileSvc         ProfileService
-	publicSvc          PublicAuthService
-	adminAppRegSvc     AdminAppRegService
-	readiness          readinessChecker
+	profileSvc            ProfileService
+	publicSvc             PublicAuthService
+	adminAppRegSvc        AdminAppRegService
+	developerAppRegSvc    DeveloperAppRegService
+	readiness             readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
 	themeLimiter       RateLimiter // moderate per-IP limiter for /v1/auth/theme
@@ -189,10 +191,11 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		adminSvc:           adminSvc,
 		authSvc:            authSvc,
 		accountSvc:         accountSvc,
-		profileSvc:         cfg.ProfileSvc,
-		publicSvc:          cfg.PublicSvc,
-		adminAppRegSvc:     cfg.AdminAppRegSvc,
-		readiness:          readiness,
+		profileSvc:            cfg.ProfileSvc,
+		publicSvc:             cfg.PublicSvc,
+		adminAppRegSvc:        cfg.AdminAppRegSvc,
+		developerAppRegSvc:    cfg.DeveloperAppRegSvc,
+		readiness:             readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
 		themeLimiter:       NewInMemoryRateLimiter(10, time.Minute),
@@ -207,6 +210,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
 	r.Get("/login", s.handleLoginPage)
+	r.Get("/register", s.handleRegistrationPage)
 	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)
 	r.Route("/legal", func(r chi.Router) {
 		r.Get("/terms", s.handleLegalTerms)
@@ -217,6 +221,16 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Route("/account", func(r chi.Router) {
 		r.Use(s.accountUIAuth)
 		r.Get("/", s.handleAccountCenter)
+	})
+	r.Route("/developer/app-requests", func(r chi.Router) {
+		r.Use(s.accountUIAuth)
+		r.Get("/", s.handleDeveloperAppRequestsList)
+		r.Get("/new", s.handleDeveloperAppRequestsNew)
+		r.Post("/", s.handleDeveloperAppRequestsCreate)
+		r.Get("/{id}", s.handleDeveloperAppRequestDetail)
+		r.Get("/{id}/edit", s.handleDeveloperAppRequestEdit)
+		r.Post("/{id}/resubmit", s.handleDeveloperAppRequestResubmit)
+		r.Post("/{id}/withdraw", s.handleDeveloperAppRequestWithdraw)
 	})
 	r.With(s.accountUIAuth).Get("/settings", s.handleSettings)
 	r.Route("/v1/settings", func(r chi.Router) {
@@ -287,6 +301,18 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/profile", s.handleGetProfile)
 		r.Patch("/profile", s.handlePatchProfile)
 		r.Post("/profile/avatar", s.handleUploadAvatar)
+	})
+
+	r.Route("/v1/developer/app-requests", func(r chi.Router) {
+		if s.config.Limiter != nil {
+			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
+		}
+		r.Use(s.accountAuth)
+		r.Get("/", s.handleListMyAppRequests)
+		r.Post("/", s.handleSubmitAppRequest)
+		r.Get("/{id}", s.handleGetMyAppRequest)
+		r.Post("/{id}/withdraw", s.handleWithdrawMyAppRequest)
+		r.Post("/{id}/resubmit", s.handleResubmitMyAppRequest)
 	})
 
 	r.Route("/v1/apps/self", func(r chi.Router) {

@@ -111,7 +111,8 @@ func run() error {
 		Limiter:        limiter,
 		ProfileSvc:     profileService,
 		PublicSvc:      publicService,
-		AdminAppRegSvc: appRegService,
+		AdminAppRegSvc:     appRegService,
+		DeveloperAppRegSvc: appRegService,
 	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{

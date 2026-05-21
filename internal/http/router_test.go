@@ -79,10 +79,33 @@ func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 		"--surface-2:#fffaf6",
 		"--radius-lg:28px",
 		"brand-mark",
-		"推し色を選ぶ",
+		"/register",
 	} {
 		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected login page to contain account center design fragment %q", fragment)
+			t.Fatalf("expected login page to contain fragment %q", fragment)
+		}
+	}
+}
+
+func TestRegistrationPageRendersCorrectly(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/register", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+	body := w.Body.String()
+	for _, fragment := range []string{
+		"--oshi-weak:#fff1e8",
+		"brand-mark",
+		"/login",
+		"self-service/registration/browser",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected registration page to contain fragment %q", fragment)
 		}
 	}
 }
