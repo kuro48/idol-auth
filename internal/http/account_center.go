@@ -42,7 +42,7 @@ func (s *server) handleAccountCenter(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, s.kratosLoginURL(r.RequestURI), http.StatusSeeOther)
 		return
 	}
-	oshiColor := template.CSS("#1740c9")
+	oshiColor := template.CSS("#f472b6")
 	if c := session.OshiColor; c != "" {
 		oshiColor = template.CSS(c)
 	}

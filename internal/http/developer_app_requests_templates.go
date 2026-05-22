@@ -11,26 +11,25 @@ const developerPageCSS = `<!DOCTYPE html>
   <style>
     :root{
       --oshi:{{.OshiColor}};
-      --oshi-weak:#fff1e8;
-      --oshi-soft:#ffd9c2;
-      --bg:#f8f6f3;
+      --oshi-weak:#fce7f3;
+      --oshi-soft:#fbcfe8;
+      --bg:#fdf8fc;
       --surface:#ffffff;
-      --surface-2:#fffaf6;
-      --text:#26211f;
-      --muted:#776d67;
-      --border:#eadfd7;
-      --shadow:0 16px 40px rgba(48,35,28,.1);
-      --radius-lg:28px;
-      --radius-md:18px;
-      --radius-sm:12px;
+      --surface-2:#fef9fd;
+      --text:#2a1520;
+      --muted:#9d748f;
+      --border:#f0d0e8;
+      --radius-lg:32px;
+      --radius-md:22px;
+      --radius-sm:18px;
       --danger:#e85d75;
-      --success:#35a67b;
+      --success:#10b981;
       --warning:#e9a23b;
     }
     @media(prefers-color-scheme:dark){
       :root{
-        --bg:#181412;--surface:#221d1a;--surface-2:#2b241f;--text:#fff8f1;--muted:#c8b8ad;
-        --border:#42362f;--shadow:0 16px 40px rgba(0,0,0,.35);--oshi-weak:#372219;--oshi-soft:#5a3829;
+        --bg:#1a1018;--surface:#251820;--surface-2:#2e1f28;--text:#fff0f8;--muted:#c8a8bd;
+        --border:#4a2e40;--oshi-weak:#3d1a2a;--oshi-soft:#5a2a40;
       }
     }
     *,*::before,*::after{box-sizing:border-box}
@@ -44,7 +43,7 @@ const developerPageCSS = `<!DOCTYPE html>
     button{cursor:pointer}
     a{color:var(--oshi);text-decoration:none}
     a:hover{text-decoration:underline}
-    .site-footer{padding:24px 28px 40px;display:flex;flex-wrap:wrap;gap:8px 24px;border-top:1px solid var(--border);margin-top:8px}
+    .site-footer{padding:24px 28px 40px;display:flex;flex-wrap:wrap;gap:8px 24px;border-top:2px solid var(--border);margin-top:8px}
     .site-footer a{font-size:12px;color:var(--muted);transition:color .15s}
     .site-footer a:hover{color:var(--oshi)}
     .topbar{
@@ -54,7 +53,7 @@ const developerPageCSS = `<!DOCTYPE html>
       background:color-mix(in srgb,var(--surface) 88%,transparent);
       backdrop-filter:saturate(160%) blur(14px);
       -webkit-backdrop-filter:saturate(160%) blur(14px);
-      border-bottom:1px solid var(--border);
+      border-bottom:2px solid var(--border);
     }
     .brand{display:flex;align-items:center;gap:12px}
     .brand-mark{
@@ -62,7 +61,7 @@ const developerPageCSS = `<!DOCTYPE html>
       background:var(--oshi);color:#fff;
       display:grid;place-items:center;
       font-weight:900;font-size:20px;letter-spacing:-.02em;
-      box-shadow:0 10px 24px color-mix(in srgb,var(--oshi) 32%,transparent);
+      border:2px solid color-mix(in srgb,var(--oshi) 35%,transparent);
     }
     .brand-text strong{display:block;font-size:16px;line-height:1.1;letter-spacing:-.01em}
     .brand-text span{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.12em}
@@ -70,7 +69,7 @@ const developerPageCSS = `<!DOCTYPE html>
     .user-chip{
       display:flex;align-items:center;gap:10px;
       padding:6px 12px 6px 6px;border-radius:999px;
-      background:var(--surface-2);border:1px solid var(--border);
+      background:var(--surface-2);border:2px solid var(--border);
       font-size:13px;color:var(--text);max-width:280px;
     }
     .user-chip .dot{
@@ -80,7 +79,7 @@ const developerPageCSS = `<!DOCTYPE html>
     }
     .user-chip .email{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;color:var(--muted)}
     .logout-btn{
-      border:1px solid var(--border);background:var(--surface);
+      border:2px solid var(--border);background:var(--surface);
       color:var(--text);padding:9px 14px;border-radius:999px;
       font-weight:800;font-size:13px;
       transition:transform 160ms ease,background 160ms ease;
@@ -92,8 +91,8 @@ const developerPageCSS = `<!DOCTYPE html>
     .breadcrumb a:hover{color:var(--oshi)}
     .breadcrumb .sep{opacity:.45}
     .card{
-      background:var(--surface);border:1px solid var(--border);
-      border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:24px;margin-bottom:20px;
+      background:var(--surface);border:2px solid var(--border);
+      border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;
     }
     .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
     .card-head h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
@@ -102,38 +101,38 @@ const developerPageCSS = `<!DOCTYPE html>
     .field{display:grid;gap:6px;margin-bottom:18px}
     .field label{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.05em}
     .field input[type=text],.field input[type=email],.field select,.field textarea{
-      width:100%;border:1px solid var(--border);background:var(--surface-2);
+      width:100%;border:2px solid var(--border);background:var(--surface-2);
       color:var(--text);padding:14px 16px;border-radius:16px;
-      outline:none;transition:border-color 160ms ease,box-shadow 160ms ease;
+      outline:none;transition:border-color 160ms ease;
       resize:vertical;
     }
     .field input:focus,.field select:focus,.field textarea:focus{
       border-color:var(--oshi);
-      box-shadow:0 0 0 4px color-mix(in srgb,var(--oshi) 18%,transparent);
+      background:var(--surface);
     }
     .field-note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:4px}
     .form-error{
       background:color-mix(in srgb,var(--danger) 10%,transparent);
-      border:1px solid color-mix(in srgb,var(--danger) 30%,transparent);
+      border:2px solid color-mix(in srgb,var(--danger) 30%,transparent);
       color:var(--danger);border-radius:var(--radius-sm);
       padding:12px 16px;font-size:13px;font-weight:700;margin-bottom:18px;
     }
     .form-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
     .btn{
-      border:0;border-radius:16px;padding:14px 20px;
+      border:2px solid transparent;border-radius:999px;padding:14px 20px;
       font-weight:900;font-size:14px;line-height:1;
       display:inline-flex;align-items:center;gap:8px;
-      transition:transform 160ms ease,box-shadow 160ms ease,opacity 160ms ease;
+      transition:transform 160ms ease,opacity 160ms ease;
       cursor:pointer;
     }
     .btn:hover{transform:translateY(-1px);text-decoration:none}
-    .btn-primary{background:var(--oshi);color:#fff;box-shadow:0 10px 24px color-mix(in srgb,var(--oshi) 32%,transparent)}
+    .btn-primary{background:var(--oshi);color:#fff;border-color:var(--oshi)}
     .btn-primary:hover{opacity:.88}
-    .btn-ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--border)}
+    .btn-ghost{background:var(--surface-2);color:var(--text);border-color:var(--border)}
     .btn-ghost:hover{background:var(--surface)}
-    .btn-danger{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 25%,transparent)}
+    .btn-danger{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);border-color:color-mix(in srgb,var(--danger) 25%,transparent)}
     .btn-danger:hover{background:color-mix(in srgb,var(--danger) 18%,transparent)}
-    .btn-sm{padding:9px 14px;font-size:13px;border-radius:12px}
+    .btn-sm{padding:9px 14px;font-size:13px}
     .status-badge{
       display:inline-flex;align-items:center;gap:6px;
       padding:5px 12px;border-radius:999px;
@@ -148,12 +147,12 @@ const developerPageCSS = `<!DOCTYPE html>
     .req-row{
       display:flex;align-items:center;justify-content:space-between;
       gap:14px;padding:18px;border-radius:var(--radius-md);
-      background:var(--surface-2);border:1px solid var(--border);margin-bottom:12px;
+      background:var(--surface-2);border:2px solid var(--border);margin-bottom:12px;
       color:var(--text);
-      transition:box-shadow 160ms ease,transform 160ms ease;
+      transition:border-color 160ms ease,transform 160ms ease;
       text-decoration:none;
     }
-    .req-row:hover{box-shadow:0 8px 24px rgba(48,35,28,.12);transform:translateY(-1px);text-decoration:none}
+    .req-row:hover{border-color:var(--oshi);transform:translateY(-1px);text-decoration:none}
     .req-row-left{flex:1;min-width:0}
     .req-row-name{font-size:16px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .req-row-meta{font-size:12px;color:var(--muted);margin-top:4px}
@@ -162,13 +161,13 @@ const developerPageCSS = `<!DOCTYPE html>
     .info-list{display:grid;gap:10px}
     .info-item{
       display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
-      padding:14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--border);
+      padding:14px;border-radius:16px;background:var(--surface-2);border:2px solid var(--border);
     }
     .info-item .k{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;padding-top:2px}
     .info-item .v{font-size:14px;color:var(--text);font-weight:600;text-align:right;word-break:break-all;max-width:68%}
     .reviewer-note{
       background:color-mix(in srgb,var(--warning) 8%,transparent);
-      border:1px solid color-mix(in srgb,var(--warning) 25%,transparent);
+      border:2px solid color-mix(in srgb,var(--warning) 25%,transparent);
       border-radius:var(--radius-md);padding:18px;margin-bottom:20px;
     }
     .reviewer-note h3{margin:0 0 8px;font-size:13px;font-weight:800;color:var(--warning);letter-spacing:.05em;text-transform:uppercase}

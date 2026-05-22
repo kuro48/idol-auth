@@ -10,34 +10,32 @@ const authPageSharedCSS = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OshiLink — 共通アカウント</title>
+  <title>OshiLink — 推し活アカウント</title>
   <style>
     :root {
-      --oshi:#ff8a3d;
-      --oshi-weak:#fff1e8;
-      --oshi-soft:#ffd9c2;
-      --bg:#f8f6f3;
+      --oshi:#f472b6;
+      --oshi-weak:#fce7f3;
+      --oshi-soft:#fbcfe8;
+      --bg:#fdf8fc;
       --surface:#ffffff;
-      --surface-2:#fffaf6;
-      --text:#26211f;
-      --muted:#776d67;
-      --border:#eadfd7;
-      --shadow:0 16px 40px rgba(48,35,28,.1);
-      --radius-lg:28px;
-      --radius-md:18px;
-      --radius-sm:12px;
+      --surface-2:#fef9fd;
+      --text:#2a1520;
+      --muted:#9d748f;
+      --border:#f0d0e8;
+      --radius-lg:32px;
+      --radius-md:22px;
+      --radius-sm:18px;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #181412;
-        --surface: #221d1a;
-        --surface-2: #2b241f;
-        --text: #fff8f1;
-        --muted: #c8b8ad;
-        --border: #42362f;
-        --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-        --oshi-weak: #372219;
-        --oshi-soft: #5a3829;
+        --bg:#1a1018;
+        --surface:#251820;
+        --surface-2:#2e1f28;
+        --text:#fff0f8;
+        --muted:#c8a8bd;
+        --border:#4a2e40;
+        --oshi-weak:#3d1a2a;
+        --oshi-soft:#5a2a40;
       }
     }
     * { box-sizing: border-box; }
@@ -65,17 +63,13 @@ const authPageSharedCSS = `<!DOCTYPE html>
     .hero-card {
       position: relative;
       padding: clamp(28px, 4vw, 64px);
-      background:
-        radial-gradient(circle at 18px 18px,
-          color-mix(in srgb, var(--oshi) 18%, transparent) 0 5px,
-          transparent 6px) 0 0 / 34px 34px,
-        linear-gradient(155deg, var(--oshi-weak) 0%, var(--surface) 70%);
+      background: var(--oshi-weak);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       gap: 32px;
       overflow: hidden;
-      border-right: 1px solid var(--border);
+      border-right: 2px solid var(--border);
     }
     .hero-card::after {
       content: "";
@@ -85,8 +79,8 @@ const authPageSharedCSS = `<!DOCTYPE html>
       width: 240px;
       height: 240px;
       border-radius: 50%;
-      border: 28px solid var(--oshi);
-      opacity: 0.16;
+      border: 3px solid var(--oshi-soft);
+      opacity: 0.55;
       pointer-events: none;
     }
     .hero-card::before {
@@ -97,7 +91,8 @@ const authPageSharedCSS = `<!DOCTYPE html>
       width: 280px;
       height: 280px;
       border-radius: 50%;
-      background: radial-gradient(circle, color-mix(in srgb, var(--oshi) 22%, transparent) 0%, transparent 65%);
+      border: 3px solid color-mix(in srgb, var(--oshi) 30%, transparent);
+      opacity: 0.45;
       pointer-events: none;
     }
 
@@ -118,7 +113,7 @@ const authPageSharedCSS = `<!DOCTYPE html>
       place-items: center;
       font-size: 24px;
       font-weight: 900;
-      box-shadow: 0 12px 28px color-mix(in srgb, var(--oshi) 36%, transparent);
+      border: 2px solid color-mix(in srgb, var(--oshi) 40%, transparent);
     }
     .brand-text strong {
       display: block;
@@ -144,20 +139,40 @@ const authPageSharedCSS = `<!DOCTYPE html>
       gap: 22px;
       max-width: 480px;
     }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .badge {
-      align-self: flex-start;
       display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 8px 14px;
       border-radius: 999px;
-      background: var(--oshi-weak);
+      background: var(--surface);
       color: var(--oshi);
-      border: 1px solid color-mix(in srgb, var(--oshi) 22%, transparent);
+      border: 2px solid var(--oshi-soft);
       font-size: 12px;
       font-weight: 800;
       letter-spacing: 0.04em;
+      transform: rotate(-1.5deg);
+      transition: transform 180ms ease;
     }
+    .badge:hover { transform: rotate(0deg); }
+    .badge-violet {
+      background: #f3e8ff;
+      color: #7c3aed;
+      border-color: #ddd6fe;
+      transform: rotate(1.2deg);
+    }
+    .badge-mint {
+      background: #d1fae5;
+      color: #059669;
+      border-color: #a7f3d0;
+      transform: rotate(-0.8deg);
+    }
+    @media (prefers-color-scheme: dark) {
+      .badge-violet { background: #2d1a4a; color: #c084fc; border-color: #5b3a8a; }
+      .badge-mint { background: #0d2a20; color: #34d399; border-color: #065f46; }
+    }
+
     .hero-title {
       margin: 0;
       font-size: clamp(34px, 5.4vw, 58px);
@@ -181,40 +196,43 @@ const authPageSharedCSS = `<!DOCTYPE html>
       padding: 8px 12px;
       border-radius: 999px;
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 2px solid var(--border);
       color: var(--text);
       font-size: 12px;
       font-weight: 700;
+      transition: border-color 180ms ease;
     }
-    .tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--oshi); }
+    .tag:hover { border-color: var(--oshi); }
+    .tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--oshi); flex-shrink: 0; }
 
     .phone-wrap { position: relative; z-index: 1; display: flex; justify-content: flex-end; margin-top: auto; }
     .phone-preview {
       width: 280px;
       padding: 14px 14px 22px;
-      background: #1e1714;
+      background: #2a1e28;
       border-radius: 36px;
-      box-shadow: 0 30px 60px rgba(48, 35, 28, 0.25), inset 0 0 0 2px rgba(255, 255, 255, 0.04);
+      border: 2px solid rgba(255,255,255,.07);
       transform: rotate(-3deg);
     }
     .phone-screen {
       background: #fffaf7; border-radius: 26px; padding: 18px 16px;
-      color: #26211f; min-height: 320px; display: flex; flex-direction: column; gap: 14px;
+      color: #2a1520; min-height: 320px; display: flex; flex-direction: column; gap: 14px;
     }
     .phone-handle { width: 60px; height: 5px; border-radius: 999px; background: rgba(0, 0, 0, 0.1); margin: 0 auto 8px; }
     .ticket {
       padding: 14px; border-radius: 18px;
-      background: linear-gradient(135deg, var(--oshi) 0%, color-mix(in srgb, var(--oshi) 70%, #fff) 100%);
-      color: #fff; box-shadow: 0 10px 22px color-mix(in srgb, var(--oshi) 32%, transparent);
+      background: var(--oshi);
+      color: #fff;
+      border: 2px solid color-mix(in srgb, #fff 22%, transparent);
       display: flex; flex-direction: column; gap: 6px;
     }
     .ticket-eyebrow { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.85; font-weight: 800; }
     .ticket-title { font-size: 18px; font-weight: 900; letter-spacing: -0.02em; }
     .ticket-meta { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; opacity: 0.85; }
-    .mini-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #5b524d; }
-    .mini-bar { flex: 1; height: 8px; border-radius: 999px; background: #f0e6dc; overflow: hidden; position: relative; }
+    .mini-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #7a5e70; }
+    .mini-bar { flex: 1; height: 8px; border-radius: 999px; background: #f0dce8; overflow: hidden; position: relative; }
     .mini-bar span { position: absolute; inset: 0 auto 0 0; background: var(--oshi); border-radius: 999px; }
-    .mini-label { font-weight: 800; color: #26211f; min-width: 70px; }
+    .mini-label { font-weight: 800; color: #2a1520; min-width: 70px; }
     .mini-pct { font-weight: 800; color: var(--oshi); font-variant-numeric: tabular-nums; }
 
     .auth-shell {
@@ -229,15 +247,14 @@ const authPageSharedCSS = `<!DOCTYPE html>
     .auth-alt { color: var(--muted); font-size: 13px; font-weight: 600; }
     .auth-alt a {
       color: var(--oshi); font-weight: 800; text-decoration: none;
-      border-bottom: 2px solid color-mix(in srgb, var(--oshi) 35%, transparent);
+      border-bottom: 2px solid var(--oshi-soft);
     }
 
     .auth-card {
       position: relative;
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 2px solid var(--border);
       border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
       padding: clamp(24px, 2.6vw, 32px);
       display: flex;
       flex-direction: column;
@@ -254,21 +271,18 @@ const authPageSharedCSS = `<!DOCTYPE html>
     .field { display: flex; flex-direction: column; gap: 6px; }
     .field label { font-size: 12px; font-weight: 800; color: var(--text); letter-spacing: 0.02em; }
     .field input {
-      width: 100%; padding: 14px 16px; border-radius: 16px;
-      border: 1px solid var(--border); background: var(--surface-2);
+      width: 100%; padding: 14px 16px; border-radius: var(--radius-sm);
+      border: 2px solid var(--border); background: var(--surface-2);
       color: var(--text); font-size: 14px;
-      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      transition: border-color 0.18s ease, background 0.18s ease;
     }
     .field input::placeholder { color: color-mix(in srgb, var(--muted) 85%, transparent); }
-    .field input:focus {
-      outline: none; border-color: var(--oshi); background: var(--surface);
-      box-shadow: 0 0 0 4px color-mix(in srgb, var(--oshi) 22%, transparent);
-    }
+    .field input:focus { outline: none; border-color: var(--oshi); background: var(--surface); }
     .field-hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
     .oshi-pick {
       display: flex; gap: 10px; padding: 12px; background: var(--surface-2);
-      border: 1px solid var(--border); border-radius: 16px; align-items: center; flex-wrap: wrap;
+      border: 2px solid var(--border); border-radius: var(--radius-sm); align-items: center; flex-wrap: wrap;
     }
     .oshi-pick-label { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: 0.04em; margin-right: 4px; }
     .oshi-pick-dot {
@@ -280,35 +294,29 @@ const authPageSharedCSS = `<!DOCTYPE html>
 
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      width: 100%; padding: 15px 18px; border-radius: 16px; border: 1px solid transparent;
+      width: 100%; padding: 15px 18px; border-radius: 999px; border: 2px solid transparent;
       font-size: 15px; font-weight: 900; letter-spacing: 0.01em; text-decoration: none;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+      transition: transform 0.18s ease, background 0.18s ease;
       cursor: pointer;
     }
     .btn:hover { transform: translateY(-1px); }
     .btn:active { transform: translateY(0); }
-    .btn-primary {
-      background: var(--oshi); color: #fff;
-      box-shadow: 0 16px 32px color-mix(in srgb, var(--oshi) 32%, transparent);
-    }
-    .btn-primary:hover {
-      background: color-mix(in srgb, var(--oshi) 90%, #000 10%);
-      box-shadow: 0 18px 38px color-mix(in srgb, var(--oshi) 42%, transparent);
-    }
+    .btn-primary { background: var(--oshi); color: #fff; border-color: var(--oshi); }
+    .btn-primary:hover { background: color-mix(in srgb, var(--oshi) 88%, #000 12%); }
 
     .auth-note { color: var(--muted); font-size: 12px; line-height: 1.7; text-align: center; }
     .auth-note a { color: var(--text); font-weight: 800; border-bottom: 1px dashed var(--border); }
 
     .site-footer {
       display: flex; flex-wrap: wrap; justify-content: center;
-      gap: 8px 20px; padding: 24px 28px 32px; border-top: 1px solid var(--border); margin-top: 8px;
+      gap: 8px 20px; padding: 24px 28px 32px; border-top: 2px solid var(--border); margin-top: 8px;
     }
     .site-footer a { font-size: 12px; color: var(--muted); transition: color .15s; }
     .site-footer a:hover { color: var(--oshi); }
 
     @media (max-width: 980px) {
       .stage { grid-template-columns: 1fr; }
-      .hero-card { border-right: none; border-bottom: 1px solid var(--border); }
+      .hero-card { border-right: none; border-bottom: 2px solid var(--border); }
       .auth-shell { padding: 24px; }
       .auth-card { margin: 0 auto; }
       .phone-wrap { justify-content: center; }
@@ -329,11 +337,15 @@ const loginPageBody = `
         <div class="brand-mark" aria-hidden="true">★</div>
         <div class="brand-text">
           <strong>OshiLink</strong>
-          <span>Common Account</span>
+          <span>推し活 Account</span>
         </div>
       </div>
       <div class="hero-body">
-        <span class="badge">🎫 推しメンカラー対応</span>
+        <div class="badge-row">
+          <span class="badge">🎫 推しメンカラー対応</span>
+          <span class="badge badge-violet">⭐ Fan ID</span>
+          <span class="badge badge-mint">🔒 安全ログイン</span>
+        </div>
         <h1 class="hero-title" id="hero-heading">推し活の入口を<br /><span>ひとつに。</span></h1>
         <p class="hero-lede">
           推し活サービスをひとつの共通アカウントで横断。チケット、グッズ、ファンクラブ、配信——サービスごとのログインを卒業して、推しに使う時間を取り戻そう。
@@ -350,7 +362,7 @@ const loginPageBody = `
             <div class="phone-handle"></div>
             <div class="ticket">
               <span class="ticket-eyebrow">Member Color</span>
-              <span class="ticket-title">Orange Live '26</span>
+              <span class="ticket-title">Pink Live '26</span>
               <div class="ticket-meta"><span>SEAT A-7</span><span>05·17 SAT</span></div>
             </div>
             <div class="mini-row"><span class="mini-label">参戦数</span><span class="mini-bar"><span style="width:78%"></span></span><span class="mini-pct">78%</span></div>
@@ -367,9 +379,9 @@ const loginPageBody = `
       </div>
       <div class="auth-card">
         <header class="auth-head">
-          <span class="auth-eyebrow">Welcome back</span>
+          <span class="auth-eyebrow">Welcome back, fan! ✦</span>
           <h2 class="auth-title" id="auth-heading">共通アカウントで、推し活を再開。</h2>
-          <p class="auth-sub">メールアドレスとパスワードでログインします。</p>
+          <p class="auth-sub">今日の推し活も安全に。メールとパスワードでログインします。</p>
         </header>
         <div class="field">
           <label for="login-email">メールアドレス</label>
@@ -380,7 +392,7 @@ const loginPageBody = `
           <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••" />
           <span class="field-hint"><a href="{{ .RecoveryURL }}">パスワードを忘れた場合</a></span>
         </div>
-        <a class="btn btn-primary" href="{{ .KratosFlowURL }}">共通アカウントでログイン →</a>
+        <a class="btn btn-primary" href="{{ .KratosFlowURL }}">ログインして推し活へ →</a>
         <p class="auth-note">
           ログインすると <a href="/legal/terms">利用規約</a> と <a href="/legal/privacy">プライバシーポリシー</a> に同意したとみなされます。
         </p>
@@ -404,11 +416,15 @@ const registrationPageBody = `
         <div class="brand-mark" aria-hidden="true">★</div>
         <div class="brand-text">
           <strong>OshiLink</strong>
-          <span>Common Account</span>
+          <span>推し活 Account</span>
         </div>
       </div>
       <div class="hero-body">
-        <span class="badge">🎫 推しメンカラー対応</span>
+        <div class="badge-row">
+          <span class="badge">🎫 推しメンカラー対応</span>
+          <span class="badge badge-violet">⭐ Fan ID</span>
+          <span class="badge badge-mint">💫 30秒登録</span>
+        </div>
         <h1 class="hero-title" id="hero-heading">推し活を、<br /><span>もっと一緒に。</span></h1>
         <p class="hero-lede">
           ひとつの共通アカウントで複数の推し活サービスに参加。30秒で登録して、推しメンカラーで彩ったプロフィールをすぐに使えます。
@@ -425,7 +441,7 @@ const registrationPageBody = `
             <div class="phone-handle"></div>
             <div class="ticket">
               <span class="ticket-eyebrow">Member Color</span>
-              <span class="ticket-title">Orange Live '26</span>
+              <span class="ticket-title">Pink Live '26</span>
               <div class="ticket-meta"><span>SEAT A-7</span><span>05·17 SAT</span></div>
             </div>
             <div class="mini-row"><span class="mini-label">参戦数</span><span class="mini-bar"><span style="width:78%"></span></span><span class="mini-pct">78%</span></div>
@@ -442,23 +458,23 @@ const registrationPageBody = `
       </div>
       <div class="auth-card">
         <header class="auth-head">
-          <span class="auth-eyebrow">Create account</span>
+          <span class="auth-eyebrow">推し活スタート ✦</span>
           <h2 class="auth-title" id="auth-heading">推し活アカウントを、今すぐ作成。</h2>
           <p class="auth-sub">推しメンカラーを選んで、30秒で登録完了。</p>
         </header>
         <div class="field">
           <label for="signup-name">表示名</label>
-          <input id="signup-name" type="text" autocomplete="nickname" placeholder="例: オレンジ担当" />
+          <input id="signup-name" type="text" autocomplete="nickname" placeholder="例: ピンク担当" />
         </div>
         <div class="field">
           <label>推しメンカラー</label>
           <div class="oshi-pick" role="radiogroup" aria-label="推しメンカラー">
             <span class="oshi-pick-label">Color</span>
-            <button type="button" class="oshi-pick-dot active" data-color="#ff8a3d" style="background:#ff8a3d" aria-label="オレンジ"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#ef6aa8" style="background:#ef6aa8" aria-label="ピンク"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#5a8dee" style="background:#5a8dee" aria-label="ブルー"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#35a67b" style="background:#35a67b" aria-label="グリーン"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#8e6be8" style="background:#8e6be8" aria-label="パープル"></button>
+            <button type="button" class="oshi-pick-dot active" data-color="#f472b6" style="background:#f472b6" aria-label="パステルピンク"></button>
+            <button type="button" class="oshi-pick-dot" data-color="#ff8a3d" style="background:#ff8a3d" aria-label="オレンジ"></button>
+            <button type="button" class="oshi-pick-dot" data-color="#a78bfa" style="background:#a78bfa" aria-label="ラベンダー"></button>
+            <button type="button" class="oshi-pick-dot" data-color="#34d399" style="background:#34d399" aria-label="ミント"></button>
+            <button type="button" class="oshi-pick-dot" data-color="#60a5fa" style="background:#60a5fa" aria-label="スカイブルー"></button>
           </div>
         </div>
         <div class="field">
@@ -470,7 +486,7 @@ const registrationPageBody = `
           <input id="signup-password" type="password" autocomplete="new-password" placeholder="英数字8文字以上" />
           <span class="field-hint">8文字以上・記号を含めると強度が上がります。</span>
         </div>
-        <a class="btn btn-primary" href="{{ .KratosFlowURL }}">アカウントを作成する →</a>
+        <a class="btn btn-primary" href="{{ .KratosFlowURL }}">推し活アカウントを作成する →</a>
         <p class="auth-note">
           「アカウント作成」を押すと <a href="/legal/terms">利用規約</a> と <a href="/legal/privacy">プライバシーポリシー</a> に同意したことになります。
         </p>

@@ -64,7 +64,7 @@ func (s *server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session, _ := accountSessionFromContext(r.Context())
-	oshiColor := template.CSS("#1740c9")
+	oshiColor := template.CSS("#f472b6")
 	if c := session.OshiColor; c != "" {
 		oshiColor = template.CSS(c)
 	}
@@ -141,7 +141,7 @@ func (s *server) handleSettingsFlowSubmit(w http.ResponseWriter, r *http.Request
 	}
 	if result.Flow != nil {
 		session, _ := accountSessionFromContext(r.Context())
-		oshiColor := template.CSS("#1740c9")
+		oshiColor := template.CSS("#f472b6")
 		if c := session.OshiColor; c != "" {
 			oshiColor = template.CSS(c)
 		}

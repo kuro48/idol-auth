@@ -99,7 +99,7 @@ func splitLines(raw string) []string {
 }
 
 func devPageBaseFromSession(s *server, session SessionView) devPageBase {
-	oshiColor := template.CSS("#1740c9")
+	oshiColor := template.CSS("#f472b6")
 	if c := session.OshiColor; c != "" {
 		oshiColor = template.CSS(c)
 	}

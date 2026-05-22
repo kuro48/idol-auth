@@ -11,28 +11,27 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
   <style>
     :root{
       --oshi:{{.OshiColor}};
-      --oshi-weak:#fff1e8;
-      --oshi-soft:#ffd9c2;
-      --bg:#f8f6f3;
+      --oshi-weak:#fce7f3;
+      --oshi-soft:#fbcfe8;
+      --bg:#fdf8fc;
       --surface:#ffffff;
-      --surface-2:#fffaf6;
-      --text:#26211f;
-      --muted:#776d67;
-      --border:#eadfd7;
-      --shadow:0 16px 40px rgba(48,35,28,.1);
-      --radius-lg:28px;
-      --radius-md:18px;
-      --radius-sm:12px;
+      --surface-2:#fef9fd;
+      --text:#2a1520;
+      --muted:#9d748f;
+      --border:#f0d0e8;
+      --radius-lg:32px;
+      --radius-md:22px;
+      --radius-sm:18px;
       --avatar-display-size:146px;
       --avatar-display-radius:36px;
       --danger:#e85d75;
-      --success:#35a67b;
+      --success:#10b981;
       --warning:#e9a23b;
     }
     @media (prefers-color-scheme: dark){
       :root{
-        --bg:#181412; --surface:#221d1a; --surface-2:#2b241f; --text:#fff8f1; --muted:#c8b8ad; --border:#42362f;
-        --shadow:0 16px 40px rgba(0,0,0,.35); --oshi-weak:#372219; --oshi-soft:#5a3829;
+        --bg:#1a1018; --surface:#251820; --surface-2:#2e1f28; --text:#fff0f8; --muted:#c8a8bd; --border:#4a2e40;
+        --oshi-weak:#3d1a2a; --oshi-soft:#5a2a40;
       }
     }
     *,*::before,*::after{box-sizing:border-box}
@@ -47,7 +46,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     button,input,select{font:inherit;color:inherit}
     button{cursor:pointer}
     a{color:var(--oshi);text-decoration:none}
-    .site-footer{padding:24px 28px 40px;display:flex;flex-wrap:wrap;gap:8px 24px;border-top:1px solid var(--border);margin-top:8px}
+    .site-footer{padding:24px 28px 40px;display:flex;flex-wrap:wrap;gap:8px 24px;border-top:2px solid var(--border);margin-top:8px}
     .site-footer a{font-size:12px;color:var(--muted);transition:color .15s}
     .site-footer a:hover{color:var(--oshi)}
 
@@ -58,7 +57,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       background:color-mix(in srgb, var(--surface) 88%, transparent);
       backdrop-filter:saturate(160%) blur(14px);
       -webkit-backdrop-filter:saturate(160%) blur(14px);
-      border-bottom:1px solid var(--border);
+      border-bottom:2px solid var(--border);
     }
     .brand{display:flex; align-items:center; gap:12px}
     .brand-mark{
@@ -66,7 +65,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       background:var(--oshi); color:#fff;
       display:grid; place-items:center;
       font-weight:900; font-size:20px; letter-spacing:-.02em;
-      box-shadow:0 10px 24px color-mix(in srgb,var(--oshi) 32%,transparent);
+      border:2px solid color-mix(in srgb,var(--oshi) 35%,transparent);
     }
     .brand-text strong{display:block; font-size:16px; line-height:1.1; letter-spacing:-.01em}
     .brand-text span{font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.12em}
@@ -74,7 +73,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .user-chip{
       display:flex; align-items:center; gap:10px;
       padding:6px 12px 6px 6px; border-radius:999px;
-      background:var(--surface-2); border:1px solid var(--border);
+      background:var(--surface-2); border:2px solid var(--border);
       font-size:13px; color:var(--text); max-width:280px;
     }
     .user-chip .dot{
@@ -84,7 +83,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     }
     .user-chip .email{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; color:var(--muted)}
     .logout-btn{
-      border:1px solid var(--border); background:var(--surface);
+      border:2px solid var(--border); background:var(--surface);
       color:var(--text); padding:9px 14px; border-radius:999px;
       font-weight:800; font-size:13px;
       transition:transform 160ms ease, background 160ms ease;
@@ -97,9 +96,8 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
 
     .card{
       background:var(--surface);
-      border:1px solid var(--border);
+      border:2px solid var(--border);
       border-radius:var(--radius-lg);
-      box-shadow:var(--shadow);
       padding:24px;
     }
     .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px}
@@ -109,29 +107,23 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .profile-hero{
       position:relative; overflow:hidden;
       padding:30px;
-      background:var(--surface);
-      border:1px solid var(--border);
+      background:var(--oshi-weak);
+      border:2px solid var(--border);
       border-radius:var(--radius-lg);
-      box-shadow:var(--shadow);
     }
-    .profile-hero::before{
-      content:""; position:absolute; inset:0;
-      background:
-        linear-gradient(90deg, color-mix(in srgb, var(--oshi) 15%, transparent) 1px, transparent 1px) 0 0 / 28px 28px,
-        linear-gradient(0deg, color-mix(in srgb, var(--oshi) 15%, transparent) 1px, transparent 1px) 0 0 / 28px 28px;
-      opacity:.5; pointer-events:none;
+    .profile-hero::after{
+      content:""; position:absolute; right:-60px; bottom:-60px;
+      width:180px; height:180px; border-radius:50%;
+      border:3px solid var(--oshi-soft); opacity:.5; pointer-events:none;
     }
     .profile-inner{position:relative; display:flex; gap:24px; align-items:center; flex-wrap:wrap}
     .profile-photo{
       width:var(--avatar-display-size); height:var(--avatar-display-size); border-radius:var(--avatar-display-radius);
-      background:
-        radial-gradient(circle at 45px 36px, #fff 0 14px, transparent 15px),
-        var(--oshi);
-      border:8px solid var(--surface);
-      box-shadow:0 16px 34px color-mix(in srgb,var(--oshi) 24%,transparent);
+      background:var(--oshi);
+      border:4px solid var(--border);
       display:grid; place-items:center;
       color:#fff; font-size:48px; font-weight:1000;
-      background-size:auto, cover; background-position:center;
+      background-size:cover; background-position:center;
       flex-shrink:0;
     }
     .profile-photo.has-image{color:transparent; background-size:cover; background-position:center; background-repeat:no-repeat}
@@ -147,11 +139,13 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       padding:8px 13px; border-radius:999px;
       background:var(--oshi-weak); color:var(--oshi);
       font-weight:800; font-size:12px;
+      border:2px solid var(--oshi-soft);
+      transform:rotate(-1.5deg); transition:transform 180ms ease;
     }
+    .badge-oshi:hover{transform:rotate(0)}
     .badge-oshi .swatch{
       width:14px; height:14px; border-radius:50%;
       background:var(--oshi);
-      box-shadow:0 0 0 2px color-mix(in srgb,var(--oshi) 35%,transparent);
     }
     .profile-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:18px}
 
@@ -159,7 +153,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .info-item{
       display:flex; justify-content:space-between; align-items:center; gap:14px;
       padding:14px; border-radius:16px;
-      background:var(--surface-2); border:1px solid var(--border);
+      background:var(--surface-2); border:2px solid var(--border);
     }
     .info-item .k{font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em}
     .info-item .v{font-size:14px; color:var(--text); font-weight:600; text-align:right; word-break:break-all; max-width:62%}
@@ -175,19 +169,19 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .field input[type=date],
     .field input[type=file]{
       width:100%;
-      border:1px solid var(--border);
+      border:2px solid var(--border);
       background:var(--surface-2);
       color:var(--text);
       padding:14px 16px;
       border-radius:16px;
       outline:none;
-      transition:border-color 160ms ease, box-shadow 160ms ease;
+      transition:border-color 160ms ease;
     }
     .field input[type=text]:focus,
     .field input[type=date]:focus,
     .field input[type=file]:focus{
       border-color:var(--oshi);
-      box-shadow:0 0 0 4px color-mix(in srgb,var(--oshi) 18%,transparent);
+      background:var(--surface);
     }
     .field input[type=file]{padding:11px 14px; font-size:13px}
     .field-note{font-size:11px; color:var(--muted); line-height:1.5}
@@ -196,7 +190,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       display:grid;
       gap:14px;
       padding:14px;
-      border:1px solid var(--border);
+      border:2px solid var(--border);
       border-radius:18px;
       background:var(--surface-2);
     }
@@ -227,7 +221,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     }
     .avatar-rotate-actions{display:flex; gap:8px; flex-wrap:wrap}
 
-    .check-grid{display:grid; gap:10px; padding:14px; background:var(--surface-2); border:1px solid var(--border); border-radius:16px}
+    .check-grid{display:grid; gap:10px; padding:14px; background:var(--surface-2); border:2px solid var(--border); border-radius:16px}
     .check-row{display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text); cursor:pointer}
     .check-row input[type=checkbox]{
       width:18px; height:18px; border-radius:5px;
@@ -242,23 +236,23 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .form-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px}
 
     .btn{
-      border:0; border-radius:16px; padding:14px 18px;
+      border:2px solid transparent; border-radius:999px; padding:14px 18px;
       font-weight:900; font-size:14px; line-height:1;
       display:inline-flex; align-items:center; gap:8px;
-      transition:transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+      transition:transform 160ms ease, background 160ms ease, opacity 160ms ease;
     }
     .btn:hover{transform:translateY(-1px)}
     .btn-primary{
       background:var(--oshi); color:#fff;
-      box-shadow:0 12px 24px color-mix(in srgb,var(--oshi) 28%,transparent);
+      border-color:var(--oshi);
     }
     .btn-secondary{
-      background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+      background:var(--surface-2); border-color:var(--border); color:var(--text);
     }
-    .btn-danger{background:var(--danger); color:#fff}
-    .btn-sm{padding:9px 13px; font-size:12px; border-radius:12px}
+    .btn-danger{background:var(--danger); color:#fff; border-color:var(--danger)}
+    .btn-sm{padding:9px 13px; font-size:12px}
     .btn-ghost-danger{
-      background:transparent; border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);
+      background:transparent; border-color:color-mix(in srgb,var(--danger) 40%,transparent);
       color:var(--danger);
     }
 
@@ -266,7 +260,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     .service-card{
       padding:18px; border-radius:22px;
       background:var(--surface);
-      border:1px solid var(--border);
+      border:2px solid var(--border);
       transition:transform 160ms ease, border-color 160ms ease;
       display:flex; justify-content:space-between; align-items:flex-start; gap:14px;
     }
@@ -280,26 +274,24 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     }
     .empty-state{
       padding:28px 14px; text-align:center; color:var(--muted); font-size:13px;
-      border:1px dashed var(--border); border-radius:18px; background:var(--surface-2);
+      border:2px dashed var(--border); border-radius:18px; background:var(--surface-2);
     }
 
     .card-danger{
       border-color:color-mix(in srgb,var(--danger) 24%,var(--border));
-      background:
-        linear-gradient(180deg, color-mix(in srgb,var(--danger) 6%,transparent) 0%, transparent 60%),
-        var(--surface);
+      background:var(--surface);
     }
     .card-danger .card-head h2{color:var(--danger)}
     .status-line{
       margin-top:10px; padding:14px; border-radius:16px;
-      background:var(--surface-2); border:1px solid var(--border);
+      background:var(--surface-2); border:2px solid var(--border);
       font-size:13px; color:var(--text); line-height:1.6;
     }
 
     .contact-footer{
       display:flex; align-items:center; gap:12px; flex-wrap:wrap;
       padding-top:14px; margin-top:14px;
-      border-top:1px solid var(--border);
+      border-top:2px solid var(--border);
     }
     .contact-note{font-size:11px; color:var(--muted); line-height:1.5; flex:1; min-width:180px}
 
@@ -308,7 +300,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       background:var(--text); color:var(--surface);
       padding:14px 18px; border-radius:18px;
       display:none; max-width:340px; font-size:14px; line-height:1.5;
-      box-shadow:0 18px 40px rgba(0,0,0,.2);
+      border:2px solid var(--border);
       z-index:200; font-weight:700;
     }
     .toast.error{background:var(--danger); color:#fff}
@@ -321,18 +313,17 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     }
     .color-dots{
       display:flex; gap:8px; padding:10px 12px;
-      background:var(--surface); border:1px solid var(--border);
-      border-radius:999px; box-shadow:var(--shadow);
+      background:var(--surface); border:2px solid var(--border);
+      border-radius:999px;
     }
     .color-dot{
       width:24px; height:24px; border-radius:50%;
-      border:3px solid var(--surface);
-      box-shadow:0 0 0 1px var(--border);
+      border:2px solid var(--border);
       transition:transform 160ms ease;
       padding:0;
     }
     .color-dot:hover{transform:scale(1.1)}
-    .color-dot[aria-pressed="true"]{box-shadow:0 0 0 2px var(--text)}
+    .color-dot[aria-pressed="true"]{outline:2px solid var(--text); outline-offset:2px}
 
     @media(max-width:920px){
       :root{--avatar-display-size:112px; --avatar-display-radius:28px}
@@ -361,7 +352,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       <div class="brand-mark">推</div>
       <div class="brand-text">
         <strong>OshiLink</strong>
-        <span>Account Center</span>
+        <span>Account</span>
       </div>
     </div>
     <div class="top-actions">
@@ -413,7 +404,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
 
         <article class="card" data-section="profile" data-mode="display">
           <div class="card-head">
-            <h2>共有プロフィール</h2>
+            <h2>推し活プロフィール</h2>
             <button class="btn btn-secondary btn-sm" data-action="edit">編集</button>
           </div>
           <div class="section-display">
@@ -497,7 +488,7 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       <div class="col">
 
         <article class="card">
-          <div class="card-head"><h2>連携中アプリ</h2></div>
+          <div class="card-head"><h2>連携中の推し活サービス</h2></div>
           <p class="hint">各アプリでアカウント削除をする場合は、まずここで連携を解除してください。</p>
           <div id="memberships" class="service-list"></div>
         </article>
@@ -536,11 +527,11 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
 
   <div class="float-tools">
     <div class="color-dots" role="group" aria-label="推し色を選ぶ">
-      <button class="color-dot" type="button" data-color="#ff8a3d" style="background:#ff8a3d" aria-pressed="true" title="オレンジ"></button>
-      <button class="color-dot" type="button" data-color="#ff5fa2" style="background:#ff5fa2" aria-pressed="false" title="ピンク"></button>
-      <button class="color-dot" type="button" data-color="#7c5cff" style="background:#7c5cff" aria-pressed="false" title="パープル"></button>
-      <button class="color-dot" type="button" data-color="#39b58a" style="background:#39b58a" aria-pressed="false" title="グリーン"></button>
-      <button class="color-dot" type="button" data-color="#4b7bec" style="background:#4b7bec" aria-pressed="false" title="ブルー"></button>
+      <button class="color-dot" type="button" data-color="#f472b6" style="background:#f472b6" aria-pressed="true" title="ピンク"></button>
+      <button class="color-dot" type="button" data-color="#ff8a3d" style="background:#ff8a3d" aria-pressed="false" title="オレンジ"></button>
+      <button class="color-dot" type="button" data-color="#a78bfa" style="background:#a78bfa" aria-pressed="false" title="ラベンダー"></button>
+      <button class="color-dot" type="button" data-color="#60a5fa" style="background:#60a5fa" aria-pressed="false" title="スカイブルー"></button>
+      <button class="color-dot" type="button" data-color="#34d399" style="background:#34d399" aria-pressed="false" title="ミント"></button>
     </div>
   </div>
 
