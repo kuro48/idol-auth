@@ -137,8 +137,8 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 	body := w.Body.String()
 	for _, fragment := range []string{
 		"アカウントセンター",
-		"共有プロフィール",
-		"連携中アプリ",
+		"推し活プロフィール",
+		"連携中の推し活サービス",
 		"アカウント削除",
 		`name="avatar_file"`,
 		`id="avatar-file"`,

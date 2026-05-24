@@ -127,9 +127,9 @@ func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 	}
 	body := w.Body.String()
 	for _, fragment := range []string{
-		"--oshi-weak:#fff1e8",
-		"--surface-2:#fffaf6",
-		"--radius-lg:28px",
+		"--oshi-weak:#fce7f3",
+		"--surface-2:#fef9fd",
+		"--radius-lg:32px",
 		"brand-mark",
 		"/register",
 		"self-service/recovery/browser",
@@ -153,7 +153,7 @@ func TestRegistrationPageRendersCorrectly(t *testing.T) {
 	}
 	body := w.Body.String()
 	for _, fragment := range []string{
-		"--oshi-weak:#fff1e8",
+		"--oshi-weak:#fce7f3",
 		"brand-mark",
 		"/login",
 		"self-service/registration/browser",
