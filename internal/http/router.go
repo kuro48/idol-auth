@@ -211,10 +211,10 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
-	r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+	r.With(docsSecurityHeaders).Get("/docs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/docs/index.html", http.StatusMovedPermanently)
 	})
-	r.Get("/docs/*", httpSwagger.WrapHandler)
+	r.With(docsSecurityHeaders).Get("/docs/*", httpSwagger.WrapHandler)
 	r.Get("/login", s.handleLoginPage)
 	r.Get("/register", s.handleRegistrationPage)
 	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)
@@ -1902,6 +1902,17 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'self'")
 		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// docsSecurityHeaders overrides the CSP for the Swagger UI.
+// The global securityHeaders sets default-src 'none' which blocks all JS/CSS;
+// swagger-ui needs self-hosted scripts, styles, images and XHR back to self.
+func docsSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'")
 		next.ServeHTTP(w, r)
 	})
 }
