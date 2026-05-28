@@ -57,9 +57,10 @@ func TestRenderPageRendersTOTPImageAndSecretText(t *testing.T) {
 		Description: "Manage MFA",
 		Flow: KratosFlow{
 			UI: struct {
-				Action string       `json:"action"`
-				Method string       `json:"method"`
-				Nodes  []KratosNode `json:"nodes"`
+				Action   string          `json:"action"`
+				Method   string          `json:"method"`
+				Nodes    []KratosNode    `json:"nodes"`
+				Messages []KratosMessage `json:"messages"`
 			}{
 				Action: "http://kratos/settings",
 				Method: http.MethodPost,
@@ -178,9 +179,10 @@ func TestRenderPageUsesLegalLinksOnRegistration(t *testing.T) {
 		LegalBaseURL: "https://auth.example.com",
 		Flow: KratosFlow{
 			UI: struct {
-				Action string       `json:"action"`
-				Method string       `json:"method"`
-				Nodes  []KratosNode `json:"nodes"`
+				Action   string          `json:"action"`
+				Method   string          `json:"method"`
+				Nodes    []KratosNode    `json:"nodes"`
+				Messages []KratosMessage `json:"messages"`
 			}{
 				Action: "http://kratos/registration",
 				Method: http.MethodPost,
@@ -219,9 +221,10 @@ func TestRenderPageSettingsOnlyLinksBackToAccountCenter(t *testing.T) {
 		AccountCenterURL: "https://auth.example.com/account/",
 		Flow: KratosFlow{
 			UI: struct {
-				Action string       `json:"action"`
-				Method string       `json:"method"`
-				Nodes  []KratosNode `json:"nodes"`
+				Action   string          `json:"action"`
+				Method   string          `json:"method"`
+				Nodes    []KratosNode    `json:"nodes"`
+				Messages []KratosMessage `json:"messages"`
 			}{
 				Action: "http://kratos/settings",
 				Method: http.MethodPost,
@@ -263,9 +266,10 @@ func TestRenderPageHidesPrimaryIdentifierTypeAndAutoInfersOnRegistration(t *test
 		FlowType:    "registration",
 		Flow: KratosFlow{
 			UI: struct {
-				Action string       `json:"action"`
-				Method string       `json:"method"`
-				Nodes  []KratosNode `json:"nodes"`
+				Action   string          `json:"action"`
+				Method   string          `json:"method"`
+				Nodes    []KratosNode    `json:"nodes"`
+				Messages []KratosMessage `json:"messages"`
 			}{
 				Action: "http://kratos/registration",
 				Method: http.MethodPost,
