@@ -493,24 +493,13 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
           <div id="memberships" class="service-list"></div>
         </article>
 
-        <article class="card card-danger" data-section="deletion" data-mode="display">
+        <article class="card card-danger" data-section="deletion">
           <div class="card-head">
             <h2>アカウント削除</h2>
-            <button class="btn btn-ghost-danger btn-sm" data-action="edit">予約・管理</button>
           </div>
-          <div class="section-display">
-            <p class="hint"><strong>注意:</strong> 削除予約すると連携中の全アプリに影響します。各アプリだけをやめたい場合は連携解除を使ってください。</p>
-            <div id="deletion-status" class="status-line">削除予約はありません。</div>
-          </div>
-          <div class="section-edit">
-            <p class="hint">削除予約するか、予約中の場合は取り消せます。</p>
-            <div class="field"><label>理由（省略可）</label><input id="delete-reason" type="text" placeholder="user_requested"></div>
-            <div class="form-actions">
-              <button class="btn btn-danger btn-sm" type="button" id="btn-schedule">削除を予約</button>
-              <button class="btn btn-secondary btn-sm" type="button" id="btn-cancel-del">予約を取り消す</button>
-              <button class="btn btn-secondary btn-sm" type="button" data-action="cancel">閉じる</button>
-            </div>
-            <div id="deletion-status-edit" class="status-line" style="display:none"></div>
+          <p class="hint"><strong>注意:</strong> 削除予約すると即座にログアウトされ、30日間の復活期間後にデータが完全削除されます。</p>
+          <div class="form-actions">
+            <button class="btn btn-danger btn-sm" type="button" id="btn-schedule">アカウントを削除する</button>
           </div>
         </article>
 
@@ -953,38 +942,17 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
       });
     }
 
-    function renderDeletion(deletion) {
-      var st = document.getElementById('deletion-status');
-      var ste = document.getElementById('deletion-status-edit');
-      if (ste) { ste.textContent = ''; ste.style.display = 'none'; }
-      if (!deletion || deletion.status !== 'scheduled') {
-        st.textContent = '削除予約はありません。';
-        return;
-      }
-      st.textContent = '削除予約済みです。';
-    }
-
     document.getElementById('btn-schedule').addEventListener('click', async function() {
-      var reason = document.getElementById('delete-reason').value.trim() || 'user_requested';
+      if (!confirm('アカウントを削除しますか？\n即座にログアウトされ、30日後に完全削除されます。')) return;
       try {
-        await req('POST', '/v1/account/deletion', { reason: reason });
-        showToast('削除を予約しました');
-        await loadOverview();
-      } catch(err) { showError(err); }
-    });
-
-    document.getElementById('btn-cancel-del').addEventListener('click', async function() {
-      try {
-        await req('DELETE', '/v1/account/deletion');
-        showToast('削除予約を取り消しました');
-        await loadOverview();
+        await req('POST', '/v1/account/deletion', { reason: 'user_requested' });
+        window.location.href = '/login';
       } catch(err) { showError(err); }
     });
 
     async function loadOverview() {
       var data = await req('GET', '/v1/account');
       renderMemberships(data.memberships || []);
-      renderDeletion(data.deletion_request || null);
     }
 
     async function loadProfile() {
