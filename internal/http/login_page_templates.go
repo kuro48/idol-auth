@@ -383,18 +383,9 @@ const loginPageBody = `
           <h2 class="auth-title" id="auth-heading">共通アカウントで、推し活を再開。</h2>
           <p class="auth-sub">今日の推し活も安全に。メールとパスワードでログインします。</p>
         </header>
-        <div class="field">
-          <label for="login-email">メールアドレス</label>
-          <input id="login-email" type="email" autocomplete="email" placeholder="you@example.com" />
-        </div>
-        <div class="field">
-          <label for="login-password">パスワード</label>
-          <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••" />
-          <span class="field-hint"><a href="{{ .RecoveryURL }}">パスワードを忘れた場合</a></span>
-        </div>
         <a class="btn btn-primary" href="{{ .KratosFlowURL }}">ログインして推し活へ →</a>
         <p class="auth-note">
-          ログインすると <a href="/legal/terms">利用規約</a> と <a href="/legal/privacy">プライバシーポリシー</a> に同意したとみなされます。
+          <a href="{{ .RecoveryURL }}">パスワードを忘れた場合</a> ・ ログインすると <a href="/legal/terms">利用規約</a> と <a href="/legal/privacy">プライバシーポリシー</a> に同意したとみなされます。
         </p>
       </div>
     </section>
@@ -462,30 +453,6 @@ const registrationPageBody = `
           <h2 class="auth-title" id="auth-heading">推し活アカウントを、今すぐ作成。</h2>
           <p class="auth-sub">推しメンカラーを選んで、30秒で登録完了。</p>
         </header>
-        <div class="field">
-          <label for="signup-name">表示名</label>
-          <input id="signup-name" type="text" autocomplete="nickname" placeholder="例: ピンク担当" />
-        </div>
-        <div class="field">
-          <label>推しメンカラー</label>
-          <div class="oshi-pick" role="radiogroup" aria-label="推しメンカラー">
-            <span class="oshi-pick-label">Color</span>
-            <button type="button" class="oshi-pick-dot active" data-color="#f472b6" style="background:#f472b6" aria-label="パステルピンク"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#ff8a3d" style="background:#ff8a3d" aria-label="オレンジ"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#a78bfa" style="background:#a78bfa" aria-label="ラベンダー"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#34d399" style="background:#34d399" aria-label="ミント"></button>
-            <button type="button" class="oshi-pick-dot" data-color="#60a5fa" style="background:#60a5fa" aria-label="スカイブルー"></button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="signup-email">メールアドレス</label>
-          <input id="signup-email" type="email" autocomplete="email" placeholder="you@example.com" />
-        </div>
-        <div class="field">
-          <label for="signup-password">パスワード</label>
-          <input id="signup-password" type="password" autocomplete="new-password" placeholder="英数字8文字以上" />
-          <span class="field-hint">8文字以上・記号を含めると強度が上がります。</span>
-        </div>
         <a class="btn btn-primary" href="{{ .KratosFlowURL }}">推し活アカウントを作成する →</a>
         <p class="auth-note">
           「アカウント作成」を押すと <a href="/legal/terms">利用規約</a> と <a href="/legal/privacy">プライバシーポリシー</a> に同意したことになります。

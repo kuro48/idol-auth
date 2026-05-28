@@ -56,8 +56,38 @@ type KratosAttributes struct {
 }
 
 type KratosMessage struct {
+	ID   int    `json:"id"`
 	Text string `json:"text"`
 	Type string `json:"type"`
+}
+
+var kratosMessageJA = map[int]string{
+	4000001: "リクエストの有効期限が切れました。もう一度お試しください。",
+	4000002: "このメールアドレスはすでに登録されています。",
+	4000005: "外部プロバイダーからエラーが返されました。",
+	4000006: "メールアドレス・パスワードが正しくありません。",
+	4000007: "試行回数の上限に達しました。しばらく待ってから再試行してください。",
+	4000015: "アカウントが存在しないか、ログイン方法が設定されていません。",
+	4000016: "この操作には再認証が必要です。",
+	4010001: "回復コードが無効です。もう一度お試しください。",
+	4010002: "回復リンクが無効か、すでに使用されています。",
+	4060001: "パスワードがポリシーを満たしていません。",
+	4060003: "このパスワードはよく使われているため使用できません。",
+	4060005: "パスワードがメールアドレスや電話番号に似すぎているため使用できません。",
+	4070001: "確認リンクが無効か、すでに使用されています。",
+	4070005: "認証はすでに完了しています。",
+	1010001: "ログインしました。",
+	1040001: "変更が保存されました。",
+	1040004: "認証アプリの設定が完了しました。",
+	1060001: "アカウントの回復に成功しました。60分以内にパスワードを変更してください。",
+	1070001: "メールアドレスの確認が完了しました。",
+}
+
+func translateMessage(msg KratosMessage) string {
+	if ja, ok := kratosMessageJA[msg.ID]; ok {
+		return ja
+	}
+	return msg.Text
 }
 
 type KratosFlowClient struct {
@@ -547,10 +577,10 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     <h1>{{ .Title }}</h1>
     <p class="description">{{ .Description }}</p>
     {{ range .Flow.Messages }}
-      <div class="alert {{ if eq .Type "error" }}alert-error{{ else }}alert-info{{ end }}">{{ .Text }}</div>
+      <div class="alert {{ if eq .Type "error" }}alert-error{{ else }}alert-info{{ end }}">{{ translateMessage . }}</div>
     {{ end }}
     {{ range .Flow.UI.Messages }}
-      <div class="alert {{ if eq .Type "error" }}alert-error{{ else }}alert-info{{ end }}">{{ .Text }}</div>
+      <div class="alert {{ if eq .Type "error" }}alert-error{{ else }}alert-info{{ end }}">{{ translateMessage . }}</div>
     {{ end }}
     {{ if eq .FlowType "registration" }}
       <section class="registration-intro" aria-labelledby="registration-intro-title">
@@ -590,17 +620,23 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         </div>
       {{ end }}
       {{ range .Flow.UI.Nodes }}
-        {{ range .Messages }}<div class="alert alert-error">{{ .Text }}</div>{{ end }}
+        {{ range .Messages }}<div class="alert alert-error">{{ translateMessage . }}</div>{{ end }}
         {{ if eq .Type "img" }}
-          <div class="field qr-wrap">
-            <label>{{ nodeLabel . }}</label>
-            <img src="{{ imageSrc . }}" alt="{{ nodeLabel . }}">
-          </div>
+          <details class="totp-reveal">
+            <summary>QRコードを表示する</summary>
+            <div class="field qr-wrap">
+              <label>{{ nodeLabel . }}</label>
+              <img src="{{ imageSrc . }}" alt="{{ nodeLabel . }}">
+            </div>
+          </details>
         {{ else if eq .Type "text" }}
-          <div class="field">
-            <label>{{ nodeLabel . }}</label>
-            <input type="text" value="{{ textValue . }}" readonly>
-          </div>
+          <details class="totp-reveal">
+            <summary>シークレットキーを表示する</summary>
+            <div class="field">
+              <label>{{ nodeLabel . }}</label>
+              <input type="text" value="{{ textValue . }}" readonly>
+            </div>
+          </details>
         {{ else if eq .Attributes.Name "traits.primary_identifier_type" }}
           <input type="hidden" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">
         {{ else if and (eq $.FlowType "registration") (isPrimaryIdentifierTrait .Attributes.Name) (hasBothIdentifiers $.Flow.UI.Nodes) }}
@@ -920,6 +956,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 			}
 			return ""
 		},
+		"translateMessage": translateMessage,
 	}).Parse(tmpl))
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

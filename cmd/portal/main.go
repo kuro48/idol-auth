@@ -129,7 +129,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request, cfg *demo.PortalConfig
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	loginURL := strings.TrimRight(cfg.AppURL, "/") + "/login"
+	loginURL := legalBaseURL(cfg) + "/login"
 	logoutBrowserURL, err := url.Parse(strings.TrimRight(cfg.KratosPublicURL, "/") + "/self-service/logout/browser")
 	if err != nil {
 		http.Redirect(w, r, loginURL, http.StatusSeeOther)

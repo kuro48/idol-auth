@@ -215,6 +215,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		http.Redirect(w, r, "/docs/index.html", http.StatusMovedPermanently)
 	})
 	r.With(docsSecurityHeaders).Get("/docs/*", httpSwagger.WrapHandler)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/login", http.StatusFound)
+	})
 	r.Get("/login", s.handleLoginPage)
 	r.Get("/register", s.handleRegistrationPage)
 	r.Get("/uploads/avatars/{file}", s.handleAvatarAsset)
