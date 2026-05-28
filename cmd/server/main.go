@@ -80,7 +80,7 @@ func run() error {
 		tokenRepo,
 		auditRepo,
 		time.Now,
-		0,
+		30*24*time.Hour,
 	)
 	authService := apphttp.NewAuthServiceWithOptions(
 		cfg.App.BaseURL,

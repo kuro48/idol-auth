@@ -240,6 +240,9 @@ func (s *Service) ScheduleDeletion(ctx context.Context, identityID, actorID, rea
 	if err != nil {
 		return DeletionRequest{}, err
 	}
+	if s.identities != nil {
+		_ = s.identities.RevokeIdentitySessions(ctx, strings.TrimSpace(identityID))
+	}
 	s.writeAudit(ctx, audit.Log{
 		ID:         uuid.New(),
 		EventType:  "identity.deletion.scheduled",

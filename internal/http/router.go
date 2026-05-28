@@ -227,6 +227,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/contact", s.handleLegalContact)
 		r.Get("/incident", s.handleLegalIncident)
 	})
+	r.Get("/account/restore", s.handleRestoreAccount)
+	r.With(s.accountSessionCSRFMiddleware).Post("/account/restore", s.handleSubmitRestore)
 	r.Route("/account", func(r chi.Router) {
 		r.Use(s.accountUIAuth)
 		r.Get("/", s.handleAccountCenter)

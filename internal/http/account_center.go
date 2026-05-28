@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/kuro48/idol-auth/internal/domain/account"
 )
 
 type accountCenterData struct {
@@ -30,6 +32,13 @@ func (s *server) accountUIAuth(next http.Handler) http.Handler {
 		if err != nil || !session.Authenticated || session.IdentityID == "" {
 			http.Redirect(w, r, s.kratosLoginURL(r.RequestURI), http.StatusSeeOther)
 			return
+		}
+		if s.accountSvc != nil {
+			req, err := s.accountSvc.GetDeletionRequest(r.Context(), session.IdentityID)
+			if err == nil && req != nil && req.Status == account.DeletionStatusScheduled {
+				http.Redirect(w, r, "/account/restore", http.StatusSeeOther)
+				return
+			}
 		}
 		ctx := context.WithValue(r.Context(), accountIdentityIDKey, session)
 		next.ServeHTTP(w, r.WithContext(ctx))
