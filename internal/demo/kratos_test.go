@@ -99,11 +99,11 @@ func TestRenderPageRendersTOTPImageAndSecretText(t *testing.T) {
 	}
 
 	body := rec.Body.String()
-	if !strings.Contains(body, "Authenticator app QR code") {
-		t.Fatalf("expected qr label, got %s", body)
+	if !strings.Contains(body, "認証アプリ QR コード") {
+		t.Fatalf("expected qr label in Japanese, got %s", body)
 	}
-	if !strings.Contains(body, "Authenticator secret") {
-		t.Fatalf("expected secret label, got %s", body)
+	if !strings.Contains(body, "シークレットキー") {
+		t.Fatalf("expected secret label in Japanese, got %s", body)
 	}
 	if !strings.Contains(body, "data:image/png;base64,abc") || !strings.Contains(body, "ABC123") {
 		t.Fatalf("expected qr src and secret in body, got %s", body)

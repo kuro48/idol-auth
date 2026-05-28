@@ -90,6 +90,41 @@ func translateMessage(msg KratosMessage) string {
 	return msg.Text
 }
 
+var kratosLabelJA = map[string]string{
+	"ID":                        "メールアドレス / 電話番号",
+	"Password":                  "パスワード",
+	"New Password":              "新しいパスワード",
+	"Email":                     "メールアドレス",
+	"Phone":                     "電話番号",
+	"Phone Number":              "電話番号",
+	"Display Name":              "表示名",
+	"Sign in with password":     "パスワードでログイン",
+	"Sign up":                   "アカウントを作成する",
+	"Save":                      "保存する",
+	"Submit":                    "送信",
+	"Continue":                  "続行",
+	"Send recovery link":        "回復リンクを送信",
+	"Send verification code":    "確認コードを送信",
+	"Verify code":               "コードを確認",
+	"Resend code":               "コードを再送",
+	"Authenticator app QR code": "認証アプリ QR コード",
+	"Authenticator secret":      "シークレットキー",
+	"Disable this method":       "この方法を無効化",
+	"Backup Recovery Codes":     "バックアップ回復コード",
+	"Reveal codes":              "コードを表示",
+	"Download":                  "ダウンロード",
+	"Add Authenticator App":     "認証アプリを追加",
+	"Confirm":                   "確認する",
+	"Reauthenticate":            "再認証",
+}
+
+func translateLabel(text string) string {
+	if ja, ok := kratosLabelJA[text]; ok {
+		return ja
+	}
+	return text
+}
+
 type KratosFlowClient struct {
 	apiBaseURL     string
 	browserBaseURL string
@@ -186,6 +221,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       }
     }
     *, *::before, *::after { box-sizing: border-box; }
+    a { color: var(--oshi); text-decoration: none; }
+    a:hover { opacity: 0.8; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -954,13 +991,13 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 		},
 		"nodeLabel": func(node KratosNode) string {
 			if node.Meta.Label != nil && node.Meta.Label.Text != "" {
-				return node.Meta.Label.Text
+				return translateLabel(node.Meta.Label.Text)
 			}
 			if node.Attributes.Text != nil && node.Attributes.Text.Text != "" {
-				return node.Attributes.Text.Text
+				return translateLabel(node.Attributes.Text.Text)
 			}
 			if node.Attributes.Value != nil {
-				return fmt.Sprint(node.Attributes.Value)
+				return translateLabel(fmt.Sprint(node.Attributes.Value))
 			}
 			return node.Attributes.Name
 		},
