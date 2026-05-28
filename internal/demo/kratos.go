@@ -152,26 +152,38 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ .Title }} — Idol Auth</title>
+  <title>{{ .Title }} | OshiLink</title>
   <style>
     :root {
-      --oshi:#ff8a3d;
-      --oshi-weak:#fff1e8;
-      --oshi-soft:#ffd9c2;
-      --bg:#f8f6f3;
+      --oshi:#ffb2d8;
+      --oshi-weak:#fce7f3;
+      --oshi-soft:#fbcfe8;
+      --bg:#fdf8fc;
       --surface:#ffffff;
-      --surface-2:#fffaf6;
-      --text:#26211f;
-      --muted:#776d67;
-      --border:#eadfd7;
-      --shadow:0 16px 40px rgba(48,35,28,.1);
-      --radius-lg:28px;
-      --radius-md:18px;
-      --radius-sm:12px;
+      --surface-2:#fef9fd;
+      --text:#2a1520;
+      --muted:#9d748f;
+      --border:#f0d0e8;
+      --danger:#e85d75;
+      --radius-lg:32px;
+      --radius-md:22px;
+      --radius-sm:18px;
       --oshi-bg:color-mix(in srgb,var(--oshi) 14%,transparent);
       --oshi-border:color-mix(in srgb,var(--oshi) 34%,transparent);
       --oshi-text:var(--oshi);
       --oshi-glow:0 0 0 4px color-mix(in srgb,var(--oshi) 18%,transparent);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#1a1018;
+        --surface:#251820;
+        --surface-2:#2e1f28;
+        --text:#fff0f8;
+        --muted:#c8a8bd;
+        --border:#4a2e40;
+        --oshi-weak:#3d1a2a;
+        --oshi-soft:#5a2a40;
+      }
     }
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -196,81 +208,65 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       pointer-events: none;
     }
     body::before {
-      width: 220px;
-      height: 220px;
-      left: -70px;
-      top: 8%;
-      background: var(--oshi);
+      width: 260px;
+      height: 260px;
+      left: -80px;
+      top: 6%;
+      background: var(--oshi-soft);
     }
     body::after {
-      width: 280px;
-      height: 280px;
-      right: -100px;
-      bottom: -50px;
-      background: rgba(178,255,255,0.7);
+      width: 300px;
+      height: 300px;
+      right: -110px;
+      bottom: -60px;
+      background: var(--oshi-weak);
     }
     .card {
       position: relative;
       overflow: hidden;
       width: 100%;
-      max-width: 470px;
+      max-width: 480px;
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 2px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 32px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(24px);
-    }
-    .card::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0));
-      pointer-events: none;
-    }
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.7);
-      border: 1px solid var(--oshi-border);
-      color: var(--oshi-text);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 18px;
-      position: relative;
-      z-index: 1;
+      box-shadow: 0 4px 24px color-mix(in srgb,var(--oshi) 10%,rgba(0,0,0,0.06));
+      backdrop-filter: saturate(160%) blur(14px);
+      -webkit-backdrop-filter: saturate(160%) blur(14px);
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 32px;
+      gap: 12px;
+      margin-bottom: 28px;
     }
     .brand-mark {
-      width: 34px;
-      height: 34px;
+      width: 42px;
+      height: 42px;
       background: var(--oshi);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
       color: #fff;
       flex-shrink: 0;
       font-weight: 900;
-      box-shadow: 0 8px 18px color-mix(in srgb,var(--oshi) 28%,transparent);
+      letter-spacing: -0.02em;
+      border: 2px solid color-mix(in srgb,var(--oshi) 35%,transparent);
     }
-    .brand-name {
-      font-size: 12px;
-      font-weight: 700;
+    .brand-text strong {
+      display: block;
+      font-size: 16px;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .brand-text span {
+      font-size: 11px;
       color: var(--muted);
-      letter-spacing: 0.12em;
+      font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.12em;
     }
     h1 { margin: 0 0 8px; font-size: 30px; font-weight: 900; letter-spacing: -0.03em; color: var(--text); line-height: 1.02; }
     .description { color: var(--muted); margin: 0 0 28px; font-size: 14px; line-height: 1.6; }
@@ -282,13 +278,13 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       line-height: 1.5;
     }
     .alert-error {
-      background: rgba(239,68,68,0.07);
-      border: 1px solid rgba(239,68,68,0.2);
-      color: #dc2626;
+      background: color-mix(in srgb,var(--danger) 8%,transparent);
+      border: 2px solid color-mix(in srgb,var(--danger) 24%,transparent);
+      color: var(--danger);
     }
     .alert-info {
       background: var(--oshi-bg);
-      border: 1px solid var(--oshi-border);
+      border: 2px solid var(--oshi-border);
       color: var(--oshi-text);
     }
     .registration-intro {
@@ -351,23 +347,24 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       text-transform: uppercase;
     }
     input:not([type=hidden]):not([type=submit]) {
-      background: #f9f9fd;
-      border: 1.5px solid rgba(0,0,0,0.09);
-      border-radius: 10px;
-      color: #111827;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      color: var(--text);
       font-size: 15px;
-      padding: 11px 13px;
+      padding: 14px 16px;
       outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
       width: 100%;
     }
     input:not([type=hidden]):not([type=submit]):focus {
       border-color: var(--oshi);
+      background: var(--surface);
       box-shadow: var(--oshi-glow);
     }
     input.is-invalid:not([type=hidden]):not([type=submit]) {
-      border-color: #f97316;
-      box-shadow: 0 0 0 3px rgba(249,115,22,0.16);
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px color-mix(in srgb,var(--danger) 16%,transparent);
     }
     input[readonly] { opacity: 0.55; cursor: default; }
     .password-strength-panel {
@@ -441,26 +438,48 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     }
     button, input[type=submit] {
       background: var(--oshi);
-      color: #1a1a2e;
-      border: none;
-      border-radius: 10px;
+      color: #fff;
+      border: 2px solid var(--oshi);
+      border-radius: 999px;
       font-size: 14px;
-      font-weight: 700;
-      padding: 13px;
+      font-weight: 900;
+      padding: 14px 18px;
       cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
+      transition: transform 160ms ease, opacity 160ms ease;
       width: 100%;
       letter-spacing: 0.01em;
+      line-height: 1;
     }
-    button:hover, input[type=submit]:hover { opacity: 0.82; }
+    button:hover, input[type=submit]:hover { transform: translateY(-1px); opacity: 0.92; }
     button:active, input[type=submit]:active { transform: scale(0.99); }
+    .totp-reveal {
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .totp-reveal summary {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--oshi);
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .totp-reveal summary::-webkit-details-marker { display: none; }
+    .totp-reveal summary::before { content: "▶"; font-size: 9px; }
+    .totp-reveal[open] summary::before { content: "▼"; }
+    .totp-reveal > .field { padding: 0 16px 16px; }
     .qr-wrap img {
       border-radius: 16px;
       background: white;
       padding: 14px;
       max-width: 200px;
-      border: 1px solid rgba(29,32,64,0.08);
-      box-shadow: 0 12px 26px rgba(59,61,109,0.08);
+      border: 2px solid var(--border);
     }
     .nav {
       display: flex;
@@ -468,59 +487,61 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       gap: 4px 0;
       margin-top: 28px;
       padding-top: 22px;
-      border-top: 1px solid rgba(0,0,0,0.06);
+      border-top: 2px solid var(--border);
     }
     .nav a {
       font-size: 13px;
-      color: #9ca3af;
+      color: var(--muted);
       text-decoration: none;
       padding: 2px 0;
-      transition: color 0.15s;
+      transition: color 160ms ease;
     }
-    .nav a:hover { color: var(--oshi-text); }
-    .nav a:not(:last-child)::after { content: '·'; margin: 0 10px; color: rgba(0,0,0,0.15); }
+    .nav a:hover { color: var(--oshi); }
+    .nav a:not(:last-child)::after { content: '·'; margin: 0 10px; color: var(--border); }
     #oshi-picker {
       position: fixed; bottom: 18px; right: 18px; z-index: 200;
       font-family: "Avenir Next", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
     }
     #oshi-toggle {
-      width: 58px; height: 58px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.96), var(--oshi-bg));
-      border: 1px solid rgba(255,255,255,0.84); border-radius: 20px;
-      font-size: 24px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 18px 44px rgba(59,61,109,0.16);
-      transition: transform 0.15s, box-shadow 0.15s;
-      color: var(--oshi-text);
+      width: 56px; height: 56px;
+      background: color-mix(in srgb,var(--surface) 90%,transparent);
+      border: 2px solid var(--border); border-radius: 20px;
+      font-size: 22px; cursor: pointer;
+      display: grid; place-items: center;
+      box-shadow: 0 4px 16px color-mix(in srgb,var(--oshi) 16%,rgba(0,0,0,0.06));
+      transition: transform 160ms ease, box-shadow 160ms ease;
+      color: var(--oshi);
       padding: 0;
-      backdrop-filter: blur(24px);
+      backdrop-filter: saturate(160%) blur(14px);
+      -webkit-backdrop-filter: saturate(160%) blur(14px);
     }
-    #oshi-toggle:hover { transform: translateY(-2px); box-shadow: 0 22px 52px rgba(59,61,109,0.18); }
+    #oshi-toggle:hover { transform: translateY(-2px); box-shadow: 0 8px 24px color-mix(in srgb,var(--oshi) 22%,rgba(0,0,0,0.08)); }
     #oshi-swatches {
       display: none;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       width: 188px;
-      background: rgba(255,255,255,0.88);
-      border: 1px solid rgba(255,255,255,0.84);
+      background: color-mix(in srgb,var(--surface) 94%,transparent);
+      border: 2px solid var(--border);
       border-radius: 22px;
       padding: 14px;
-      box-shadow: 0 18px 44px rgba(59,61,109,0.16);
+      box-shadow: 0 8px 32px color-mix(in srgb,var(--oshi) 12%,rgba(0,0,0,0.08));
       position: absolute;
-      bottom: 70px; right: 0;
-      backdrop-filter: blur(24px);
+      bottom: 68px; right: 0;
+      backdrop-filter: saturate(160%) blur(14px);
+      -webkit-backdrop-filter: saturate(160%) blur(14px);
     }
     .swatch {
       width: 100%; aspect-ratio: 1;
       border-radius: 50%;
       border: 2.5px solid transparent;
       cursor: pointer;
-      transition: transform 0.1s, border-color 0.1s;
+      transition: transform 160ms ease, border-color 160ms ease;
       outline: none;
       padding: 0;
     }
-    .swatch:hover { transform: scale(1.08); }
-    .swatch.active { border-color: #1a1a2e; }
+    .swatch:hover { transform: scale(1.1); }
+    .swatch.active { border-color: var(--text); }
     .identifier-hint {
       font-size: 11px;
       color: #9ca3af;
@@ -531,7 +552,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     }
     .identifier-hint.is-email, .identifier-hint.is-phone { color: #047857; }
     @media (max-width: 640px) {
-      .card { padding: 24px 20px; border-radius: 26px; }
+      .card { padding: 24px 20px; border-radius: 28px; }
       h1 { font-size: 26px; }
       .registration-intro h2 { font-size: 18px; }
       .password-checklist { grid-template-columns: 1fr; }
@@ -563,16 +584,18 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         body:JSON.stringify({oshi_color:color})
       }).catch(function(){});
     }
-    var _os=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[4];
+    var _os=normalizeOshi({{ printf "%q" .OshiColor }})||OSHI[1];
     applyOshi(_os);
   </script>
 </head>
 <body>
   <div class="card">
-    <div class="eyebrow">✦ {{ .FlowType }} flow</div>
     <div class="brand">
-      <div class="brand-mark">推</div>
-      <span class="brand-name">Idol Auth</span>
+      <div class="brand-mark" aria-hidden="true">★</div>
+      <div class="brand-text">
+        <strong>OshiLink</strong>
+        <span>ACCOUNT</span>
+      </div>
     </div>
     <h1>{{ .Title }}</h1>
     <p class="description">{{ .Description }}</p>

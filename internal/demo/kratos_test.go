@@ -146,10 +146,11 @@ func TestRenderPageUsesAccountCenterDesignSystem(t *testing.T) {
 
 	body := rec.Body.String()
 	for _, fragment := range []string{
-		"--oshi-weak:#fff1e8",
-		"--surface-2:#fffaf6",
-		"--radius-lg:28px",
+		"--oshi-weak:#fce7f3",
+		"--surface-2:#fef9fd",
+		"--radius-lg:32px",
 		"brand-mark",
+		"OshiLink",
 		"推し色を選ぶ",
 		`href="/recovery"`,
 		"パスワードを忘れた場合",
