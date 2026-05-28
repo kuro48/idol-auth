@@ -90,7 +90,7 @@ func translateMessage(msg KratosMessage) string {
 	return msg.Text
 }
 
-var kratosLabelJA = map[string]string{
+var kratosLabelJA = map[string]string{ // #nosec G101 -- UI label translations, not credentials
 	"ID":                        "メールアドレス / 電話番号",
 	"Password":                  "パスワード",
 	"New Password":              "新しいパスワード",
