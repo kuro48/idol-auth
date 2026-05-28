@@ -956,14 +956,12 @@ var accountCenterTpl = template.Must(template.New("account-center").Parse(`<!DOC
     function renderDeletion(deletion) {
       var st = document.getElementById('deletion-status');
       var ste = document.getElementById('deletion-status-edit');
-      if (!deletion) {
+      if (ste) { ste.textContent = ''; ste.style.display = 'none'; }
+      if (!deletion || deletion.status !== 'scheduled') {
         st.textContent = '削除予約はありません。';
-        if (ste) { ste.textContent = ''; ste.style.display = 'none'; }
         return;
       }
-      var msg = '状態: ' + deletion.status + ' / 実行予定: ' + new Date(deletion.scheduled_for).toLocaleString('ja-JP');
-      st.textContent = msg;
-      if (ste) { ste.textContent = msg; ste.style.display = 'block'; }
+      st.textContent = '削除予約済みです。';
     }
 
     document.getElementById('btn-schedule').addEventListener('click', async function() {
