@@ -147,8 +147,7 @@ func (m *mockTokenResolver) ResolveAppByToken(ctx context.Context, rawToken stri
 }
 
 type mockIdentityCreator struct {
-	createFn       func(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error)
-	recoveryLinkFn func(ctx context.Context, identityID string) (string, error)
+	createFn func(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error)
 }
 
 func (m *mockIdentityCreator) CreateSharedAccount(ctx context.Context, input account.RegisterIdentityInput) (account.CreatedIdentityResult, error) {
@@ -156,13 +155,6 @@ func (m *mockIdentityCreator) CreateSharedAccount(ctx context.Context, input acc
 		return m.createFn(ctx, input)
 	}
 	return account.CreatedIdentityResult{IdentityID: "new-identity-id", IsNew: true}, nil
-}
-
-func (m *mockIdentityCreator) CreateRecoveryLink(ctx context.Context, identityID string) (string, error) {
-	if m.recoveryLinkFn != nil {
-		return m.recoveryLinkFn(ctx, identityID)
-	}
-	return "https://auth.example.com/recovery?token=test", nil
 }
 
 type mockAuditRepo struct {
@@ -642,12 +634,6 @@ func TestRegisterIdentityForApp_CreatesNewAccountAndMembership(t *testing.T) {
 			}
 			return account.CreatedIdentityResult{IdentityID: "new-identity-id", IsNew: true}, nil
 		},
-		recoveryLinkFn: func(_ context.Context, identityID string) (string, error) {
-			if identityID != "new-identity-id" {
-				t.Errorf("expected identity id new-identity-id, got %q", identityID)
-			}
-			return "https://auth.example.com/recovery?token=abc", nil
-		},
 	}
 	var upsertedMembership account.AppMembership
 	memberships := &mockMembershipRepo{
@@ -671,9 +657,6 @@ func TestRegisterIdentityForApp_CreatesNewAccountAndMembership(t *testing.T) {
 	}
 	if !result.CreatedSharedAccount {
 		t.Error("expected created_shared_account=true for new identity")
-	}
-	if result.RecoveryLink != "https://auth.example.com/recovery?token=abc" {
-		t.Errorf("expected recovery link, got %q", result.RecoveryLink)
 	}
 	if upsertedMembership.IdentityID != "new-identity-id" {
 		t.Errorf("expected membership for new-identity-id, got %q", upsertedMembership.IdentityID)

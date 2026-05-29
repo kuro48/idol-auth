@@ -1,3 +1,4 @@
+# DEV-ONLY defaults — override via environment or .env before running make up outside localhost.
 POSTGRES_PASSWORD ?= postgrespass
 REDIS_PASSWORD ?= redispass
 HYDRA_SYSTEM_SECRET ?= 0123456789abcdef0123456789abcdef

@@ -1153,6 +1153,10 @@ func (s *server) handleRegisterAppUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "app authorization required")
 		return
 	}
+	if appActor.PartyType != app.PartyTypeFirst {
+		writeError(w, http.StatusForbidden, "shared account registration is restricted to first-party apps")
+		return
+	}
 	var req struct {
 		Email       string `json:"email"`
 		DisplayName string `json:"display_name"`

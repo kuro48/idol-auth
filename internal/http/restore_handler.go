@@ -1,6 +1,7 @@
 package http
 
 import (
+	"crypto/subtle"
 	"html/template"
 	"net/http"
 	"strings"
@@ -8,6 +9,31 @@ import (
 
 	"github.com/kuro48/idol-auth/internal/domain/account"
 )
+
+const restoreCSRFCookieName = "idol_auth_restore_csrf"
+
+func (s *server) setRestoreCSRFCookie(w http.ResponseWriter, r *http.Request, token string) {
+	secure := s.config.Security.CookieSecure && requestIsSecure(r, s.config.Security.TrustedProxies)
+	http.SetCookie(w, &http.Cookie{
+		Name:     restoreCSRFCookieName,
+		Value:    token,
+		Path:     "/account/restore",
+		Domain:   s.config.Security.CookieDomain,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   secure,
+		MaxAge:   1800,
+	})
+}
+
+func validateRestoreCSRF(r *http.Request) bool {
+	cookie, err := r.Cookie(restoreCSRFCookieName)
+	if err != nil || cookie.Value == "" {
+		return false
+	}
+	formToken := strings.TrimSpace(r.FormValue("csrf_token"))
+	return formToken != "" && subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formToken)) == 1
+}
 
 type restorePageData struct {
 	OshiColor    template.CSS
@@ -42,6 +68,7 @@ func (s *server) handleRestoreAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	s.setRestoreCSRFCookie(w, r, nonce)
 
 	oshiColor := template.CSS("#f472b6")
 	if c := session.OshiColor; c != "" {
@@ -71,6 +98,15 @@ func (s *server) handleSubmitRestore(w http.ResponseWriter, r *http.Request) {
 	session, err := s.authSvc.CurrentSession(r.Context(), r)
 	if err != nil || !session.Authenticated || session.IdentityID == "" {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	if !validateRestoreCSRF(r) {
+		http.Error(w, "csrf validation failed", http.StatusForbidden)
 		return
 	}
 

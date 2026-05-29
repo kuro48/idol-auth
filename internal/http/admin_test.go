@@ -1170,7 +1170,7 @@ func (s *stubAccountService) RegisterIdentityForApp(_ context.Context, _ app.App
 	if s.registerErr != nil {
 		return account.RegisterForAppResult{}, s.registerErr
 	}
-	return account.RegisterForAppResult{IdentityID: "new-identity-id", CreatedSharedAccount: true, RecoveryLink: "https://auth.example.com/recovery?token=test"}, nil
+	return account.RegisterForAppResult{IdentityID: "new-identity-id", CreatedSharedAccount: true}, nil
 }
 
 func (s *stubAccountService) GetMembershipForApp(_ context.Context, _ uuid.UUID, _ string) (account.AppMembership, error) {
@@ -1271,7 +1271,7 @@ func TestRegisterAppUser_RequiresAppToken(t *testing.T) {
 
 func TestRegisterAppUser_RejectsMissingEmail(t *testing.T) {
 	appID := uuid.New()
-	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web"}}
+	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web", PartyType: app.PartyTypeFirst}}
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"display_name":"Test"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -1285,9 +1285,26 @@ func TestRegisterAppUser_RejectsMissingEmail(t *testing.T) {
 	}
 }
 
+func TestRegisterAppUser_ThirdPartyAppIsForbidden(t *testing.T) {
+	appID := uuid.New()
+	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "third-app", PartyType: app.PartyTypeThird}}
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	body, _ := json.Marshal(map[string]string{"email": "victim@example.com"})
+	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer app-token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected %d, got %d; body=%s", http.StatusForbidden, w.Code, w.Body.String())
+	}
+}
+
 func TestRegisterAppUser_ReturnsCreatedWithRecoveryLink(t *testing.T) {
 	appID := uuid.New()
-	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web"}}
+	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web", PartyType: app.PartyTypeFirst}}
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
 	body, _ := json.Marshal(map[string]string{"email": "user@example.com", "display_name": "Test User"})
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBuffer(body))
@@ -1308,7 +1325,7 @@ func TestRegisterAppUser_ReturnsCreatedWithRecoveryLink(t *testing.T) {
 func TestRegisterAppUser_ReturnsConflictForExistingSharedAccount(t *testing.T) {
 	appID := uuid.New()
 	accountSvc := &stubAccountService{
-		resolvedApp: app.App{ID: appID, Slug: "idol-web"},
+		resolvedApp: app.App{ID: appID, Slug: "idol-web", PartyType: app.PartyTypeFirst},
 		registerErr: account.ErrSharedAccountAlreadyExists,
 	}
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)

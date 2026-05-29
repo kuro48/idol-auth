@@ -78,12 +78,10 @@ type CreatedIdentityResult struct {
 type RegisterForAppResult struct {
 	IdentityID           string `json:"identity_id"`
 	CreatedSharedAccount bool   `json:"created_shared_account"`
-	RecoveryLink         string `json:"recovery_link,omitempty"`
 }
 
 type IdentityCreator interface {
 	CreateSharedAccount(ctx context.Context, input RegisterIdentityInput) (CreatedIdentityResult, error)
-	CreateRecoveryLink(ctx context.Context, identityID string) (string, error)
 }
 
 type DeletionRequestRepository interface {
@@ -335,15 +333,6 @@ func (s *Service) RegisterIdentityForApp(ctx context.Context, appEntity app.App,
 		return RegisterForAppResult{}, fmt.Errorf("create shared account: %w", err)
 	}
 
-	var recoveryLink string
-	if created.IsNew {
-		link, err := s.creator.CreateRecoveryLink(ctx, created.IdentityID)
-		if err != nil {
-			return RegisterForAppResult{}, fmt.Errorf("create recovery link: %w", err)
-		}
-		recoveryLink = link
-	}
-
 	now := s.now().UTC()
 	if _, err := s.memberships.Upsert(ctx, AppMembership{
 		ID:         uuid.New(),
@@ -376,7 +365,6 @@ func (s *Service) RegisterIdentityForApp(ctx context.Context, appEntity app.App,
 	return RegisterForAppResult{
 		IdentityID:           created.IdentityID,
 		CreatedSharedAccount: created.IsNew,
-		RecoveryLink:         recoveryLink,
 	}, nil
 }
 
