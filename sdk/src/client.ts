@@ -74,7 +74,7 @@ export class IdolAuthClient {
 
   /** Revoke an access or refresh token. */
   async revoke(req: RevokeRequest): Promise<void> {
-    await this.postForm<unknown>("/v1/public/api/token/revoke", req as Record<string, string | undefined>);
+    await this.postFormVoid("/v1/public/api/token/revoke", req as Record<string, string | undefined>);
   }
 
   /** Introspect a token (requires client credentials). */
@@ -142,6 +142,24 @@ export class IdolAuthClient {
       throw new IdolAuthError(resp.status, await resp.text());
     }
     return resp.json() as Promise<T>;
+  }
+
+  private async postFormVoid(
+    path: string,
+    params: Record<string, string | undefined>
+  ): Promise<void> {
+    const body = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v !== undefined) body.set(k, v);
+    }
+    const resp = await this._fetch(`${this.baseUrl}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+    if (!resp.ok) {
+      throw new IdolAuthError(resp.status, await resp.text());
+    }
   }
 }
 
