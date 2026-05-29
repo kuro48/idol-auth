@@ -9,6 +9,8 @@
 /out/
 /dist/
 /sdk/dist/
+/docs-site/.vitepress/dist/
+/docs-site/.vitepress/cache/
 node_modules/
 /server
 /portal

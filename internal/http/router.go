@@ -19,13 +19,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
-	_ "github.com/kuro48/idol-auth/docs/swagger"
+	swaggerDocs "github.com/kuro48/idol-auth/docs/swagger"
 	"github.com/kuro48/idol-auth/internal/config"
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
 	"github.com/kuro48/idol-auth/internal/domain/profile"
-	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 var (
@@ -214,7 +213,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.With(docsSecurityHeaders).Get("/docs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/docs/index.html", http.StatusMovedPermanently)
 	})
-	r.With(docsSecurityHeaders).Get("/docs/*", httpSwagger.WrapHandler)
+	r.With(docsSecurityHeaders).Get("/docs/index.html", handleScalarUI)
+	r.With(docsSecurityHeaders).Get("/docs/doc.json", handleDocsJSON)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusFound)
 	})
@@ -1915,15 +1915,45 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// docsSecurityHeaders overrides the CSP for the Swagger UI.
-// The global securityHeaders sets default-src 'none' which blocks all JS/CSS;
-// swagger-ui needs self-hosted scripts, styles, images and XHR back to self.
+// docsSecurityHeaders overrides the CSP for the Scalar API reference UI.
+// Scalar loads scripts/styles from cdn.jsdelivr.net and makes XHR requests
+// to the configured API server for try-it-out.
 func docsSecurityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy",
-			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'")
+			"default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https:; worker-src blob:; frame-ancestors 'none'; base-uri 'self'")
 		next.ServeHTTP(w, r)
 	})
+}
+
+const scalarHTML = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <title>idol-auth API リファレンス</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="robots" content="noindex"/>
+</head>
+<body>
+  <script
+    id="api-reference"
+    data-url="/docs/doc.json"
+    data-configuration='{"theme":"purple","hideModels":false,"showSidebar":true}'
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>`
+
+func handleScalarUI(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(scalarHTML))
+}
+
+func handleDocsJSON(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(swaggerDocs.SwaggerInfo.ReadDoc()))
 }
 
 // corsMiddleware sets CORS headers for requests whose Origin matches the allowlist.
