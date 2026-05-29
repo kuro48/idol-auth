@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'idol-auth',
   description: '外部開発者向け認証基盤ドキュメント',
   lang: 'ja',
-  base: '/idol-auth/',
+  base: '/',
 
   head: [
     ['link', { rel: 'icon', href: '/idol-auth/favicon.ico' }],
@@ -83,7 +83,7 @@ export default defineConfig({
 
     editLink: {
       pattern: 'https://github.com/kuro48/idol-auth/edit/main/docs-site/:path',
-      text: 'このページを編集',
+      text: 'このページを GitHub で編集',
     },
   },
 })
