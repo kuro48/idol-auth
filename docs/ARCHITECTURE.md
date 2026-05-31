@@ -380,7 +380,7 @@ Content-Security-Policy: default-src 'self'; frame-ancestors 'none'; base-uri 's
 
 ```bash
 # 依存サービスを起動
-docker compose up postgres redis kratos hydra mailpit
+docker compose up postgres kratos hydra mailpit
 
 # アプリをローカルで起動
 DATABASE_URL=postgres://idol:change_me_postgres@localhost:5432/idol_auth \

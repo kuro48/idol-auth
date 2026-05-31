@@ -8,7 +8,7 @@
 - Docker Engine / Docker Compose
 - `docker-compose.production.yml`
 - **Cloudflare Tunnel** (`cloudflared`) を唯一の公開入口として利用（VPS への直接 inbound 不要）
-- `hydra admin`, `kratos admin`, `postgres`, `redis` は内部ネットワーク限定
+- `hydra admin`, `kratos admin`, `postgres` は内部ネットワーク限定
 
 ## 1. 本番用設定を作る
 
@@ -23,7 +23,6 @@ cp .env.production.example .env.production
 - `PORTAL_APP_URL` / `PORTAL_HOSTNAME`
 - `HYDRA_HOSTNAME`
 - `POSTGRES_PASSWORD`
-- `REDIS_PASSWORD`
 - `ADMIN_BOOTSTRAP_TOKEN`
 - `KRATOS_SECRETS_DEFAULT` / `KRATOS_SECRETS_COOKIE` / `KRATOS_SECRETS_CIPHER`
 - `HYDRA_SYSTEM_SECRET`
