@@ -6,8 +6,17 @@ FROM base AS deps
 COPY go.mod go.sum ./
 RUN go mod download
 
+FROM node:22-alpine AS build-docs
+WORKDIR /docs
+COPY docs-site/package.json docs-site/package-lock.json ./
+RUN npm ci
+COPY docs-site/index.html ./
+COPY docs/swagger/swagger.json ./public/openapi.json
+RUN npm run build
+
 FROM deps AS build-app
 COPY . .
+COPY --from=build-docs /docs/dist ./internal/docsfs/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/server ./cmd/server
 
 FROM deps AS build-migrate

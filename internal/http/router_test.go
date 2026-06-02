@@ -63,11 +63,11 @@ func TestHandleReadyz(t *testing.T) {
 	}
 }
 
-func TestSwaggerDocsAreServed(t *testing.T) {
+func TestDocsAreServed(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
 
 	t.Run("ui", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/docs/index.html", nil)
+		req := httptest.NewRequest(http.MethodGet, "/docs/", nil)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
@@ -75,19 +75,12 @@ func TestSwaggerDocsAreServed(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
 		}
-		body := w.Body.String()
-		if !strings.Contains(body, "idol-auth API リファレンス") || !strings.Contains(body, "/docs/doc.json") {
-			t.Fatalf("expected static API reference response")
-		}
-		if strings.Contains(body, "cdn.jsdelivr.net") || strings.Contains(body, "<script") {
-			t.Fatalf("expected docs page not to load external scripts")
-		}
-		if strings.Contains(w.Header().Get("Content-Security-Policy"), "connect-src 'self' https:") {
-			t.Fatalf("expected docs CSP to restrict connect-src")
+		if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+			t.Fatalf("expected HTML Content-Type, got %q", ct)
 		}
 	})
 
-	t.Run("short path redirects to ui", func(t *testing.T) {
+	t.Run("short path redirects to trailing slash", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/docs", nil)
 		w := httptest.NewRecorder()
 
@@ -96,28 +89,8 @@ func TestSwaggerDocsAreServed(t *testing.T) {
 		if w.Code != http.StatusMovedPermanently {
 			t.Fatalf("expected status %d, got %d", http.StatusMovedPermanently, w.Code)
 		}
-		if location := w.Header().Get("Location"); location != "/docs/index.html" {
-			t.Fatalf("expected redirect to /docs/index.html, got %q", location)
-		}
-	})
-
-	t.Run("spec", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/docs/doc.json", nil)
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
-		}
-		if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
-			t.Fatalf("expected JSON Content-Type, got %q", ct)
-		}
-		body := w.Body.String()
-		for _, fragment := range []string{`"swagger": "2.0"`, `"title": "idol-auth API"`} {
-			if !strings.Contains(body, fragment) {
-				t.Fatalf("expected spec to contain %q", fragment)
-			}
+		if location := w.Header().Get("Location"); location != "/docs/" {
+			t.Fatalf("expected redirect to /docs/, got %q", location)
 		}
 	})
 }

@@ -19,8 +19,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
-	swaggerDocs "github.com/kuro48/idol-auth/docs/swagger"
 	"github.com/kuro48/idol-auth/internal/config"
+	"github.com/kuro48/idol-auth/internal/docsfs"
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
@@ -226,11 +226,11 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Handle("/metrics", metricsHandler())
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
-	r.With(docsSecurityHeaders).Get("/docs", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/docs/index.html", http.StatusMovedPermanently)
+	docsHandler := http.FileServer(http.FS(docsfs.FS()))
+	r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/docs/", http.StatusMovedPermanently)
 	})
-	r.With(docsSecurityHeaders).Get("/docs/index.html", handleDocsIndex)
-	r.With(docsSecurityHeaders).Get("/docs/doc.json", handleDocsJSON)
+	r.Handle("/docs/*", http.StripPrefix("/docs", docsHandler))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusFound)
 	})
@@ -1948,56 +1948,6 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// docsSecurityHeaders allows the static API reference page while keeping it
-// isolated from script execution and external network access.
-func docsSecurityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy",
-			"default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'")
-		next.ServeHTTP(w, r)
-	})
-}
-
-const docsIndexHTML = `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <title>idol-auth API リファレンス</title>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="robots" content="noindex"/>
-  <style>
-    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { margin: 0; background: #f8fafc; color: #111827; }
-    main { max-width: 880px; margin: 0 auto; padding: 48px 20px; }
-    h1 { margin: 0 0 12px; font-size: 32px; line-height: 1.2; }
-    p { color: #4b5563; line-height: 1.7; }
-    a { color: #2563eb; font-weight: 600; }
-    code { background: #e5e7eb; border-radius: 4px; padding: 2px 6px; }
-    .panel { margin-top: 24px; padding: 20px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>idol-auth API リファレンス</h1>
-    <p>OpenAPI 仕様は <a href="/docs/doc.json">/docs/doc.json</a> で配信しています。</p>
-    <div class="panel">
-      <p>外部スクリプトを読み込まない静的ページです。API クライアントや OpenAPI ビューアでは <code>/docs/doc.json</code> を指定してください。</p>
-    </div>
-  </main>
-</body>
-</html>`
-
-func handleDocsIndex(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(docsIndexHTML))
-}
-
-func handleDocsJSON(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(swaggerDocs.SwaggerInfo.ReadDoc()))
-}
 
 // corsMiddleware sets CORS headers for requests whose Origin matches the allowlist.
 // Preflight OPTIONS requests are answered immediately with 204.

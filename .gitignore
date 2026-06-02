@@ -11,6 +11,8 @@
 /sdk/dist/
 /docs-site/dist/
 /docs-site/public/openapi.json
+/internal/docsfs/dist/*
+!/internal/docsfs/dist/index.html
 node_modules/
 /server
 /portal

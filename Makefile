@@ -82,6 +82,7 @@ docs:
 	$(MAKE) swagger
 	cp docs/swagger/swagger.json docs-site/public/openapi.json
 	cd docs-site && npm ci && npm run build
+	cp -r docs-site/dist/. internal/docsfs/dist/
 
 docs-dev:
 	$(MAKE) swagger
