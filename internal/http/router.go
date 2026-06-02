@@ -221,7 +221,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(httpMetricsMiddleware)
 
+	r.Handle("/metrics", metricsHandler())
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
 	r.With(docsSecurityHeaders).Get("/docs", func(w http.ResponseWriter, r *http.Request) {
