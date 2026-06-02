@@ -140,6 +140,7 @@ type AccountService interface {
 	RegisterIdentityForApp(ctx context.Context, appEntity app.App, input account.RegisterIdentityInput, actorID string) (account.RegisterForAppResult, error)
 	GetMembershipForApp(ctx context.Context, appID uuid.UUID, identityID string) (account.AppMembership, error)
 	ExportAccountData(ctx context.Context, identityID string) (account.AccountExport, error)
+	GetAppStats(ctx context.Context, appID uuid.UUID) (account.AppMembershipStats, error)
 }
 
 type ProfileService interface {
@@ -367,6 +368,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		if s.webhookRepo != nil {
 			r.Patch("/webhook", s.handlePatchAppWebhook)
 		}
+		r.Get("/stats", s.handleGetAppStats)
 	})
 
 	if s.publicSvc != nil {

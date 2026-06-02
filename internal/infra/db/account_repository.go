@@ -165,6 +165,33 @@ func (r *AccountRepository) GetByAppAndIdentity(ctx context.Context, appID uuid.
 	return membership, nil
 }
 
+func (r *AccountRepository) GetAppMembershipStats(ctx context.Context, appID uuid.UUID) (account.AppMembershipStats, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT status, COUNT(*) FROM app_user_memberships WHERE app_id = $1 GROUP BY status
+	`, appID)
+	if err != nil {
+		return account.AppMembershipStats{}, fmt.Errorf("get app membership stats: %w", err)
+	}
+	defer rows.Close()
+
+	var stats account.AppMembershipStats
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return account.AppMembershipStats{}, fmt.Errorf("scan app membership stats: %w", err)
+		}
+		stats.TotalCount += count
+		switch account.MembershipStatus(status) {
+		case account.MembershipStatusActive:
+			stats.ActiveCount = count
+		case account.MembershipStatusRevoked:
+			stats.RevokedCount = count
+		}
+	}
+	return stats, rows.Err()
+}
+
 func (r *AccountRepository) UpdateStatusByIdentity(ctx context.Context, identityID string, status account.MembershipStatus, actorID string, now time.Time) error {
 	if _, err := r.pool.Exec(ctx, `
 		UPDATE app_user_memberships

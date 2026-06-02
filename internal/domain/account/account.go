@@ -58,6 +58,13 @@ type DeletionRequest struct {
 	LastActorID  string                `json:"last_actor_id,omitempty"`
 }
 
+// AppMembershipStats holds aggregated membership counts for a single app.
+type AppMembershipStats struct {
+	ActiveCount  int `json:"active_count"`
+	RevokedCount int `json:"revoked_count"`
+	TotalCount   int `json:"total_count"`
+}
+
 type MembershipRepository interface {
 	Upsert(ctx context.Context, membership AppMembership) (AppMembership, error)
 	ListByIdentity(ctx context.Context, identityID string) ([]AppMembership, error)
@@ -65,6 +72,7 @@ type MembershipRepository interface {
 	GetByAppAndIdentity(ctx context.Context, appID uuid.UUID, identityID string) (AppMembership, error)
 	UpdateStatus(ctx context.Context, appID uuid.UUID, identityID string, status MembershipStatus, actorID string, now time.Time) error
 	UpdateStatusByIdentity(ctx context.Context, identityID string, status MembershipStatus, actorID string, now time.Time) error
+	GetAppMembershipStats(ctx context.Context, appID uuid.UUID) (AppMembershipStats, error)
 }
 
 type RegisterIdentityInput struct {
@@ -504,6 +512,10 @@ func (s *Service) ExportAccountData(ctx context.Context, identityID string) (Acc
 		DeletionRequest: deletionReq,
 		AuditLogs:       logs,
 	}, nil
+}
+
+func (s *Service) GetAppStats(ctx context.Context, appID uuid.UUID) (AppMembershipStats, error) {
+	return s.memberships.GetAppMembershipStats(ctx, appID)
 }
 
 func (s *Service) writeAudit(ctx context.Context, entry audit.Log) {

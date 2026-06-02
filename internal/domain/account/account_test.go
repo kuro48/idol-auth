@@ -60,6 +60,10 @@ func (m *mockMembershipRepo) UpdateStatusByIdentity(ctx context.Context, identit
 	return nil
 }
 
+func (m *mockMembershipRepo) GetAppMembershipStats(_ context.Context, _ uuid.UUID) (account.AppMembershipStats, error) {
+	return account.AppMembershipStats{}, nil
+}
+
 type mockDeletionRepo struct {
 	upsertScheduledFn func(ctx context.Context, req account.DeletionRequest) (account.DeletionRequest, error)
 	getByIdentityFn   func(ctx context.Context, id string) (account.DeletionRequest, error)
