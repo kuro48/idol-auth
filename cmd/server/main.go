@@ -127,6 +127,7 @@ func run() error {
 		AdminAppRegSvc:     appRegService,
 		DeveloperAppRegSvc: appRegService,
 		WebhookRepo:        webhookRepo,
+		SessionMgr:         kratosAdmin,
 	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{

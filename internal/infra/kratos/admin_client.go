@@ -447,6 +447,82 @@ func (c *AdminClient) RevokeIdentitySessions(ctx context.Context, identityID str
 	return nil
 }
 
+func (c *AdminClient) ListSessionsForIdentity(ctx context.Context, identityID string) ([]account.SessionInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID))+"/sessions", nil)
+	if err != nil {
+		return nil, fmt.Errorf("build kratos list sessions request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call kratos list sessions: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "list sessions", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("kratos list sessions returned status %d", resp.StatusCode)
+	}
+
+	var raw []struct {
+		ID              string `json:"id"`
+		Active          bool   `json:"active"`
+		ExpiresAt       string `json:"expires_at"`
+		AuthenticatedAt string `json:"authenticated_at"`
+		IssuedAt        string `json:"issued_at"`
+		Devices         []struct {
+			UserAgent string `json:"user_agent"`
+		} `json:"devices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("decode kratos list sessions response: %w", err)
+	}
+
+	sessions := make([]account.SessionInfo, len(raw))
+	for i, r := range raw {
+		device := ""
+		if len(r.Devices) > 0 {
+			device = r.Devices[0].UserAgent
+		}
+		sessions[i] = account.SessionInfo{
+			ID:              r.ID,
+			Active:          r.Active,
+			ExpiresAt:       r.ExpiresAt,
+			AuthenticatedAt: r.AuthenticatedAt,
+			CreatedAt:       r.IssuedAt,
+			Device:          device,
+		}
+	}
+	return sessions, nil
+}
+
+func (c *AdminClient) RevokeSession(ctx context.Context, sessionID string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/admin/sessions/"+url.PathEscape(strings.TrimSpace(sessionID)), nil)
+	if err != nil {
+		return fmt.Errorf("build kratos revoke session request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("call kratos revoke session: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "revoke session", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos revoke session returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string, state admindomain.IdentityState) (admindomain.Identity, error) {
 	payload, err := json.Marshal([]map[string]any{{
 		"op":    "replace",

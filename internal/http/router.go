@@ -52,6 +52,7 @@ type RouterConfig struct {
 	AdminAppRegSvc     AdminAppRegService     // optional; nil disables /v1/admin/app-requests endpoints
 	DeveloperAppRegSvc DeveloperAppRegService // optional; nil disables /developer/app-requests endpoints
 	WebhookRepo        app.WebhookRepository  // optional; nil disables PATCH /v1/apps/self/webhook
+	SessionMgr         SessionManager         // optional; nil disables session list/revoke endpoints
 }
 
 type LoginFlowResult struct {
@@ -146,6 +147,12 @@ type ProfileService interface {
 	UpdateProfile(ctx context.Context, identityID string, input profile.UpdateInput) (profile.Profile, error)
 }
 
+// SessionManager lists and revokes individual Kratos sessions for an identity.
+type SessionManager interface {
+	ListSessionsForIdentity(ctx context.Context, identityID string) ([]account.SessionInfo, error)
+	RevokeSession(ctx context.Context, sessionID string) error
+}
+
 type themePreferenceService interface {
 	UpdateThemePreference(ctx context.Context, r *http.Request, color string) (SessionView, error)
 }
@@ -164,6 +171,7 @@ type server struct {
 	adminAppRegSvc     AdminAppRegService
 	developerAppRegSvc DeveloperAppRegService
 	webhookRepo        app.WebhookRepository
+	sessionMgr         SessionManager
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -200,6 +208,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		adminAppRegSvc:     cfg.AdminAppRegSvc,
 		developerAppRegSvc: cfg.DeveloperAppRegSvc,
 		webhookRepo:        cfg.WebhookRepo,
+		sessionMgr:         cfg.SessionMgr,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -319,6 +328,10 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Patch("/profile", s.handlePatchProfile)
 		r.Post("/profile/avatar", s.handleUploadAvatar)
 		r.Get("/export", s.handleExportAccount)
+		if s.sessionMgr != nil {
+			r.Get("/sessions", s.handleListSessions)
+			r.Delete("/sessions/{sessionId}", s.handleRevokeSession)
+		}
 	})
 
 	r.Route("/v1/users", func(r chi.Router) {

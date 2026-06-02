@@ -451,6 +451,16 @@ func (s *Service) GetMembershipForApp(ctx context.Context, appID uuid.UUID, iden
 	return s.memberships.GetByAppAndIdentity(ctx, appID, strings.TrimSpace(identityID))
 }
 
+// SessionInfo holds summary data for a single authenticated session.
+type SessionInfo struct {
+	ID              string `json:"id"`
+	Active          bool   `json:"active"`
+	ExpiresAt       string `json:"expires_at,omitempty"`
+	AuthenticatedAt string `json:"authenticated_at,omitempty"`
+	CreatedAt       string `json:"created_at,omitempty"`
+	Device          string `json:"device,omitempty"`
+}
+
 // AccountExport is the full GDPR data export for a single identity.
 type AccountExport struct {
 	Profile         profile.Profile    `json:"profile"`
