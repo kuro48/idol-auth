@@ -224,12 +224,9 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 		Locale:                  meta.Locale,
 		Timezone:                meta.Timezone,
 		OshiColor:               meta.OshiColor,
-		OshiIDs:                 meta.OshiIDs,
-		FanSince:                meta.FanSince,
+		Oshis:                   meta.Oshis,
 		Badges:                  meta.Badges,
 		PrimaryBadgeID:          meta.PrimaryBadgeID,
-		ContributionScore:       meta.ContributionScore,
-		ContributionSummary:     meta.ContributionSummary,
 		Birthdate:               adminMeta.Birthdate,
 		NotificationPreferences: adminMeta.NotificationPreferences,
 	}, nil
@@ -239,15 +236,12 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 	var ops []map[string]any
 
 	if input.OshiColor != nil ||
-		input.OshiIDs != nil ||
-		input.FanSince != nil ||
+		input.Oshis != nil ||
 		input.AvatarURL != nil ||
 		input.Locale != nil ||
 		input.Timezone != nil ||
 		input.Badges != nil ||
-		input.PrimaryBadgeID != nil ||
-		input.ContributionScore != nil ||
-		input.ContributionSummary != nil {
+		input.PrimaryBadgeID != nil {
 		metadata, err := c.getMetadataPublic(ctx, identityID)
 		if err != nil {
 			return err
@@ -255,11 +249,8 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		if input.OshiColor != nil {
 			metadata["oshi_color"] = *input.OshiColor
 		}
-		if input.OshiIDs != nil {
-			metadata["oshi_ids"] = *input.OshiIDs
-		}
-		if input.FanSince != nil {
-			metadata["fan_since"] = *input.FanSince
+		if input.Oshis != nil {
+			metadata["oshis"] = *input.Oshis
 		}
 		if input.AvatarURL != nil {
 			metadata["avatar_url"] = *input.AvatarURL
@@ -275,12 +266,6 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		}
 		if input.PrimaryBadgeID != nil {
 			metadata["primary_badge_id"] = *input.PrimaryBadgeID
-		}
-		if input.ContributionScore != nil {
-			metadata["contribution_score"] = *input.ContributionScore
-		}
-		if input.ContributionSummary != nil {
-			metadata["contribution_summary"] = *input.ContributionSummary
 		}
 		ops = append(ops, map[string]any{
 			"op":    "add",
@@ -504,6 +489,14 @@ func (c *AdminClient) patchIdentityState(ctx context.Context, identityID string,
 		SchemaID: decoded.SchemaID,
 		State:    admindomain.IdentityState(decoded.State),
 	}, nil
+}
+
+func (c *AdminClient) GetIdentityEmail(ctx context.Context, identityID string) (string, error) {
+	details, err := c.GetIdentity(ctx, identityID)
+	if err != nil {
+		return "", fmt.Errorf("get identity email: %w", err)
+	}
+	return details.Email, nil
 }
 
 func (c *AdminClient) DeleteIdentity(ctx context.Context, identityID string) error {

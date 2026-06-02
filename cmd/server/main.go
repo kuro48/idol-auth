@@ -74,7 +74,14 @@ func run() error {
 	)
 	webhookRepo := db.NewAppWebhookRepository(dbPool)
 	webhookDispatcher := webhook.NewDispatcher(webhookRepo)
+	accountNotifier := mail.NewAccountSMTPNotifier(cfg.Mail, kratosAdmin)
 
+	accountOpts := []account.ServiceOption{
+		account.WithWebhookDispatcher(webhookDispatcher),
+	}
+	if accountNotifier != nil {
+		accountOpts = append(accountOpts, account.WithAccountMailer(accountNotifier))
+	}
 	accountService := account.NewService(
 		accountRepo,
 		accountRepo,
@@ -85,7 +92,7 @@ func run() error {
 		auditRepo,
 		time.Now,
 		30*24*time.Hour,
-		account.WithWebhookDispatcher(webhookDispatcher),
+		accountOpts...,
 	)
 	authService := apphttp.NewAuthServiceWithOptions(
 		cfg.App.BaseURL,

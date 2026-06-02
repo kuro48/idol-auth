@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -112,6 +113,11 @@ type WebhookDispatcher interface {
 	DispatchAsync(ctx context.Context, appID uuid.UUID, eventType, identityID string)
 }
 
+// AccountMailer sends transactional emails related to account lifecycle events.
+type AccountMailer interface {
+	NotifyDeletionScheduled(ctx context.Context, identityID string, scheduledFor time.Time) error
+}
+
 type Service struct {
 	memberships MembershipRepository
 	deletions   DeletionRequestRepository
@@ -121,6 +127,7 @@ type Service struct {
 	tokens      AppTokenResolver
 	auditLogs   audit.Repository
 	webhooks    WebhookDispatcher
+	mailer      AccountMailer
 	now         func() time.Time
 	gracePeriod time.Duration
 }
@@ -155,6 +162,11 @@ type ServiceOption func(*Service)
 // WithWebhookDispatcher wires a dispatcher so account events are pushed to app webhooks.
 func WithWebhookDispatcher(d WebhookDispatcher) ServiceOption {
 	return func(s *Service) { s.webhooks = d }
+}
+
+// WithAccountMailer wires a mailer so lifecycle emails are sent to account holders.
+func WithAccountMailer(m AccountMailer) ServiceOption {
+	return func(s *Service) { s.mailer = m }
 }
 
 func (s *Service) EnsureMembershipForHydraClient(ctx context.Context, hydraClientID, identityID, actorID string) error {
@@ -279,6 +291,11 @@ func (s *Service) ScheduleDeletion(ctx context.Context, identityID, actorID, rea
 		Result:     audit.ResultSuccess,
 		OccurredAt: now,
 	})
+	if s.mailer != nil {
+		if err := s.mailer.NotifyDeletionScheduled(ctx, request.IdentityID, created.ScheduledFor); err != nil {
+			slog.WarnContext(ctx, "account: failed to send deletion scheduled email", "identity_id", request.IdentityID, "error", err)
+		}
+	}
 	return created, nil
 }
 
