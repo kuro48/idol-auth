@@ -138,6 +138,7 @@ type AccountService interface {
 	ResolveAppByToken(ctx context.Context, rawToken string) (app.App, error)
 	RegisterIdentityForApp(ctx context.Context, appEntity app.App, input account.RegisterIdentityInput, actorID string) (account.RegisterForAppResult, error)
 	GetMembershipForApp(ctx context.Context, appID uuid.UUID, identityID string) (account.AppMembership, error)
+	ExportAccountData(ctx context.Context, identityID string) (account.AccountExport, error)
 }
 
 type ProfileService interface {
@@ -317,6 +318,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Get("/profile", s.handleGetProfile)
 		r.Patch("/profile", s.handlePatchProfile)
 		r.Post("/profile/avatar", s.handleUploadAvatar)
+		r.Get("/export", s.handleExportAccount)
 	})
 
 	r.Route("/v1/users", func(r chi.Router) {

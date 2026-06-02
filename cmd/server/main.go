@@ -78,6 +78,7 @@ func run() error {
 
 	accountOpts := []account.ServiceOption{
 		account.WithWebhookDispatcher(webhookDispatcher),
+		account.WithProfileReader(kratosAdmin),
 	}
 	if accountNotifier != nil {
 		accountOpts = append(accountOpts, account.WithAccountMailer(accountNotifier))

@@ -1180,6 +1180,10 @@ func (s *stubAccountService) GetMembershipForApp(_ context.Context, _ uuid.UUID,
 	return account.AppMembership{}, nil
 }
 
+func (s *stubAccountService) ExportAccountData(_ context.Context, _ string) (account.AccountExport, error) {
+	return account.AccountExport{}, nil
+}
+
 func TestAccountDeletionCancelReturnsNoContent(t *testing.T) {
 	authn := &stubAuthService{
 		session: apphttp.SessionView{

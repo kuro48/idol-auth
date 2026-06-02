@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kuro48/idol-auth/internal/domain/app"
 	"github.com/kuro48/idol-auth/internal/domain/audit"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 )
 
 type MembershipStatus string
@@ -103,6 +104,11 @@ type IdentityLifecycle interface {
 	DeleteIdentity(ctx context.Context, identityID string) error
 }
 
+// ProfileReader fetches the full profile for an identity from the identity provider.
+type ProfileReader interface {
+	GetIdentityProfile(ctx context.Context, identityID string) (profile.Profile, error)
+}
+
 type AppTokenResolver interface {
 	ResolveAppByToken(ctx context.Context, rawToken string) (app.App, error)
 }
@@ -121,6 +127,7 @@ type AccountMailer interface {
 type Service struct {
 	memberships MembershipRepository
 	deletions   DeletionRequestRepository
+	profiles    ProfileReader
 	apps        AppDirectory
 	identities  IdentityLifecycle
 	creator     IdentityCreator
@@ -167,6 +174,11 @@ func WithWebhookDispatcher(d WebhookDispatcher) ServiceOption {
 // WithAccountMailer wires a mailer so lifecycle emails are sent to account holders.
 func WithAccountMailer(m AccountMailer) ServiceOption {
 	return func(s *Service) { s.mailer = m }
+}
+
+// WithProfileReader wires a profile reader for data export.
+func WithProfileReader(r ProfileReader) ServiceOption {
+	return func(s *Service) { s.profiles = r }
 }
 
 func (s *Service) EnsureMembershipForHydraClient(ctx context.Context, hydraClientID, identityID, actorID string) error {
@@ -437,6 +449,51 @@ func (s *Service) RegisterIdentityForApp(ctx context.Context, appEntity app.App,
 
 func (s *Service) GetMembershipForApp(ctx context.Context, appID uuid.UUID, identityID string) (AppMembership, error) {
 	return s.memberships.GetByAppAndIdentity(ctx, appID, strings.TrimSpace(identityID))
+}
+
+// AccountExport is the full GDPR data export for a single identity.
+type AccountExport struct {
+	Profile         profile.Profile    `json:"profile"`
+	Memberships     []AppMembership    `json:"memberships"`
+	DeletionRequest *DeletionRequest   `json:"deletion_request,omitempty"`
+	AuditLogs       []audit.Log        `json:"audit_logs"`
+}
+
+// ExportAccountData collects all personal data held for identityID.
+func (s *Service) ExportAccountData(ctx context.Context, identityID string) (AccountExport, error) {
+	id := strings.TrimSpace(identityID)
+
+	var p profile.Profile
+	if s.profiles != nil {
+		var err error
+		p, err = s.profiles.GetIdentityProfile(ctx, id)
+		if err != nil {
+			return AccountExport{}, fmt.Errorf("export: get profile: %w", err)
+		}
+	}
+
+	memberships, err := s.memberships.ListByIdentity(ctx, id)
+	if err != nil {
+		return AccountExport{}, fmt.Errorf("export: list memberships: %w", err)
+	}
+
+	var deletionReq *DeletionRequest
+	if dr, err := s.deletions.GetByIdentity(ctx, id); err == nil {
+		dr := dr
+		deletionReq = &dr
+	}
+
+	var logs []audit.Log
+	if s.auditLogs != nil {
+		logs, _ = s.auditLogs.List(ctx, audit.ListParams{ActorID: id, Limit: 1000})
+	}
+
+	return AccountExport{
+		Profile:         p,
+		Memberships:     memberships,
+		DeletionRequest: deletionReq,
+		AuditLogs:       logs,
+	}, nil
 }
 
 func (s *Service) writeAudit(ctx context.Context, entry audit.Log) {
