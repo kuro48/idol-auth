@@ -31,7 +31,7 @@ test:
 	go test ./...
 
 swagger:
-	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go -o docs/swagger --ot go --parseInternal --generatedTime=false --exclude dist
+	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go -o docs/swagger --ot go,json --parseInternal --generatedTime=false --exclude dist
 
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
@@ -79,7 +79,11 @@ wait:
 verify-local: up wait test e2e
 
 docs:
+	$(MAKE) swagger
+	cp docs/swagger/swagger.json docs-site/public/openapi.json
 	cd docs-site && npm ci && npm run build
 
 docs-dev:
+	$(MAKE) swagger
+	cp docs/swagger/swagger.json docs-site/public/openapi.json
 	cd docs-site && npm run dev

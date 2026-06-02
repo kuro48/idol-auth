@@ -1,13 +1,12 @@
 {
   "name": "idol-auth-docs",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "vitepress dev",
-    "build": "vitepress build",
-    "preview": "vitepress preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "devDependencies": {
-    "vitepress": "^1.6.3"
+    "vite": "^6.0.0"
   }
 }
