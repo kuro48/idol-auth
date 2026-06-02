@@ -1188,6 +1188,72 @@ func (s *stubAccountService) GetAppStats(_ context.Context, _ uuid.UUID) (accoun
 	return account.AppMembershipStats{}, nil
 }
 
+type stubSessionManager struct {
+	sessions         []account.SessionInfo
+	revokedSessionID string
+}
+
+func (s *stubSessionManager) ListSessionsForIdentity(_ context.Context, _ string) ([]account.SessionInfo, error) {
+	return append([]account.SessionInfo(nil), s.sessions...), nil
+}
+
+func (s *stubSessionManager) RevokeSession(_ context.Context, sessionID string) error {
+	s.revokedSessionID = sessionID
+	return nil
+}
+
+func TestRevokeSessionRejectsSessionOutsideCurrentIdentity(t *testing.T) {
+	sessionMgr := &stubSessionManager{
+		sessions: []account.SessionInfo{{ID: "own-session", Active: true}},
+	}
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+		},
+	}
+	cfg := testConfig()
+	cfg.SessionMgr = sessionMgr
+	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, authn, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodDelete, "/v1/account/sessions/other-session", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusNotFound, w.Code, w.Body.String())
+	}
+	if sessionMgr.revokedSessionID != "" {
+		t.Fatalf("expected no revoke for foreign session, got %q", sessionMgr.revokedSessionID)
+	}
+}
+
+func TestRevokeSessionAllowsCurrentIdentitySession(t *testing.T) {
+	sessionMgr := &stubSessionManager{
+		sessions: []account.SessionInfo{{ID: "own-session", Active: true}},
+	}
+	authn := &stubAuthService{
+		session: apphttp.SessionView{
+			Authenticated: true,
+			IdentityID:    "identity-123",
+		},
+	}
+	cfg := testConfig()
+	cfg.SessionMgr = sessionMgr
+	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, authn, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodDelete, "/v1/account/sessions/own-session", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusNoContent, w.Code, w.Body.String())
+	}
+	if sessionMgr.revokedSessionID != "own-session" {
+		t.Fatalf("expected own session to be revoked, got %q", sessionMgr.revokedSessionID)
+	}
+}
+
 func TestAccountDeletionCancelReturnsNoContent(t *testing.T) {
 	authn := &stubAuthService{
 		session: apphttp.SessionView{

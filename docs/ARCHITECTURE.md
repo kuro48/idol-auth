@@ -154,7 +154,7 @@ headless registration/login は Kratos の API-mode self-service flow を開始�
 
 ## API リファレンス
 
-エンドポイント一覧と request / response の一次情報は Swagger UI を参照。
+エンドポイント一覧と request / response の一次情報は `/docs/doc.json` の OpenAPI 仕様を参照。
 
 - `http://localhost:8080/docs/index.html`
 - `http://localhost:8080/docs/doc.json`

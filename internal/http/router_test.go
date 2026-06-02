@@ -75,8 +75,15 @@ func TestSwaggerDocsAreServed(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
 		}
-		if !strings.Contains(w.Body.String(), "Swagger UI") {
-			t.Fatalf("expected Swagger UI response")
+		body := w.Body.String()
+		if !strings.Contains(body, "idol-auth API リファレンス") || !strings.Contains(body, "/docs/doc.json") {
+			t.Fatalf("expected static API reference response")
+		}
+		if strings.Contains(body, "cdn.jsdelivr.net") || strings.Contains(body, "<script") {
+			t.Fatalf("expected docs page not to load external scripts")
+		}
+		if strings.Contains(w.Header().Get("Content-Security-Policy"), "connect-src 'self' https:") {
+			t.Fatalf("expected docs CSP to restrict connect-src")
 		}
 	})
 

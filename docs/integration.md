@@ -255,7 +255,7 @@ try {
 
 ## API リファレンス
 
-詳細なリクエスト/レスポンス仕様は Swagger UI を参照してください。
+詳細なリクエスト/レスポンス仕様は `/docs/doc.json` の OpenAPI 仕様を参照してください。
 
 - `https://<AUTH_HOST>/docs/index.html`
 - `https://<AUTH_HOST>/docs/doc.json`

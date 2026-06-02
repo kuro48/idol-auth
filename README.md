@@ -39,7 +39,7 @@ make wait
 | サービス | URL |
 |---------|-----|
 | API | http://localhost:8080 |
-| API Docs (Swagger UI) | http://localhost:8080/docs/index.html |
+| API Docs | http://localhost:8080/docs/index.html |
 | Swagger JSON | http://localhost:8080/docs/doc.json |
 | Account Center | http://localhost:8080/account/ |
 | Demo UI | http://localhost:3002 |

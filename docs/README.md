@@ -1,6 +1,6 @@
 # idol-auth Docs
 
-このディレクトリは idol-auth の開発・運用ドキュメントです。実行中の API サーバーでは Swagger UI も配信します。
+このディレクトリは idol-auth の開発・運用ドキュメントです。実行中の API サーバーでは OpenAPI 仕様と API リファレンス入口も配信します。
 
 ## Docs Site
 
@@ -9,10 +9,10 @@
 | 用途 | URL |
 |---|---|
 | Docs entry | `http://localhost:8080/docs` |
-| Swagger UI | `http://localhost:8080/docs/index.html` |
+| API Reference | `http://localhost:8080/docs/index.html` |
 | Swagger JSON | `http://localhost:8080/docs/doc.json` |
 
-`/docs` と `/docs/` は Swagger UI の `index.html` へリダイレクトされます。
+`/docs` と `/docs/` は API リファレンスの `index.html` へリダイレクトされます。
 
 ## 読む順番
 
