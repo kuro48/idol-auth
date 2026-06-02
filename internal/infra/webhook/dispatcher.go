@@ -46,9 +46,11 @@ func NewDispatcher(repo app.WebhookRepository) *Dispatcher {
 // DispatchAsync looks up the app's webhook URL and delivers the event in a goroutine.
 // Errors are logged but never returned — the caller must not depend on delivery.
 func (d *Dispatcher) DispatchAsync(ctx context.Context, appID uuid.UUID, eventType, identityID string) {
+	// Detach from the request context so delivery continues after the HTTP response is sent,
+	// but preserve trace/value propagation via WithoutCancel.
+	deliveryCtx := context.WithoutCancel(ctx)
 	go func() {
-		bCtx := context.Background()
-		cfg, ok, err := d.repo.GetConfig(bCtx, appID)
+		cfg, ok, err := d.repo.GetConfig(deliveryCtx, appID)
 		if err != nil {
 			slog.Error("webhook: failed to fetch config", "app_id", appID, "error", err)
 			return
@@ -63,7 +65,7 @@ func (d *Dispatcher) DispatchAsync(ctx context.Context, appID uuid.UUID, eventTy
 			AppID:      appID.String(),
 			IdentityID: identityID,
 		}
-		if err := d.send(bCtx, cfg.WebhookURL, cfg.WebhookSecret, event); err != nil {
+		if err := d.send(deliveryCtx, cfg.WebhookURL, cfg.WebhookSecret, event); err != nil {
 			slog.Warn("webhook: delivery failed", "app_id", appID, "event", eventType, "error", err)
 		}
 	}()
