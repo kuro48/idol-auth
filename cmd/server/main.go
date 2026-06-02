@@ -22,6 +22,7 @@ import (
 	"github.com/kuro48/idol-auth/internal/infra/hydra"
 	"github.com/kuro48/idol-auth/internal/infra/kratos"
 	"github.com/kuro48/idol-auth/internal/infra/mail"
+	"github.com/kuro48/idol-auth/internal/infra/webhook"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -71,6 +72,9 @@ func run() error {
 		auditRepo,
 		time.Now,
 	)
+	webhookRepo := db.NewAppWebhookRepository(dbPool)
+	webhookDispatcher := webhook.NewDispatcher(webhookRepo)
+
 	accountService := account.NewService(
 		accountRepo,
 		accountRepo,
@@ -81,6 +85,7 @@ func run() error {
 		auditRepo,
 		time.Now,
 		30*24*time.Hour,
+		account.WithWebhookDispatcher(webhookDispatcher),
 	)
 	authService := apphttp.NewAuthServiceWithOptions(
 		cfg.App.BaseURL,
@@ -113,6 +118,7 @@ func run() error {
 		PublicSvc:      publicService,
 		AdminAppRegSvc:     appRegService,
 		DeveloperAppRegSvc: appRegService,
+		WebhookRepo:        webhookRepo,
 	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
 
 	srv := &http.Server{

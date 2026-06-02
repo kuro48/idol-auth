@@ -106,6 +106,12 @@ type AppTokenResolver interface {
 	ResolveAppByToken(ctx context.Context, rawToken string) (app.App, error)
 }
 
+// WebhookDispatcher fires account lifecycle events to app-registered webhook endpoints.
+// Delivery is asynchronous; callers must not depend on success.
+type WebhookDispatcher interface {
+	DispatchAsync(ctx context.Context, appID uuid.UUID, eventType, identityID string)
+}
+
 type Service struct {
 	memberships MembershipRepository
 	deletions   DeletionRequestRepository
@@ -114,18 +120,19 @@ type Service struct {
 	creator     IdentityCreator
 	tokens      AppTokenResolver
 	auditLogs   audit.Repository
+	webhooks    WebhookDispatcher
 	now         func() time.Time
 	gracePeriod time.Duration
 }
 
-func NewService(memberships MembershipRepository, deletions DeletionRequestRepository, apps AppDirectory, identities IdentityLifecycle, creator IdentityCreator, tokens AppTokenResolver, auditLogs audit.Repository, now func() time.Time, gracePeriod time.Duration) *Service {
+func NewService(memberships MembershipRepository, deletions DeletionRequestRepository, apps AppDirectory, identities IdentityLifecycle, creator IdentityCreator, tokens AppTokenResolver, auditLogs audit.Repository, now func() time.Time, gracePeriod time.Duration, opts ...ServiceOption) *Service {
 	if now == nil {
 		now = time.Now
 	}
 	if gracePeriod <= 0 {
 		gracePeriod = 7 * 24 * time.Hour
 	}
-	return &Service{
+	svc := &Service{
 		memberships: memberships,
 		deletions:   deletions,
 		apps:        apps,
@@ -136,6 +143,18 @@ func NewService(memberships MembershipRepository, deletions DeletionRequestRepos
 		now:         now,
 		gracePeriod: gracePeriod,
 	}
+	for _, opt := range opts {
+		opt(svc)
+	}
+	return svc
+}
+
+// ServiceOption applies optional configuration to Service.
+type ServiceOption func(*Service)
+
+// WithWebhookDispatcher wires a dispatcher so account events are pushed to app webhooks.
+func WithWebhookDispatcher(d WebhookDispatcher) ServiceOption {
+	return func(s *Service) { s.webhooks = d }
 }
 
 func (s *Service) EnsureMembershipForHydraClient(ctx context.Context, hydraClientID, identityID, actorID string) error {
@@ -166,6 +185,9 @@ func (s *Service) EnsureMembershipForHydraClient(ctx context.Context, hydraClien
 		CreatedBy:  actorID,
 		UpdatedBy:  actorID,
 	})
+	if err == nil && s.webhooks != nil {
+		s.webhooks.DispatchAsync(ctx, appEntity.ID, "membership.created", identityID)
+	}
 	return err
 }
 
@@ -199,6 +221,9 @@ func (s *Service) DisconnectIdentityFromApp(ctx context.Context, identityID stri
 		Result:     audit.ResultSuccess,
 		OccurredAt: now,
 	})
+	if s.webhooks != nil {
+		s.webhooks.DispatchAsync(ctx, appID, "membership.revoked", strings.TrimSpace(identityID))
+	}
 	return nil
 }
 
@@ -220,6 +245,9 @@ func (s *Service) RevokeAppUser(ctx context.Context, appID uuid.UUID, identityID
 		Result:     audit.ResultSuccess,
 		OccurredAt: now,
 	})
+	if s.webhooks != nil {
+		s.webhooks.DispatchAsync(ctx, appID, "membership.revoked", strings.TrimSpace(identityID))
+	}
 	return nil
 }
 
@@ -300,6 +328,19 @@ func (s *Service) ProcessDueDeletionRequests(ctx context.Context, limit int) err
 		if identityID == "" {
 			continue
 		}
+
+		// Collect app IDs before revoking so we can notify them after deletion.
+		var affectedAppIDs []uuid.UUID
+		if s.webhooks != nil {
+			if memberships, err := s.memberships.ListByIdentity(ctx, identityID); err == nil {
+				for _, m := range memberships {
+					if m.Status == MembershipStatusActive {
+						affectedAppIDs = append(affectedAppIDs, m.AppID)
+					}
+				}
+			}
+		}
+
 		_ = s.identities.RevokeIdentitySessions(ctx, identityID)
 		if err := s.memberships.UpdateStatusByIdentity(ctx, identityID, MembershipStatusRevoked, "system", now); err != nil {
 			return err
@@ -320,6 +361,12 @@ func (s *Service) ProcessDueDeletionRequests(ctx context.Context, limit int) err
 			Result:     audit.ResultSuccess,
 			OccurredAt: now,
 		})
+
+		if s.webhooks != nil {
+			for _, appID := range affectedAppIDs {
+				s.webhooks.DispatchAsync(ctx, appID, "account.deleted", identityID)
+			}
+		}
 	}
 	return nil
 }
@@ -361,6 +408,9 @@ func (s *Service) RegisterIdentityForApp(ctx context.Context, appEntity app.App,
 		Result:     audit.ResultSuccess,
 		OccurredAt: now,
 	})
+	if s.webhooks != nil {
+		s.webhooks.DispatchAsync(ctx, appEntity.ID, "membership.created", created.IdentityID)
+	}
 
 	return RegisterForAppResult{
 		IdentityID:           created.IdentityID,

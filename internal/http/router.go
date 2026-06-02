@@ -51,6 +51,7 @@ type RouterConfig struct {
 	PublicSvc          PublicAuthService      // optional; nil disables /v1/public endpoints
 	AdminAppRegSvc     AdminAppRegService     // optional; nil disables /v1/admin/app-requests endpoints
 	DeveloperAppRegSvc DeveloperAppRegService // optional; nil disables /developer/app-requests endpoints
+	WebhookRepo        app.WebhookRepository  // optional; nil disables PATCH /v1/apps/self/webhook
 }
 
 type LoginFlowResult struct {
@@ -161,6 +162,7 @@ type server struct {
 	publicSvc          PublicAuthService
 	adminAppRegSvc     AdminAppRegService
 	developerAppRegSvc DeveloperAppRegService
+	webhookRepo        app.WebhookRepository
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -196,6 +198,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		publicSvc:          cfg.PublicSvc,
 		adminAppRegSvc:     cfg.AdminAppRegSvc,
 		developerAppRegSvc: cfg.DeveloperAppRegSvc,
+		webhookRepo:        cfg.WebhookRepo,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -316,6 +319,14 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/profile/avatar", s.handleUploadAvatar)
 	})
 
+	r.Route("/v1/users", func(r chi.Router) {
+		if s.config.Limiter != nil {
+			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
+		}
+		r.Use(s.accountAuth)
+		r.Get("/{user_id}/profile", s.handleGetPublicUserProfile)
+	})
+
 	r.Route("/v1/developer/app-requests", func(r chi.Router) {
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
@@ -338,6 +349,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/users", s.handleRegisterAppUser)
 		r.Delete("/users/{identityID}", s.handleRevokeAppUser)
 		r.Get("/users/{identityID}/profile", s.handleGetAppUserProfile)
+		if s.webhookRepo != nil {
+			r.Patch("/webhook", s.handlePatchAppWebhook)
+		}
 	})
 
 	if s.publicSvc != nil {
