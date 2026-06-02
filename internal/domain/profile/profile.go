@@ -15,7 +15,7 @@ import (
 
 const (
 	maxDisplayNameRunes = 50
-	maxOshiIDs          = 10
+	maxOshiCount        = 10
 	maxAvatarURLLength  = 2048
 	maxBadgeCount       = 100
 	maxBadgeIDLength    = 80
@@ -23,6 +23,12 @@ const (
 )
 
 var localePattern = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
+
+// OshiEntry holds an idol ID paired with the user's fan start date for that idol.
+type OshiEntry struct {
+	IdolID   string `json:"idol_id"`
+	FanSince string `json:"fan_since,omitempty"`
+}
 
 // Profile holds the shared account profile returned by the profile API.
 // Email and Phone are PII and must be stripped before sending to third-party apps.
@@ -33,12 +39,9 @@ type Profile struct {
 	Locale                  string                  `json:"locale,omitempty"`
 	Timezone                string                  `json:"timezone,omitempty"`
 	OshiColor               string                  `json:"oshi_color,omitempty"`
-	OshiIDs                 []string                `json:"oshi_ids,omitempty"`
-	FanSince                string                  `json:"fan_since,omitempty"`
+	Oshis                   []OshiEntry             `json:"oshis,omitempty"`
 	Badges                  []Badge                 `json:"badges,omitempty"`
 	PrimaryBadgeID          string                  `json:"primary_badge_id,omitempty"`
-	ContributionScore       int                     `json:"contribution_score,omitempty"`
-	ContributionSummary     ContributionSummary     `json:"contribution_summary,omitempty"`
 	Birthdate               string                  `json:"birthdate,omitempty"`
 	NotificationPreferences NotificationPreferences `json:"notification_preferences,omitempty"`
 	// PII — excluded from PublicView
@@ -46,6 +49,7 @@ type Profile struct {
 	Phone string `json:"phone,omitempty"`
 }
 
+// NotificationPreferences holds per-user notification opt-in settings.
 type NotificationPreferences struct {
 	EmailEnabled               bool `json:"email_enabled"`
 	ProductUpdates             bool `json:"product_updates"`
@@ -63,36 +67,20 @@ type Badge struct {
 	IssuedAt    string `json:"issued_at,omitempty"`
 }
 
-type ContributionSummary struct {
-	PostsCount                 int    `json:"posts_count,omitempty"`
-	AcceptedContributionsCount int    `json:"accepted_contributions_count,omitempty"`
-	HelpfulVotesCount          int    `json:"helpful_votes_count,omitempty"`
-	LastContributedAt          string `json:"last_contributed_at,omitempty"`
-}
-
 // PublicView returns a copy of the profile without PII fields.
-// Use this when responding to app management-token requests.
+// Use this when returning a profile to another user or to third-party apps.
 func (p Profile) PublicView() Profile {
 	return Profile{
-		IdentityID:          p.IdentityID,
-		DisplayName:         p.DisplayName,
-		AvatarURL:           p.AvatarURL,
-		Locale:              p.Locale,
-		Timezone:            p.Timezone,
-		OshiColor:           p.OshiColor,
-		OshiIDs:             p.OshiIDs,
-		FanSince:            p.FanSince,
-		Badges:              p.Badges,
-		PrimaryBadgeID:      p.PrimaryBadgeID,
-		ContributionScore:   p.ContributionScore,
-		ContributionSummary: p.ContributionSummary,
+		IdentityID:     p.IdentityID,
+		DisplayName:    p.DisplayName,
+		AvatarURL:      p.AvatarURL,
+		Locale:         p.Locale,
+		Timezone:       p.Timezone,
+		OshiColor:      p.OshiColor,
+		Oshis:          p.Oshis,
+		Badges:         p.Badges,
+		PrimaryBadgeID: p.PrimaryBadgeID,
 	}
-}
-
-// ComputeFanYears returns the number of full years since FanSince relative to now.
-// Returns 0 if FanSince is empty or invalid, or if the result would be negative.
-func (p Profile) ComputeFanYears(now time.Time) int {
-	return FanYears(p.FanSince, now)
 }
 
 // FanYears parses fanSince ("YYYY" or "YYYY-MM") and returns full years elapsed
@@ -125,14 +113,27 @@ func ValidateDisplayName(name string) error {
 	return nil
 }
 
-// ValidateOshiIDs returns an error if any element is blank or the slice exceeds 10 entries.
-func ValidateOshiIDs(ids []string) error {
-	if len(ids) > maxOshiIDs {
-		return fmt.Errorf("oshi_ids must contain at most %d entries", maxOshiIDs)
+// ValidateOshis returns an error if the slice exceeds the maximum count, any idol_id
+// is blank, any idol_id is duplicated, or any fan_since value is invalid or in the future.
+func ValidateOshis(oshis []OshiEntry) error {
+	if len(oshis) > maxOshiCount {
+		return fmt.Errorf("oshis must contain at most %d entries", maxOshiCount)
 	}
-	for i, id := range ids {
-		if strings.TrimSpace(id) == "" {
-			return fmt.Errorf("oshi_ids[%d] must not be empty", i)
+	seen := make(map[string]struct{}, len(oshis))
+	now := time.Now().UTC()
+	for i, o := range oshis {
+		id := strings.TrimSpace(o.IdolID)
+		if id == "" {
+			return fmt.Errorf("oshis[%d].idol_id must not be empty", i)
+		}
+		if _, ok := seen[id]; ok {
+			return fmt.Errorf("oshis[%d].idol_id is duplicated", i)
+		}
+		seen[id] = struct{}{}
+		if o.FanSince != "" {
+			if err := ValidateFanSince(o.FanSince, now); err != nil {
+				return fmt.Errorf("oshis[%d].fan_since: %w", i, err)
+			}
 		}
 	}
 	return nil
@@ -237,27 +238,6 @@ func ValidatePrimaryBadgeID(id string, badges []Badge) error {
 	return errors.New("primary_badge_id must refer to an existing badge")
 }
 
-func ValidateContributionScore(score int) error {
-	if score < 0 {
-		return errors.New("contribution_score must not be negative")
-	}
-	return nil
-}
-
-func ValidateContributionSummary(summary ContributionSummary) error {
-	if summary.PostsCount < 0 ||
-		summary.AcceptedContributionsCount < 0 ||
-		summary.HelpfulVotesCount < 0 {
-		return errors.New("contribution_summary counts must not be negative")
-	}
-	if summary.LastContributedAt != "" {
-		if _, err := time.Parse(time.RFC3339, summary.LastContributedAt); err != nil {
-			return errors.New("contribution_summary.last_contributed_at must be RFC3339")
-		}
-	}
-	return nil
-}
-
 // ValidateFanSince returns an error if s is not empty and does not conform to
 // "YYYY" or "YYYY-MM" format, or if the value is in the future relative to now.
 func ValidateFanSince(s string, now time.Time) error {
@@ -314,27 +294,20 @@ type UpdateInput struct {
 	Birthdate               *string
 	NotificationPreferences *NotificationPreferences
 	OshiColor               *string
-	OshiIDs                 *[]string
-	FanSince                *string
+	Oshis                   *[]OshiEntry
 	Badges                  *[]Badge
 	PrimaryBadgeID          *string
-	ContributionScore       *int
-	ContributionSummary     *ContributionSummary
 }
 
 // MetadataPublic is the structured representation of Kratos identity metadata_public.
-// It extends the existing oshi_color key with oshi_ids and fan_since.
 type MetadataPublic struct {
-	OshiColor           string              `json:"oshi_color,omitempty"`
-	OshiIDs             []string            `json:"oshi_ids,omitempty"`
-	FanSince            string              `json:"fan_since,omitempty"`
-	AvatarURL           string              `json:"avatar_url,omitempty"`
-	Locale              string              `json:"locale,omitempty"`
-	Timezone            string              `json:"timezone,omitempty"`
-	Badges              []Badge             `json:"badges,omitempty"`
-	PrimaryBadgeID      string              `json:"primary_badge_id,omitempty"`
-	ContributionScore   int                 `json:"contribution_score,omitempty"`
-	ContributionSummary ContributionSummary `json:"contribution_summary,omitempty"`
+	OshiColor      string      `json:"oshi_color,omitempty"`
+	Oshis          []OshiEntry `json:"oshis,omitempty"`
+	AvatarURL      string      `json:"avatar_url,omitempty"`
+	Locale         string      `json:"locale,omitempty"`
+	Timezone       string      `json:"timezone,omitempty"`
+	Badges         []Badge     `json:"badges,omitempty"`
+	PrimaryBadgeID string      `json:"primary_badge_id,omitempty"`
 }
 
 type MetadataAdmin struct {

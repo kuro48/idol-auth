@@ -189,8 +189,7 @@ func TestGetProfile_ReturnsProfile_WhenAuthenticated(t *testing.T) {
 			IdentityID:  "identity-1",
 			DisplayName: "推し活太郎",
 			OshiColor:   "#ffb2d8",
-			OshiIDs:     []string{"idol-1"},
-			FanSince:    "2019-04",
+			Oshis:       []profiledomain.OshiEntry{{IdolID: "idol-1", FanSince: "2019-04"}},
 		},
 	}
 	router := authenticatedProfileRouter(svc)
@@ -366,9 +365,12 @@ func TestPatchProfile_AllowsEmptyOshiColor(t *testing.T) {
 	}
 }
 
-func TestPatchProfile_RejectsFutureFanSince(t *testing.T) {
+func TestPatchProfile_RejectsOshiWithFutureFanSince(t *testing.T) {
 	router := authenticatedProfileRouter(&stubProfileService{})
-	req := httptest.NewRequest(http.MethodPatch, "/v1/account/profile", bytes.NewBufferString(`{"fan_since":"9999-12"}`))
+	body, _ := json.Marshal(map[string]any{
+		"oshis": []map[string]any{{"idol_id": "idol-1", "fan_since": "9999-12"}},
+	})
+	req := httptest.NewRequest(http.MethodPatch, "/v1/account/profile", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -379,9 +381,11 @@ func TestPatchProfile_RejectsFutureFanSince(t *testing.T) {
 	}
 }
 
-func TestPatchProfile_RejectsEmptyOshiIDElement(t *testing.T) {
+func TestPatchProfile_RejectsOshiWithEmptyIdolID(t *testing.T) {
 	router := authenticatedProfileRouter(&stubProfileService{})
-	body, _ := json.Marshal(map[string]any{"oshi_ids": []string{""}})
+	body, _ := json.Marshal(map[string]any{
+		"oshis": []map[string]any{{"idol_id": ""}},
+	})
 	req := httptest.NewRequest(http.MethodPatch, "/v1/account/profile", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -592,15 +596,13 @@ func TestUploadAvatar_RejectsNonImage(t *testing.T) {
 	}
 }
 
-func TestAdminPatchProfileAwards_UpdatesReadOnlyContributionFields(t *testing.T) {
+func TestAdminPatchProfileAwards_UpdatesBadges(t *testing.T) {
 	identityID := "8a7b9e7b-0f84-4f54-a7e7-1ef8d8aa4f73"
 	svc := &stubProfileService{
 		updatedProfile: profiledomain.Profile{
-			IdentityID:          identityID,
-			Badges:              []profiledomain.Badge{{ID: "top", Label: "Top Contributor"}},
-			PrimaryBadgeID:      "top",
-			ContributionScore:   42,
-			ContributionSummary: profiledomain.ContributionSummary{PostsCount: 10},
+			IdentityID:     identityID,
+			Badges:         []profiledomain.Badge{{ID: "top", Label: "Top Contributor"}},
+			PrimaryBadgeID: "top",
 		},
 	}
 	cfg := testConfig()
@@ -613,12 +615,7 @@ func TestAdminPatchProfileAwards_UpdatesReadOnlyContributionFields(t *testing.T)
 			"level":     "gold",
 			"issued_at": "2026-05-14T00:00:00Z",
 		}},
-		"primary_badge_id":   "top",
-		"contribution_score": 42,
-		"contribution_summary": map[string]any{
-			"posts_count":         10,
-			"helpful_votes_count": 100,
-		},
+		"primary_badge_id": "top",
 	})
 	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/"+identityID+"/profile-awards", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -636,11 +633,53 @@ func TestAdminPatchProfileAwards_UpdatesReadOnlyContributionFields(t *testing.T)
 	if svc.lastInput.Badges == nil || len(*svc.lastInput.Badges) != 1 {
 		t.Fatalf("expected badges forwarded, got %+v", svc.lastInput.Badges)
 	}
-	if svc.lastInput.ContributionScore == nil || *svc.lastInput.ContributionScore != 42 {
-		t.Fatalf("expected contribution score forwarded, got %+v", svc.lastInput.ContributionScore)
+	if svc.lastInput.PrimaryBadgeID == nil || *svc.lastInput.PrimaryBadgeID != "top" {
+		t.Fatalf("expected primary_badge_id forwarded, got %+v", svc.lastInput.PrimaryBadgeID)
 	}
-	if svc.lastInput.ContributionSummary == nil || svc.lastInput.ContributionSummary.PostsCount != 10 {
-		t.Fatalf("expected contribution summary forwarded, got %+v", svc.lastInput.ContributionSummary)
+}
+
+func TestGetPublicUserProfile_RequiresAuthentication(t *testing.T) {
+	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/other-user/profile", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusUnauthorized, w.Code, w.Body.String())
+	}
+}
+
+func TestGetPublicUserProfile_ReturnsPublicViewWithoutPII(t *testing.T) {
+	svc := &stubProfileService{
+		profile: profiledomain.Profile{
+			IdentityID:  "other-user",
+			DisplayName: "他のユーザー",
+			OshiColor:   "#b2ffb2",
+			Oshis:       []profiledomain.OshiEntry{{IdolID: "idol-2", FanSince: "2021"}},
+			Email:       "other@example.com",
+		},
+	}
+	cfg := testConfig()
+	cfg.ProfileSvc = svc
+	router := authenticatedProfileRouterWithConfig(cfg)
+	req := httptest.NewRequest(http.MethodGet, "/v1/users/other-user/profile", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if strings.Contains(body, "other@example.com") {
+		t.Fatalf("response must not contain email PII, got %s", body)
+	}
+	if !strings.Contains(body, "他のユーザー") {
+		t.Fatalf("expected display_name in response, got %s", body)
+	}
+	if !strings.Contains(body, "idol-2") {
+		t.Fatalf("expected oshi data in response, got %s", body)
 	}
 }
 

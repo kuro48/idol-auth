@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 )
 
 func TestAuthServiceHandleLoginRedirectsOnNoActiveSession(t *testing.T) {
@@ -649,8 +651,7 @@ func TestAuthServiceSubmitConsentInjectsProfileClaimsWhenProfileScopeRequested(t
 			IdentityID:                  "identity-123",
 			DisplayName:                 "推し活太郎",
 			OshiColor:                   "#ffb2d8",
-			OshiIDs:                     []string{"idol-1", "idol-2"},
-			FanSince:                    "2020-04",
+			Oshis:                       []profile.OshiEntry{{IdolID: "idol-1"}, {IdolID: "idol-2"}},
 			AuthenticatorAssuranceLevel: "aal2",
 			Methods:                     []string{"password", "totp"},
 		},

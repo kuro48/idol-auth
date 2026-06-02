@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 	apphttp "github.com/kuro48/idol-auth/internal/http"
 	"github.com/kuro48/idol-auth/internal/oshi"
 )
@@ -68,10 +69,9 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 				DisplayName string `json:"display_name"`
 			} `json:"traits"`
 			MetadataPublic struct {
-				Roles     []string `json:"roles"`
-				OshiColor string   `json:"oshi_color"`
-				OshiIDs   []string `json:"oshi_ids"`
-				FanSince  string   `json:"fan_since"`
+				Roles     []string            `json:"roles"`
+				OshiColor string              `json:"oshi_color"`
+				Oshis     []profile.OshiEntry `json:"oshis"`
 			} `json:"metadata_public"`
 		} `json:"identity"`
 	}
@@ -92,8 +92,7 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 		DisplayName:                 decoded.Identity.Traits.DisplayName,
 		Roles:                       decoded.Identity.MetadataPublic.Roles,
 		OshiColor:                   oshi.NormalizeColor(decoded.Identity.MetadataPublic.OshiColor),
-		OshiIDs:                     decoded.Identity.MetadataPublic.OshiIDs,
-		FanSince:                    decoded.Identity.MetadataPublic.FanSince,
+		Oshis:                       decoded.Identity.MetadataPublic.Oshis,
 		Methods:                     methods,
 		AuthenticatorAssuranceLevel: decoded.AuthenticatorAssuranceLevel,
 	}, nil

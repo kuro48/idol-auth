@@ -69,8 +69,7 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 		Birthdate               *string                          `json:"birthdate"`
 		NotificationPreferences *profile.NotificationPreferences `json:"notification_preferences"`
 		OshiColor               *string                          `json:"oshi_color"`
-		OshiIDs                 *[]string                        `json:"oshi_ids"`
-		FanSince                *string                          `json:"fan_since"`
+		Oshis                   *[]profile.OshiEntry             `json:"oshis"`
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
@@ -82,7 +81,6 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 	trimStringPtr(req.Timezone)
 	trimStringPtr(req.Birthdate)
 	trimStringPtr(req.OshiColor)
-	trimStringPtr(req.FanSince)
 
 	if req.DisplayName != nil {
 		if err := profile.ValidateDisplayName(*req.DisplayName); err != nil {
@@ -120,14 +118,8 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if req.FanSince != nil {
-		if err := profile.ValidateFanSince(*req.FanSince, time.Now().UTC()); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-	}
-	if req.OshiIDs != nil {
-		if err := profile.ValidateOshiIDs(*req.OshiIDs); err != nil {
+	if req.Oshis != nil {
+		if err := profile.ValidateOshis(*req.Oshis); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -141,8 +133,7 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 		Birthdate:               req.Birthdate,
 		NotificationPreferences: req.NotificationPreferences,
 		OshiColor:               req.OshiColor,
-		OshiIDs:                 req.OshiIDs,
-		FanSince:                req.FanSince,
+		Oshis:                   req.Oshis,
 	}
 	updated, err := s.profileSvc.UpdateProfile(r.Context(), session.IdentityID, input)
 	if err != nil {
@@ -253,17 +244,15 @@ func (s *server) handlePatchProfileAwards(w http.ResponseWriter, r *http.Request
 	}
 
 	var req struct {
-		Badges              *[]profile.Badge             `json:"badges"`
-		PrimaryBadgeID      *string                      `json:"primary_badge_id"`
-		ContributionScore   *int                         `json:"contribution_score"`
-		ContributionSummary *profile.ContributionSummary `json:"contribution_summary"`
+		Badges         *[]profile.Badge `json:"badges"`
+		PrimaryBadgeID *string          `json:"primary_badge_id"`
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
 	trimStringPtr(req.PrimaryBadgeID)
-	if req.Badges == nil && req.PrimaryBadgeID == nil && req.ContributionScore == nil && req.ContributionSummary == nil {
+	if req.Badges == nil && req.PrimaryBadgeID == nil {
 		writeError(w, http.StatusBadRequest, "at least one award field is required")
 		return
 	}
@@ -289,30 +278,41 @@ func (s *server) handlePatchProfileAwards(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
-	if req.ContributionScore != nil {
-		if err := profile.ValidateContributionScore(*req.ContributionScore); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-	}
-	if req.ContributionSummary != nil {
-		if err := profile.ValidateContributionSummary(*req.ContributionSummary); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-	}
 
 	updated, err := s.profileSvc.UpdateProfile(r.Context(), identityID, profile.UpdateInput{
-		Badges:              req.Badges,
-		PrimaryBadgeID:      req.PrimaryBadgeID,
-		ContributionScore:   req.ContributionScore,
-		ContributionSummary: req.ContributionSummary,
+		Badges:         req.Badges,
+		PrimaryBadgeID: req.PrimaryBadgeID,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "failed to update profile awards")
 		return
 	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+// handleGetPublicUserProfile returns PublicView of any user's profile.
+// Requires an authenticated session; strips PII before responding.
+func (s *server) handleGetPublicUserProfile(w http.ResponseWriter, r *http.Request) {
+	if s.profileSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")
+		return
+	}
+	_, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	userID := strings.TrimSpace(chi.URLParam(r, "user_id"))
+	if userID == "" {
+		writeError(w, http.StatusBadRequest, "user_id is required")
+		return
+	}
+	p, err := s.profileSvc.GetProfile(r.Context(), userID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to load profile")
+		return
+	}
+	writeJSON(w, http.StatusOK, p.PublicView())
 }
 
 func trimStringPtr(s *string) {

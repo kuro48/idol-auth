@@ -105,37 +105,41 @@ func TestValidateDisplayName_Invalid(t *testing.T) {
 	}
 }
 
-// ---- ValidateOshiIDs ----
+// ---- ValidateOshis ----
 
-func TestValidateOshiIDs_Valid(t *testing.T) {
-	cases := [][]string{
+func TestValidateOshis_Valid(t *testing.T) {
+	cases := [][]profile.OshiEntry{
 		nil,
 		{},
-		{"member-01"},
-		{"member-01", "member-03"},
-		{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}, // 10 items (max)
+		{{IdolID: "member-01"}},
+		{{IdolID: "member-01", FanSince: "2019-04"}, {IdolID: "member-03"}},
+		{{IdolID: "a"}, {IdolID: "b"}, {IdolID: "c"}, {IdolID: "d"}, {IdolID: "e"},
+			{IdolID: "f"}, {IdolID: "g"}, {IdolID: "h"}, {IdolID: "i"}, {IdolID: "j"}}, // 10 (max)
 	}
-	for _, ids := range cases {
-		if err := profile.ValidateOshiIDs(ids); err != nil {
-			t.Errorf("ValidateOshiIDs(%v) unexpected error: %v", ids, err)
+	for i, oshis := range cases {
+		if err := profile.ValidateOshis(oshis); err != nil {
+			t.Errorf("case %d: ValidateOshis unexpected error: %v", i, err)
 		}
 	}
 }
 
-func TestValidateOshiIDs_Invalid(t *testing.T) {
+func TestValidateOshis_Invalid(t *testing.T) {
 	cases := []struct {
-		ids  []string
-		desc string
+		oshis []profile.OshiEntry
+		desc  string
 	}{
-		{[]string{""}, "empty string element"},
-		{[]string{"member-01", ""}, "empty string at end"},
-		{[]string{"   "}, "whitespace-only element"},
-		{[]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}, "11 items (over max 10)"},
+		{[]profile.OshiEntry{{IdolID: ""}}, "empty idol_id"},
+		{[]profile.OshiEntry{{IdolID: "member-01"}, {IdolID: ""}}, "empty idol_id at end"},
+		{[]profile.OshiEntry{{IdolID: "   "}}, "whitespace-only idol_id"},
+		{[]profile.OshiEntry{{IdolID: "a"}, {IdolID: "b"}, {IdolID: "c"}, {IdolID: "d"}, {IdolID: "e"},
+			{IdolID: "f"}, {IdolID: "g"}, {IdolID: "h"}, {IdolID: "i"}, {IdolID: "j"}, {IdolID: "k"}}, "11 items (over max 10)"},
+		{[]profile.OshiEntry{{IdolID: "m1"}, {IdolID: "m1"}}, "duplicate idol_id"},
+		{[]profile.OshiEntry{{IdolID: "m1", FanSince: "2027"}}, "future fan_since"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if err := profile.ValidateOshiIDs(tc.ids); err == nil {
-				t.Errorf("ValidateOshiIDs(%v) expected error, got nil", tc.ids)
+			if err := profile.ValidateOshis(tc.oshis); err == nil {
+				t.Errorf("ValidateOshis expected error for %q, got nil", tc.desc)
 			}
 		})
 	}
@@ -256,30 +260,9 @@ func TestValidateBadgesAndContribution(t *testing.T) {
 	if err := profile.ValidateBadges([]profile.Badge{{ID: "", Label: "No ID"}}); err == nil {
 		t.Fatal("ValidateBadges(empty id) expected error")
 	}
-	if err := profile.ValidateContributionScore(-1); err == nil {
-		t.Fatal("ValidateContributionScore(-1) expected error")
-	}
 }
 
 // ---- Profile struct ----
-
-func TestProfile_ComputeFanYears(t *testing.T) {
-	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	p := profile.Profile{FanSince: "2020-01"}
-	got := p.ComputeFanYears(now)
-	if got != 6 {
-		t.Errorf("ComputeFanYears = %d, want 6", got)
-	}
-}
-
-func TestProfile_ComputeFanYears_EmptyFanSince(t *testing.T) {
-	now := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	p := profile.Profile{FanSince: ""}
-	got := p.ComputeFanYears(now)
-	if got != 0 {
-		t.Errorf("ComputeFanYears with empty FanSince = %d, want 0", got)
-	}
-}
 
 func TestProfile_PublicView_ExcludesPII(t *testing.T) {
 	p := profile.Profile{
@@ -288,13 +271,11 @@ func TestProfile_PublicView_ExcludesPII(t *testing.T) {
 		Email:                   "user@example.com",
 		Phone:                   "+81-90-0000-0000",
 		OshiColor:               "#ffb2d8",
-		OshiIDs:                 []string{"member-01"},
-		FanSince:                "2019",
+		Oshis:                   []profile.OshiEntry{{IdolID: "member-01", FanSince: "2019"}},
 		Birthdate:               "2000-01-02",
 		NotificationPreferences: profile.NotificationPreferences{EmailEnabled: true},
 		Badges:                  []profile.Badge{{ID: "top", Label: "Top"}},
 		PrimaryBadgeID:          "top",
-		ContributionScore:       10,
 	}
 	pub := p.PublicView()
 	if pub.Email != "" || pub.Phone != "" || pub.Birthdate != "" || pub.NotificationPreferences.EmailEnabled {
@@ -309,10 +290,10 @@ func TestProfile_PublicView_ExcludesPII(t *testing.T) {
 	if pub.OshiColor != p.OshiColor {
 		t.Errorf("PublicView.OshiColor = %q, want %q", pub.OshiColor, p.OshiColor)
 	}
-	if len(pub.OshiIDs) != len(p.OshiIDs) {
-		t.Errorf("PublicView.OshiIDs length mismatch: got %d, want %d", len(pub.OshiIDs), len(p.OshiIDs))
+	if len(pub.Oshis) != len(p.Oshis) {
+		t.Errorf("PublicView.Oshis length mismatch: got %d, want %d", len(pub.Oshis), len(p.Oshis))
 	}
-	if len(pub.Badges) != 1 || pub.PrimaryBadgeID != "top" || pub.ContributionScore != 10 {
+	if len(pub.Badges) != 1 || pub.PrimaryBadgeID != "top" {
 		t.Errorf("PublicView should expose public badge fields, got %+v", pub)
 	}
 }
@@ -321,15 +302,13 @@ func TestProfile_PublicView_ExcludesPII(t *testing.T) {
 
 func TestMetadataPublic_RoundTrip(t *testing.T) {
 	orig := profile.MetadataPublic{
-		OshiColor:         "#ffb2d8",
-		OshiIDs:           []string{"member-01", "member-03"},
-		FanSince:          "2019-04",
-		AvatarURL:         "https://example.com/avatar.png",
-		Locale:            "ja-JP",
-		Timezone:          "Asia/Tokyo",
-		Badges:            []profile.Badge{{ID: "top", Label: "Top"}},
-		PrimaryBadgeID:    "top",
-		ContributionScore: 12,
+		OshiColor:      "#ffb2d8",
+		Oshis:          []profile.OshiEntry{{IdolID: "member-01", FanSince: "2019-04"}, {IdolID: "member-03"}},
+		AvatarURL:      "https://example.com/avatar.png",
+		Locale:         "ja-JP",
+		Timezone:       "Asia/Tokyo",
+		Badges:         []profile.Badge{{ID: "top", Label: "Top"}},
+		PrimaryBadgeID: "top",
 	}
 	data, err := orig.Marshal()
 	if err != nil {
@@ -342,16 +321,13 @@ func TestMetadataPublic_RoundTrip(t *testing.T) {
 	if decoded.OshiColor != orig.OshiColor {
 		t.Errorf("OshiColor: got %q, want %q", decoded.OshiColor, orig.OshiColor)
 	}
-	if len(decoded.OshiIDs) != len(orig.OshiIDs) {
-		t.Errorf("OshiIDs length: got %d, want %d", len(decoded.OshiIDs), len(orig.OshiIDs))
-	}
-	if decoded.FanSince != orig.FanSince {
-		t.Errorf("FanSince: got %q, want %q", decoded.FanSince, orig.FanSince)
+	if len(decoded.Oshis) != len(orig.Oshis) {
+		t.Errorf("Oshis length: got %d, want %d", len(decoded.Oshis), len(orig.Oshis))
 	}
 	if decoded.AvatarURL != orig.AvatarURL || decoded.Locale != orig.Locale || decoded.Timezone != orig.Timezone {
 		t.Errorf("profile metadata fields mismatch: %+v", decoded)
 	}
-	if len(decoded.Badges) != 1 || decoded.PrimaryBadgeID != "top" || decoded.ContributionScore != 12 {
+	if len(decoded.Badges) != 1 || decoded.PrimaryBadgeID != "top" {
 		t.Errorf("badge metadata mismatch: %+v", decoded)
 	}
 }
@@ -361,7 +337,7 @@ func TestMetadataPublic_Unmarshal_EmptyJSON(t *testing.T) {
 	if err := m.Unmarshal([]byte("{}")); err != nil {
 		t.Fatalf("Unmarshal empty JSON error: %v", err)
 	}
-	if m.OshiColor != "" || len(m.OshiIDs) != 0 || m.FanSince != "" {
+	if m.OshiColor != "" || len(m.Oshis) != 0 {
 		t.Errorf("Expected zero-value MetadataPublic, got %+v", m)
 	}
 }

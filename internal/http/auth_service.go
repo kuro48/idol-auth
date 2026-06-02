@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 	"github.com/kuro48/idol-auth/internal/oshi"
 )
 
@@ -82,8 +83,7 @@ type KratosSession struct {
 	Phone                       string
 	DisplayName                 string
 	OshiColor                   string
-	OshiIDs                     []string
-	FanSince                    string
+	Oshis                       []profile.OshiEntry
 	Roles                       []string
 	Methods                     []string
 	AuthenticatorAssuranceLevel string
@@ -455,11 +455,8 @@ func buildClaims(session KratosSession, scopes []string) ConsentSessionClaims {
 		if session.OshiColor != "" {
 			idClaims["oshi_color"] = session.OshiColor
 		}
-		if len(session.OshiIDs) > 0 {
-			idClaims["oshi_ids"] = session.OshiIDs
-		}
-		if session.FanSince != "" {
-			idClaims["fan_since"] = session.FanSince
+		if len(session.Oshis) > 0 {
+			idClaims["oshis"] = session.Oshis
 		}
 	}
 	if len(atClaims) == 0 && len(idClaims) == 0 {

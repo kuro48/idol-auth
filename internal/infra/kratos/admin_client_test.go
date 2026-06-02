@@ -177,18 +177,16 @@ func TestGetIdentityProfile_ReadsAllFields(t *testing.T) {
 				"display_name": "推し活太郎",
 			},
 			"metadata_public": map[string]any{
-				"oshi_color":         "#ffb2d8",
-				"oshi_ids":           []string{"member-01", "member-03"},
-				"fan_since":          "2019-04",
-				"avatar_url":         "https://example.com/avatar.png",
-				"locale":             "ja-JP",
-				"timezone":           "Asia/Tokyo",
-				"badges":             []map[string]any{{"id": "top", "label": "Top"}},
-				"primary_badge_id":   "top",
-				"contribution_score": 42,
-				"contribution_summary": map[string]any{
-					"posts_count": 10,
+				"oshi_color": "#ffb2d8",
+				"oshis": []map[string]any{
+					{"idol_id": "member-01", "fan_since": "2019-04"},
+					{"idol_id": "member-03"},
 				},
+				"avatar_url":       "https://example.com/avatar.png",
+				"locale":           "ja-JP",
+				"timezone":         "Asia/Tokyo",
+				"badges":           []map[string]any{{"id": "top", "label": "Top"}},
+				"primary_badge_id": "top",
 			},
 			"metadata_admin": map[string]any{
 				"birthdate": "2000-01-02",
@@ -221,17 +219,14 @@ func TestGetIdentityProfile_ReadsAllFields(t *testing.T) {
 	if p.OshiColor != "#ffb2d8" {
 		t.Errorf("OshiColor = %q, want #ffb2d8", p.OshiColor)
 	}
-	if len(p.OshiIDs) != 2 || p.OshiIDs[0] != "member-01" || p.OshiIDs[1] != "member-03" {
-		t.Errorf("OshiIDs = %v, want [member-01 member-03]", p.OshiIDs)
-	}
-	if p.FanSince != "2019-04" {
-		t.Errorf("FanSince = %q, want 2019-04", p.FanSince)
+	if len(p.Oshis) != 2 || p.Oshis[0].IdolID != "member-01" || p.Oshis[0].FanSince != "2019-04" || p.Oshis[1].IdolID != "member-03" {
+		t.Errorf("Oshis = %v, want [{member-01 2019-04} {member-03 }]", p.Oshis)
 	}
 	if p.AvatarURL != "https://example.com/avatar.png" || p.Locale != "ja-JP" || p.Timezone != "Asia/Tokyo" {
 		t.Errorf("common profile fields mismatch: %+v", p)
 	}
-	if len(p.Badges) != 1 || p.PrimaryBadgeID != "top" || p.ContributionScore != 42 || p.ContributionSummary.PostsCount != 10 {
-		t.Errorf("contribution fields mismatch: %+v", p)
+	if len(p.Badges) != 1 || p.PrimaryBadgeID != "top" {
+		t.Errorf("badge fields mismatch: %+v", p)
 	}
 	if p.Birthdate != "2000-01-02" || !p.NotificationPreferences.EmailEnabled || !p.NotificationPreferences.SecurityAlerts {
 		t.Errorf("private profile fields mismatch: %+v", p)
@@ -255,7 +250,7 @@ func TestGetIdentityProfile_HandlesEmptyMetadataPublic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetIdentityProfile() error = %v", err)
 	}
-	if p.OshiColor != "" || len(p.OshiIDs) != 0 || p.FanSince != "" {
+	if p.OshiColor != "" || len(p.Oshis) != 0 {
 		t.Errorf("expected zero metadata fields, got %+v", p)
 	}
 }
@@ -326,8 +321,9 @@ func TestUpdateIdentityProfile_MergesExistingMetadataAndPatches(t *testing.T) {
 			if metaValue["oshi_color"] != "#ffb2d8" {
 				t.Errorf("oshi_color = %v, want #ffb2d8", metaValue["oshi_color"])
 			}
-			if metaValue["fan_since"] != "2019-04" {
-				t.Errorf("fan_since = %v, want 2019-04", metaValue["fan_since"])
+			oshis, _ := metaValue["oshis"].([]any)
+			if len(oshis) != 1 {
+				t.Errorf("oshis length = %d, want 1", len(oshis))
 			}
 			if metaValue["avatar_url"] != "https://example.com/avatar.png" {
 				t.Errorf("avatar_url = %v", metaValue["avatar_url"])
@@ -347,7 +343,7 @@ func TestUpdateIdentityProfile_MergesExistingMetadataAndPatches(t *testing.T) {
 
 	displayName := "推し活太郎"
 	oshiColor := "#ffb2d8"
-	fanSince := "2019-04"
+	oshis := []profile.OshiEntry{{IdolID: "member-01", FanSince: "2019-04"}}
 	avatarURL := "https://example.com/avatar.png"
 	locale := "ja-JP"
 	timezone := "Asia/Tokyo"
@@ -355,7 +351,7 @@ func TestUpdateIdentityProfile_MergesExistingMetadataAndPatches(t *testing.T) {
 	err := client.UpdateIdentityProfile(context.Background(), "identity-1", profile.UpdateInput{
 		DisplayName: &displayName,
 		OshiColor:   &oshiColor,
-		FanSince:    &fanSince,
+		Oshis:       &oshis,
 		AvatarURL:   &avatarURL,
 		Locale:      &locale,
 		Timezone:    &timezone,
