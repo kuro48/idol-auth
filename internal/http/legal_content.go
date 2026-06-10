@@ -7,8 +7,8 @@ import "html/template"
 
 const legalTermsUpdatedOn = "2026-05-21"
 const legalPrivacyUpdatedOn = "2026-05-21"
-const legalContactUpdatedOn = "2026-05-21"
-const legalIncidentUpdatedOn = "2026-05-21"
+const legalContactUpdatedOn = "2026-06-10"
+const legalIncidentUpdatedOn = "2026-06-10"
 
 var legalTermsBody template.HTML = `
 <h2>第1条（目的）</h2>
@@ -110,7 +110,7 @@ var legalContactBody template.HTML = `
 <div class="contact-card">
   <div class="contact-row">
     <span class="contact-label">メールアドレス</span>
-    <span class="contact-value">support@oshilink.example</span>
+    <span class="contact-value">support@idol-ium.com</span>
   </div>
   <div class="contact-row">
     <span class="contact-label">対応時間</span>
@@ -145,7 +145,7 @@ var legalIncidentBody template.HTML = `
 <div class="contact-card">
   <div class="contact-row">
     <span class="contact-label">障害報告メール</span>
-    <span class="contact-value">incident@oshilink.example</span>
+    <span class="contact-value">incident@idol-ium.com</span>
   </div>
   <div class="contact-row">
     <span class="contact-label">緊急時対応時間</span>
