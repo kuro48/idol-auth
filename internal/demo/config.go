@@ -25,12 +25,14 @@ type Config struct {
 }
 
 type PortalConfig struct {
-	Port             int    `env:"PORTAL_PORT" envDefault:"3003"`
-	AppURL           string `env:"PORTAL_APP_URL,required"`
-	AccountCenterURL string `env:"PORTAL_ACCOUNT_CENTER_URL"`
-	KratosPublicURL  string `env:"PORTAL_KRATOS_PUBLIC_URL" envDefault:"http://localhost:4433"`
-	KratosAdminURL   string `env:"PORTAL_KRATOS_ADMIN_URL,required"`
-	KratosBrowserURL string `env:"PORTAL_KRATOS_BROWSER_URL,required"`
+	Port               int    `env:"PORTAL_PORT" envDefault:"3003"`
+	AppURL             string `env:"PORTAL_APP_URL,required"`
+	AccountCenterURL   string `env:"PORTAL_ACCOUNT_CENTER_URL"`
+	KratosPublicURL    string `env:"PORTAL_KRATOS_PUBLIC_URL" envDefault:"http://localhost:4433"`
+	KratosAdminURL     string `env:"PORTAL_KRATOS_ADMIN_URL,required"`
+	KratosBrowserURL   string `env:"PORTAL_KRATOS_BROWSER_URL,required"`
+	TurnstileSiteKey   string `env:"TURNSTILE_SITE_KEY"`
+	TurnstileSecretKey string `env:"TURNSTILE_SECRET_KEY"`
 }
 
 func LoadConfig() (*Config, error) {

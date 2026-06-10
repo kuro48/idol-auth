@@ -55,8 +55,14 @@ func newPortalHandler(cfg *demo.PortalConfig, httpClient *http.Client) (http.Han
 	}
 	kratosProxy := httputil.NewSingleHostReverseProxy(kratosPublicURL)
 
+	var turnstile *demo.TurnstileVerifier
+	if strings.TrimSpace(cfg.TurnstileSecretKey) != "" {
+		turnstile = demo.NewTurnstileVerifier(cfg.TurnstileSecretKey)
+		slog.Info("turnstile bot protection enabled for registration")
+	}
+
 	mux := http.NewServeMux()
-	mux.Handle("/self-service/", kratosProxy)
+	mux.Handle("/self-service/", demo.ProtectRegistration(kratosProxy, turnstile))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -72,11 +78,18 @@ func newPortalHandler(cfg *demo.PortalConfig, httpClient *http.Client) (http.Han
 	})
 	legalBase := legalBaseURL(cfg)
 	accountCenter := accountCenterURL(cfg)
-	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "login", "ログイン", "メールアドレスとパスワードでログインします。")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "registration", "新規登録", "推し活アカウントを作成します。")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "recovery", "パスワード再設定", "アカウントを回復します。")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "verification", "確認", "メールアドレスを確認します。")
-	registerFlow(mux, kratosClient, sessionClient, legalBase, accountCenter, "settings", "セキュリティ設定", "パスワードや二段階認証を管理します。")
+	flowPage := flowPageConfig{
+		kratosClient:     kratosClient,
+		sessionClient:    sessionClient,
+		legalBaseURL:     legalBase,
+		accountCenterURL: accountCenter,
+		turnstileSiteKey: cfg.TurnstileSiteKey,
+	}
+	registerFlow(mux, flowPage, "login", "ログイン", "メールアドレスとパスワードでログインします。")
+	registerFlow(mux, flowPage, "registration", "新規登録", "推し活アカウントを作成します。")
+	registerFlow(mux, flowPage, "recovery", "パスワード再設定", "アカウントを回復します。")
+	registerFlow(mux, flowPage, "verification", "確認", "メールアドレスを確認します。")
+	registerFlow(mux, flowPage, "settings", "セキュリティ設定", "パスワードや二段階認証を管理します。")
 	mux.HandleFunc("/error", func(w http.ResponseWriter, r *http.Request) {
 		demo.HandleKratosError(w, r, kratosClient)
 	})
@@ -90,14 +103,22 @@ func accountCenterURL(cfg *demo.PortalConfig) string {
 	return strings.TrimRight(cfg.AppURL, "/") + "/account/"
 }
 
-func registerFlow(mux *http.ServeMux, kratosClient *demo.KratosFlowClient, sessionClient demo.SessionReader, legalBaseURL, accountCenterURL, flowType, title, description string) {
+type flowPageConfig struct {
+	kratosClient     *demo.KratosFlowClient
+	sessionClient    demo.SessionReader
+	legalBaseURL     string
+	accountCenterURL string
+	turnstileSiteKey string
+}
+
+func registerFlow(mux *http.ServeMux, page flowPageConfig, flowType, title, description string) {
 	mux.HandleFunc("/"+flowType, func(w http.ResponseWriter, r *http.Request) {
 		flowID := r.URL.Query().Get("flow")
 		if flowID == "" {
-			http.Redirect(w, r, kratosClient.BrowserInitURL(flowType), http.StatusFound)
+			http.Redirect(w, r, page.kratosClient.BrowserInitURL(flowType), http.StatusFound)
 			return
 		}
-		flow, err := kratosClient.GetFlow(r.Context(), r, flowType, flowID)
+		flow, err := page.kratosClient.GetFlow(r.Context(), r, flowType, flowID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -106,9 +127,10 @@ func registerFlow(mux *http.ServeMux, kratosClient *demo.KratosFlowClient, sessi
 			Title:            title,
 			Description:      description,
 			FlowType:         flowType,
-			OshiColor:        demo.ResolveSessionOshiColor(r.Context(), sessionClient, r),
-			LegalBaseURL:     legalBaseURL,
-			AccountCenterURL: accountCenterURL,
+			OshiColor:        demo.ResolveSessionOshiColor(r.Context(), page.sessionClient, r),
+			LegalBaseURL:     page.legalBaseURL,
+			AccountCenterURL: page.accountCenterURL,
+			TurnstileSiteKey: page.turnstileSiteKey,
 			Flow:             flow,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

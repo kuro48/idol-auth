@@ -177,6 +177,7 @@ type PageData struct {
 	OshiColor        string
 	LegalBaseURL     string
 	AccountCenterURL string
+	TurnstileSiteKey string
 	Flow             KratosFlow
 }
 
@@ -188,6 +189,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ .Title }} | OshiLink</title>
+  {{ if and (eq .FlowType "registration") .TurnstileSiteKey }}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{{ end }}
   <style>
     :root {
       --oshi:#ffb2d8;
@@ -718,6 +720,9 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             <input id="{{ .Attributes.Name }}" name="{{ .Attributes.Name }}" type="{{ inputType .Attributes.Name .Attributes.Type }}" value="{{ .Attributes.Value }}" {{ if .Attributes.Required }}required{{ end }} {{ if .Attributes.Disabled }}disabled{{ end }}>
           </div>
         {{ end }}
+      {{ end }}
+      {{ if and (eq .FlowType "registration") .TurnstileSiteKey }}
+        <div class="cf-turnstile" data-sitekey="{{ .TurnstileSiteKey }}"></div>
       {{ end }}
     </form>
     {{ if eq .FlowType "login" }}
