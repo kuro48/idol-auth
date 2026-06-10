@@ -175,7 +175,7 @@ var legalIncidentBody template.HTML = `
 </ol>
 
 <h2>サービスステータス</h2>
-<p>現在のサービス状態および過去のインシデント履歴は、ステータスページにて確認できます（準備中）。</p>
+<p>現在のサービス状態および過去のインシデント履歴は、<a href="https://stats.uptimerobot.com/Jo9cnakZTZ" rel="noopener">ステータスページ</a>にて確認できます。</p>
 
 <h2>一般のお問い合わせ</h2>
 <p>障害以外のお問い合わせは<a href="/legal/contact">お問い合わせページ</a>をご利用ください。</p>
