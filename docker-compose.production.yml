@@ -77,6 +77,11 @@ services:
     expose:
       - "4444"
       - "4445"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.idol-auth-hydra.rule=Host(`${HYDRA_HOSTNAME}`)"
+      - "traefik.http.routers.idol-auth-hydra.entrypoints=web"
+      - "traefik.http.services.idol-auth-hydra.loadbalancer.server.port=4444"
     depends_on:
       hydra-migrate:
         condition: service_completed_successfully
@@ -122,6 +127,11 @@ services:
       LOG_LEVEL: ${APP_LOG_LEVEL:-info}
     expose:
       - "8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.idol-auth-app.rule=Host(`${APP_HOSTNAME}`)"
+      - "traefik.http.routers.idol-auth-app.entrypoints=web"
+      - "traefik.http.services.idol-auth-app.loadbalancer.server.port=8080"
     volumes:
       - uploads_data:/var/lib/idol-auth/uploads
     healthcheck:
@@ -153,9 +163,29 @@ services:
       PORTAL_KRATOS_BROWSER_URL: ${KRATOS_BROWSER_URL}
     expose:
       - "3003"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.idol-auth-portal.rule=Host(`${PORTAL_HOSTNAME}`)"
+      - "traefik.http.routers.idol-auth-portal.entrypoints=web"
+      - "traefik.http.services.idol-auth-portal.loadbalancer.server.port=3003"
     depends_on:
       kratos:
         condition: service_started
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+  traefik:
+    image: traefik:v3.3
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=idolium-network
+    expose:
+      - "80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
     networks:
       - idolium-network
@@ -166,11 +196,7 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      app:
-        condition: service_started
-      portal:
-        condition: service_started
-      hydra:
+      traefik:
         condition: service_started
     restart: unless-stopped
     networks:

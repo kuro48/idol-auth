@@ -4,10 +4,10 @@
 
 ## 前提構成
 
-- 1 Linux VM
-- Docker Engine / Docker Compose
+- Docker / Docker Compose が動くマシン（VPS・ミニPC・自宅サーバー問わず）
 - `docker-compose.production.yml`
-- **Cloudflare Tunnel** (`cloudflared`) を唯一の公開入口として利用（VPS への直接 inbound 不要）
+- **Cloudflare Tunnel** (`cloudflared`) を唯一の公開入口として利用（inbound ポート開放不要）
+- **Traefik** が内部ルーティングを担当（SSL は Cloudflare が終端）
 - `hydra admin`, `kratos admin`, `postgres` は内部ネットワーク限定
 
 ## 1. 本番用設定を作る
