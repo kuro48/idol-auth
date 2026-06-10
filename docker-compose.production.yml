@@ -178,12 +178,15 @@ services:
       - idolium-network
 
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.6
     command:
       - --entrypoints.web.address=:80
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=idolium-network
+    environment:
+      # Docker Engine の最小 API バージョンに合わせて明示（ネゴシエーション失敗対策）
+      DOCKER_API_VERSION: "1.40"
     expose:
       - "80"
     volumes:
