@@ -13,6 +13,7 @@ type developerCredentialsData struct {
 	DetailURL       string
 }
 
+// #nosec G101 -- Template labels and placeholders only; credential values are injected at render time.
 const developerCredentialsBody = `
   <main class="shell">
     <nav class="breadcrumb">
