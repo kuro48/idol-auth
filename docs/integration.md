@@ -6,31 +6,48 @@
 
 idol-auth は複数のアプリが 1 つの ID プールを共有できる認証基盤です。アプリ側の実装は 2 ステップです。
 
-1. **Admin API** でアプリ登録 → OIDC クライアント発行（初回のみ）
+1. **セルフサービス登録**でアプリ登録 → OIDC クライアントとクレデンシャルが即時発行（初回のみ）
 2. **Public API / TypeScript SDK** で認証フローを実装
+
+管理者への連絡やトークンの手渡しは不要です。
 
 ---
 
-## ステップ 1: アプリ登録
+## ステップ 1: アプリ登録（セルフサービス・即時発行）
 
-Admin API を叩くには `ADMIN_BOOTSTRAP_TOKEN` が必要です。サービス管理者から受け取ってください。
+idol-auth アカウントでログインして登録するだけで、審査なしで OIDC クライアントとクレデンシャルが発行されます。
 
-### アプリを作成する
+### 方法 A: ブラウザから登録（推奨）
+
+1. `https://<AUTH_HOST>` でアカウントを作成（メール認証あり）
+2. `https://<AUTH_HOST>/developer/app-requests/new` を開く
+3. アプリ名・種別・説明・リダイレクト URI を入力して「登録する（即時発行）」
+4. 表示された **Client ID / Client Secret / Management Token** を保管
+
+クレデンシャルは**このページにしか表示されません**。必ずその場でコピーしてください。
+
+### 方法 B: API から登録
+
+ログインセッション（Kratos セッション Cookie）で `POST /v1/developer/apps` を呼びます。
 
 ```bash
-curl -X POST https://<AUTH_HOST>/v1/admin/apps \
-  -H "Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>" \
+curl -X POST https://<AUTH_HOST>/v1/developer/apps \
+  -b "ory_kratos_session=<SESSION_COOKIE>" \
   -H "Content-Type: application/json" \
+  -H "Sec-Fetch-Site: same-origin" \
   -d '{
     "name": "My App",
-    "slug": "my-app",
-    "type": "web"
+    "type": "web",
+    "description": "My awesome app",
+    "redirect_uris": ["https://myapp.example.com/callback"],
+    "post_logout_redirect_uris": ["https://myapp.example.com/"],
+    "scopes": ["openid", "email", "profile", "offline_access"]
   }'
 ```
 
-`type` は `web` / `spa` / `native` / `m2m` から選んでください。`party_type` を省略した場合は `third_party` として作成されます。
+`type` は `web` / `spa` / `native` / `m2m` から選んでください。
 
-レスポンス例:
+レスポンス例（`client_secret` と `management_token` は一度だけ返されます）:
 
 ```json
 {
@@ -42,57 +59,35 @@ curl -X POST https://<AUTH_HOST>/v1/admin/apps \
     "party_type": "third_party",
     "status": "active"
   },
+  "client": {
+    "hydra_client_id": "abc123",
+    "client_type": "confidential",
+    "pkce_required": false
+  },
+  "client_secret": "...",
   "management_token": "mgt_..."
 }
 ```
 
 `management_token` は安全に保管してください。後から `/v1/apps/self/*` で自アプリのユーザー管理に使います。
 
-アプリ作成時に OIDC クライアントも同時に作りたい場合は、`client` ブロックを含めます。
+### セルフサービス登録の制限
 
-```bash
-curl -X POST https://<AUTH_HOST>/v1/admin/apps \
-  -H "Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My App",
-    "slug": "my-app",
-    "type": "web",
-    "client": {
-      "client_type": "public",
-      "redirect_uris": ["https://myapp.example.com/callback"],
-      "post_logout_redirect_uris": ["https://myapp.example.com/"],
-      "scopes": ["openid", "email", "profile", "offline_access"]
-    }
-  }'
-```
+| 項目 | 制限 |
+|---|---|
+| スコープ | `openid` / `email` / `profile` / `offline_access` のみ |
+| party_type | `third_party` 固定 |
+| アプリ数 | 1 アカウントあたり最大 5 件 |
 
-### OIDC クライアントを発行する
+これを超える要件（カスタムスコープ、first_party 扱いなど）は管理者へ相談してください（従来の Admin API での発行も引き続き可能です）。
 
-```bash
-curl -X POST https://<AUTH_HOST>/v1/admin/apps/<APP_ID>/clients \
-  -H "Authorization: Bearer <ADMIN_BOOTSTRAP_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "client_type": "public",
-    "redirect_uris": ["https://myapp.example.com/callback"],
-    "scopes": ["openid", "email", "profile", "offline_access"]
-  }'
-```
+### 管理者向け: 事後監視
 
-`client_type` は `public`（PKCE 必須・SPA/ネイティブ向け）または `confidential`（サーバーサイド向け）です。
+事前審査の代わりに、登録は事後監視で運用します。
 
-レスポンス例:
-
-```json
-{
-  "client": {
-    "hydra_client_id": "abc123",
-    "client_type": "public",
-    "pkce_required": true
-  }
-}
-```
+- 新規登録ごとに `ADMIN_ALLOWED_EMAILS` 宛に通知メールが送信されます
+- 全登録は管理 UI（`/admin/apps`・`/admin/app-requests`）と監査ログで確認できます
+- 不審なアプリは管理 API でいつでも無効化（`status: disabled`）できます
 
 ---
 
@@ -115,11 +110,27 @@ const client = new IdolAuthClient({
   baseUrl: "https://<AUTH_HOST>",
 });
 
-// 1. PKCE パラメータを生成
-const codeVerifier = generateCodeVerifier();     // 43〜128文字のランダム文字列
-const codeChallenge = await generateCodeChallenge(codeVerifier); // SHA-256 → base64url
+// 1. ログインボタンなどから呼ぶ。
+// PKCE（verifier/challenge）と state の生成・保存・検証は SDK が行います。
+await client.loginWithRedirect({
+  clientId: "abc123",
+  redirectUri: "https://myapp.example.com/callback",
+});
+```
 
-// 2. 認可画面にリダイレクト
+```typescript
+// 2. コールバックページで呼ぶ。state 検証とトークン交換まで自動。
+const tokens = await client.handleRedirectCallback();
+
+// tokens.access_token, tokens.id_token, tokens.refresh_token
+```
+
+PKCE を手動で制御したい場合は低レベルヘルパーも利用できます。
+
+```typescript
+import { generatePKCE } from "@idol-auth/client";
+
+const { codeVerifier, codeChallenge } = await generatePKCE();
 const loginUrl = client.browserLoginUrl({
   clientId: "abc123",
   redirectUri: "https://myapp.example.com/callback",
@@ -128,21 +139,6 @@ const loginUrl = client.browserLoginUrl({
   codeChallenge,
   codeChallengeMethod: "S256",
 });
-window.location.href = loginUrl;
-```
-
-```typescript
-// 3. コールバックでトークンを取得
-const params = new URLSearchParams(window.location.search);
-const tokens = await client.token({
-  grant_type: "authorization_code",
-  code: params.get("code")!,
-  redirect_uri: "https://myapp.example.com/callback",
-  client_id: "abc123",
-  code_verifier: codeVerifier, // PKCE
-});
-
-// tokens.access_token, tokens.id_token, tokens.refresh_token
 ```
 
 ### パターン B: Headless 認証（モバイル / バックエンド向け）
@@ -279,8 +275,9 @@ try {
 | `POST /v1/apps/self/users` | 自アプリのユーザー事前登録 |
 | `DELETE /v1/apps/self/users/{id}` | 自アプリのユーザー連携解除 |
 | `GET /v1/apps/self/users/{id}/profile` | 自アプリユーザーの公開プロフィール取得 |
-| `GET /v1/developer/app-requests` | 自分のアプリ申請一覧 |
-| `POST /v1/developer/app-requests` | アプリ申請を提出 |
+| `POST /v1/developer/apps` | アプリ登録（即時発行・要セッション） |
+| `GET /v1/developer/app-requests` | 自分のアプリ登録一覧 |
+| `POST /v1/developer/app-requests` | アプリ申請を提出（審査フロー） |
 
 ---
 
