@@ -207,7 +207,7 @@ const developerListBody = `
     </nav>
     <div class="page-actions">
       <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.02em;flex:1">アプリ申請一覧</h1>
-      <a href="/developer/app-requests/new" class="btn btn-primary">＋ 新規申請</a>
+      <a href="/developer/app-requests/new" class="btn btn-primary">＋ 新規アプリ登録</a>
     </div>
     {{if .Requests}}
       {{range .Requests}}
@@ -221,8 +221,8 @@ const developerListBody = `
       {{end}}
     {{else}}
       <div class="empty-state">
-        <p>申請はまだありません</p>
-        <a href="/developer/app-requests/new" class="btn btn-primary">最初の申請を作成する</a>
+        <p>登録されたアプリはまだありません</p>
+        <a href="/developer/app-requests/new" class="btn btn-primary">最初のアプリを登録する</a>
       </div>
     {{end}}
   </main>
@@ -241,14 +241,15 @@ const developerFormBody = `
       <span class="sep">›</span>
       <a href="/developer/app-requests">アプリ申請</a>
       <span class="sep">›</span>
-      {{if .Req}}修正・再申請{{else}}新規申請{{end}}
+      {{if .Req}}修正・再申請{{else}}新規アプリ登録{{end}}
     </nav>
     <div class="card">
       <div class="card-head">
-        <h1>{{if .Req}}修正・再申請{{else}}新規アプリ申請{{end}}</h1>
+        <h1>{{if .Req}}修正・再申請{{else}}新規アプリ登録{{end}}</h1>
       </div>
+      {{if not .Req}}<p style="margin:0 0 18px;font-size:13px;color:var(--muted);line-height:1.7">審査なしで即時にOIDCクライアントとクレデンシャルが発行されます。</p>{{end}}
       {{if .Error}}<div class="form-error">{{.Error}}</div>{{end}}
-      <form method="post" action="{{if .Req}}/developer/app-requests/{{.Req.ID}}/resubmit{{else}}/developer/app-requests{{end}}">
+      <form method="post" action="{{if .Req}}/developer/app-requests/{{.Req.ID}}/resubmit{{else}}/developer/apps{{end}}">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <div class="field">
           <label for="name">アプリ名 <span style="color:var(--danger)">*</span></label>
@@ -272,10 +273,10 @@ const developerFormBody = `
             placeholder="アプリの概要を1〜1000文字で記入してください">{{if .Req}}{{.Req.Description}}{{end}}</textarea>
         </div>
         <div class="field">
-          <label for="purpose">利用目的 <span style="color:var(--danger)">*</span></label>
-          <textarea id="purpose" name="purpose" required rows="6" minlength="200" maxlength="2000"
-            placeholder="OshiLinkアカウントをどのように利用するかを200〜2000文字で詳しく説明してください">{{if .Req}}{{.Req.Purpose}}{{end}}</textarea>
-          <div class="field-note">最低200文字・最大2000文字</div>
+          <label for="purpose">利用目的{{if .Req}} <span style="color:var(--danger)">*</span>{{end}}</label>
+          <textarea id="purpose" name="purpose" rows="4" maxlength="2000"{{if .Req}} required minlength="200"{{end}}
+            placeholder="OshiLinkアカウントをどのように利用するか説明してください{{if .Req}}（200〜2000文字）{{end}}">{{if .Req}}{{.Req.Purpose}}{{end}}</textarea>
+          <div class="field-note">{{if .Req}}最低200文字・最大2000文字{{else}}任意・最大2000文字{{end}}</div>
         </div>
         <div class="field">
           <label for="contact_email">連絡先メール <span style="color:var(--danger)">*</span></label>
@@ -317,10 +318,10 @@ const developerFormBody = `
           <label for="scopes">要求スコープ（1行に1つ）</label>
           <textarea id="scopes" name="scopes" rows="3"
             placeholder="openid&#10;profile&#10;email">{{if .Req}}{{range $i,$s := .Req.Scopes}}{{if $i}}&#10;{{end}}{{$s}}{{end}}{{end}}</textarea>
-          <div class="field-note">任意。空白の場合はデフォルトスコープが付与されます</div>
+          <div class="field-note">任意。空白の場合はデフォルトスコープが付与されます{{if not .Req}}（指定できるのは openid / email / profile / offline_access のみ）{{end}}</div>
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">{{if .Req}}再申請する{{else}}申請を提出する{{end}}</button>
+          <button type="submit" class="btn btn-primary">{{if .Req}}再申請する{{else}}登録する（即時発行）{{end}}</button>
           <a href="{{if .Req}}/developer/app-requests/{{.Req.ID}}{{else}}/developer/app-requests{{end}}" class="btn btn-ghost">キャンセル</a>
         </div>
       </form>
@@ -355,6 +356,7 @@ const developerDetailBody = `
       </div>
       {{end}}
       <div class="info-list" style="margin-bottom:20px">
+        {{if .ClientID}}<div class="info-item"><span class="k">Client ID</span><span class="v"><code>{{.ClientID}}</code></span></div>{{end}}
         <div class="info-item"><span class="k">種別</span><span class="v">{{.Req.Type}}</span></div>
         <div class="info-item"><span class="k">説明</span><span class="v">{{.Req.Description}}</span></div>
         <div class="info-item"><span class="k">連絡先メール</span><span class="v">{{.Req.ContactEmail}}</span></div>

@@ -25,6 +25,12 @@ type controlledDeveloperService struct {
 	submitErr    error
 	withdrawErr  error
 	resubmitErr  error
+
+	autoApproveResult    appreg.Request
+	autoApproveErr       error
+	autoApproveCalled    bool
+	lastAutoApproveInput appreg.SubmitInput
+	lastSubmitInput      appreg.SubmitInput
 }
 
 func (s *controlledDeveloperService) ListMine(_ context.Context, _ string) ([]appreg.Request, error) {
@@ -41,6 +47,7 @@ func (s *controlledDeveloperService) GetForOwner(_ context.Context, id uuid.UUID
 }
 
 func (s *controlledDeveloperService) Submit(_ context.Context, _ string, input appreg.SubmitInput) (appreg.Request, error) {
+	s.lastSubmitInput = input
 	if s.submitErr != nil {
 		return appreg.Request{}, s.submitErr
 	}
@@ -50,6 +57,18 @@ func (s *controlledDeveloperService) Submit(_ context.Context, _ string, input a
 	}
 	r.Name = input.Name
 	return r, nil
+}
+
+func (s *controlledDeveloperService) SubmitAutoApproved(_ context.Context, _ string, input appreg.SubmitInput, provision appreg.ProvisionFunc) (appreg.Request, error) {
+	s.autoApproveCalled = true
+	s.lastAutoApproveInput = input
+	if s.autoApproveErr != nil {
+		return appreg.Request{}, s.autoApproveErr
+	}
+	if _, _, err := provision(s.autoApproveResult); err != nil {
+		return appreg.Request{}, err
+	}
+	return s.autoApproveResult, nil
 }
 
 func (s *controlledDeveloperService) Withdraw(_ context.Context, id uuid.UUID, _ string) (appreg.Request, error) {
@@ -176,7 +195,7 @@ func TestDeveloperNewFormPageRendersCorrectly(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 	body := w.Body.String()
-	for _, fragment := range []string{"新規アプリ申請", "csrf_token", `name="name"`, `name="type"`, `name="purpose"`} {
+	for _, fragment := range []string{"新規アプリ登録", "csrf_token", `name="name"`, `name="type"`, `name="purpose"`} {
 		if !strings.Contains(body, fragment) {
 			t.Errorf("expected form to contain %q", fragment)
 		}

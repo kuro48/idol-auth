@@ -12,6 +12,7 @@ var (
 	ErrInvalidType         = errors.New("type must be one of: web, spa, native, m2m")
 	ErrInvalidDescription  = errors.New("description must be 1-1000 characters")
 	ErrInvalidPurpose      = errors.New("purpose must be 200-2000 characters")
+	ErrScopeNotAllowed     = errors.New("scope is not allowed for self-service registration")
 	ErrInvalidEmail        = errors.New("contact_email is not a valid email address")
 	ErrInvalidRedirectURI  = errors.New("redirect_uri is not a valid absolute https or http://localhost URI")
 	ErrInvalidURL          = errors.New("url is not a valid absolute https URI")
@@ -20,6 +21,11 @@ var (
 
 var validTypes = map[string]bool{
 	"web": true, "spa": true, "native": true, "m2m": true,
+}
+
+// selfServiceAllowedScopes limits instantly issued clients to standard OIDC scopes.
+var selfServiceAllowedScopes = map[string]bool{
+	"openid": true, "email": true, "profile": true, "offline_access": true,
 }
 
 // SubmitInput holds validated fields for a new registration request.
@@ -36,6 +42,9 @@ type SubmitInput struct {
 	RedirectURIs           []string
 	PostLogoutRedirectURIs []string
 	Scopes                 []string
+	// SelfService relaxes the purpose requirement and restricts scopes to the
+	// allowlist, for instantly issued (auto-approved) registrations.
+	SelfService bool
 }
 
 // Validate checks all fields and normalizes string values in-place.
@@ -56,7 +65,11 @@ func (in *SubmitInput) Validate() error {
 	}
 
 	in.Purpose = strings.TrimSpace(in.Purpose)
-	if len(in.Purpose) < 200 || len(in.Purpose) > 2000 {
+	purposeMin := 200
+	if in.SelfService {
+		purposeMin = 0
+	}
+	if len(in.Purpose) < purposeMin || len(in.Purpose) > 2000 {
 		return ErrInvalidPurpose
 	}
 
@@ -87,6 +100,13 @@ func (in *SubmitInput) Validate() error {
 	}
 	in.PostLogoutRedirectURIs = postLogout
 	in.Scopes = normalizeScopes(in.Scopes)
+	if in.SelfService {
+		for _, scope := range in.Scopes {
+			if !selfServiceAllowedScopes[scope] {
+				return ErrScopeNotAllowed
+			}
+		}
+	}
 	in.Organization = strings.TrimSpace(in.Organization)
 
 	return nil

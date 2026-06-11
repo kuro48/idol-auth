@@ -249,6 +249,10 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Use(s.accountUIAuth)
 		r.Get("/", s.handleAccountCenter)
 	})
+	r.Route("/developer/apps", func(r chi.Router) {
+		r.Use(s.accountUIAuth)
+		r.Post("/", s.handleDeveloperAppsCreateHTML)
+	})
 	r.Route("/developer/app-requests", func(r chi.Router) {
 		r.Use(s.accountUIAuth)
 		r.Get("/", s.handleDeveloperAppRequestsList)
@@ -343,6 +347,15 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		r.Use(s.accountAuth)
 		r.Get("/{user_id}/profile", s.handleGetPublicUserProfile)
+	})
+
+	r.Route("/v1/developer/apps", func(r chi.Router) {
+		if s.config.Limiter != nil {
+			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
+		}
+		r.Use(s.accountAuth)
+		r.Use(s.accountSessionCSRFMiddleware)
+		r.Post("/", s.handleDeveloperCreateApp)
 	})
 
 	r.Route("/v1/developer/app-requests", func(r chi.Router) {

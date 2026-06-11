@@ -18,16 +18,19 @@ import (
 
 // SMTPNotifier sends transactional emails via SMTP.
 type SMTPNotifier struct {
-	from    string
-	appName string
-	baseURL string
-	addr    string
-	auth    smtp.Auth
+	from        string
+	appName     string
+	baseURL     string
+	addr        string
+	auth        smtp.Auth
+	adminEmails []string
 }
 
-// NewSMTPNotifier builds a notifier from MailConfig.
+// NewSMTPNotifier builds a notifier from MailConfig. adminEmails receive a
+// copy whenever a new registration is submitted, so operators keep visibility
+// over self-service (auto-approved) registrations without a review gate.
 // Returns NoopNotifier when mail is disabled or SMTP_URL is empty.
-func NewSMTPNotifier(cfg config.MailConfig) appreg.Notifier {
+func NewSMTPNotifier(cfg config.MailConfig, adminEmails []string) appreg.Notifier {
 	if !cfg.Enabled || strings.TrimSpace(cfg.SMTPURL) == "" {
 		return appreg.NoopNotifier{}
 	}
@@ -54,11 +57,12 @@ func NewSMTPNotifier(cfg config.MailConfig) appreg.Notifier {
 	}
 
 	return &SMTPNotifier{
-		from:    cfg.From,
-		appName: cfg.AppName,
-		baseURL: baseURL,
-		addr:    host + ":" + port,
-		auth:    auth,
+		from:        cfg.From,
+		appName:     cfg.AppName,
+		baseURL:     baseURL,
+		addr:        host + ":" + port,
+		auth:        auth,
+		adminEmails: adminEmails,
 	}
 }
 
@@ -69,7 +73,27 @@ func (n *SMTPNotifier) NotifySubmitted(_ context.Context, req appreg.Request) er
 		"RequestName":  req.Name,
 		"DashboardURL": n.baseURL + "/developer/applications/" + req.ID.String(),
 	})
-	return n.send(req.ContactEmail, subject, body)
+	err := n.send(req.ContactEmail, subject, body)
+	n.notifyAdmins(req)
+	return err
+}
+
+// notifyAdmins sends operators a copy for every new registration. Failures are
+// non-fatal: admin visibility must never block a developer's registration.
+func (n *SMTPNotifier) notifyAdmins(req appreg.Request) {
+	if len(n.adminEmails) == 0 {
+		return
+	}
+	subject := fmt.Sprintf("[%s] New app registration: %s", n.appName, req.Name)
+	body := n.render(adminSubmittedTmpl, map[string]any{
+		"AppName":      n.appName,
+		"RequestName":  req.Name,
+		"ContactEmail": req.ContactEmail,
+		"AdminURL":     n.baseURL + "/admin/app-requests/" + req.ID.String(),
+	})
+	for _, adminEmail := range n.adminEmails {
+		_ = n.send(adminEmail, subject, body)
+	}
 }
 
 func (n *SMTPNotifier) NotifyApproved(_ context.Context, req appreg.Request) error {
@@ -158,6 +182,15 @@ You can check the status of your request here:
 {{.DashboardURL}}
 
 — The {{.AppName}} Team
+`))
+
+var adminSubmittedTmpl = template.Must(template.New("admin_submitted").Parse(`A new app registration request has been submitted on {{.AppName}}.
+
+App name: {{.RequestName}}
+Contact: {{.ContactEmail}}
+
+Review it here:
+{{.AdminURL}}
 `))
 
 var approvedTmpl = template.Must(template.New("approved").Parse(`Hello,

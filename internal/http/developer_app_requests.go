@@ -18,6 +18,7 @@ const developerCSRFCookieName = "idol_auth_devreq_csrf"
 // DeveloperAppRegService is the subset of appreg.Service used by developer-facing handlers.
 type DeveloperAppRegService interface {
 	Submit(ctx context.Context, ownerID string, input appreg.SubmitInput) (appreg.Request, error)
+	SubmitAutoApproved(ctx context.Context, ownerID string, input appreg.SubmitInput, provision appreg.ProvisionFunc) (appreg.Request, error)
 	GetForOwner(ctx context.Context, id uuid.UUID, ownerID string) (appreg.Request, error)
 	ListMine(ctx context.Context, ownerID string) ([]appreg.Request, error)
 	Withdraw(ctx context.Context, id uuid.UUID, ownerID string) (appreg.Request, error)
@@ -48,6 +49,7 @@ type developerRequestDetailData struct {
 	devPageBase
 	CSRFToken string
 	Req       *appreg.Request
+	ClientID  string
 }
 
 // --- CSRF helpers ---
@@ -56,7 +58,7 @@ func setDeveloperCSRFCookie(w http.ResponseWriter, token string, secure bool, do
 	http.SetCookie(w, &http.Cookie{
 		Name:     developerCSRFCookieName,
 		Value:    token,
-		Path:     "/developer/app-requests",
+		Path:     "/developer",
 		Domain:   domain,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
@@ -150,6 +152,8 @@ func friendlyAppRegError(err error) string {
 		return "現在の状態では再申請できません"
 	case errors.Is(err, appreg.ErrCannotWithdraw):
 		return "現在の状態では取り下げできません"
+	case errors.Is(err, appreg.ErrScopeNotAllowed):
+		return "スコープは openid / email / profile / offline_access のみ指定できます"
 	case errors.Is(err, appreg.ErrDuplicatePending):
 		return "未完了の申請がすでに存在します"
 	default:
@@ -260,11 +264,23 @@ func (s *server) handleDeveloperAppRequestDetail(w http.ResponseWriter, r *http.
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	clientID := ""
+	if req.Status == appreg.StatusApproved && req.CreatedAppID != nil && s.adminSvc != nil {
+		clients, listErr := s.adminSvc.ListOIDCClients(r.Context(), *req.CreatedAppID)
+		if listErr != nil {
+			slog.ErrorContext(r.Context(), "detail: list oidc clients", "app_id", *req.CreatedAppID, "error", listErr)
+		} else if len(clients) > 0 {
+			clientID = clients[0].HydraClientID
+		}
+	}
+
 	setAccountCenterHeaders(w, "")
 	_ = developerRequestDetailTpl.Execute(w, developerRequestDetailData{
 		devPageBase: devPageBaseFromSession(s, session),
 		CSRFToken:   csrfToken,
 		Req:         &req,
+		ClientID:    clientID,
 	})
 }
 
@@ -407,6 +423,9 @@ func (s *server) handleSubmitAppRequest(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
+	// Never trust the client-supplied flag: self-service relaxations only apply
+	// to the instant issuance endpoint.
+	input.SelfService = false
 	req, err := s.developerAppRegSvc.Submit(r.Context(), session.IdentityID, input)
 	if err != nil {
 		writeAppRegError(w, err)

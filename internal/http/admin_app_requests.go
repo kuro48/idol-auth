@@ -104,40 +104,14 @@ func (s *server) handleApproveAppRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	createdApp, err := s.adminSvc.CreateApp(r.Context(), app.CreateAppInput{
-		Name:        regReq.Name,
-		Slug:        regReq.Slug,
-		Type:        app.AppType(regReq.Type),
-		PartyType:   partyType,
-		Description: regReq.Description,
-		ActorID:     actorID,
-	})
+	provisioned, err := s.provisionAppFromRequest(r.Context(), regReq, partyType, actorID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "approve: create app", "request_id", id, "error", err)
+		slog.ErrorContext(r.Context(), "approve: provision app", "request_id", id, "error", err)
 		writeDomainError(w, err)
 		return
 	}
 
-	reg, err := s.adminSvc.CreateOIDCClient(r.Context(), createdApp.ID, app.CreateOIDCClientInput{
-		RedirectURIs:           regReq.RedirectURIs,
-		PostLogoutRedirectURIs: regReq.PostLogoutRedirectURIs,
-		Scopes:                 regReq.Scopes,
-		ActorID:                actorID,
-	})
-	if err != nil {
-		slog.ErrorContext(r.Context(), "approve: create oidc client", "request_id", id, "app_id", createdApp.ID, "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to create OIDC client")
-		return
-	}
-
-	managementToken, err := s.adminSvc.IssueManagementToken(r.Context(), createdApp.ID, actorID)
-	if err != nil {
-		slog.ErrorContext(r.Context(), "approve: issue management token", "request_id", id, "app_id", createdApp.ID, "error", err)
-		writeError(w, http.StatusInternalServerError, "failed to issue management token")
-		return
-	}
-
-	approved, err := s.adminAppRegSvc.Approve(r.Context(), id, actorID, createdApp.ID, reg.Client.ID)
+	approved, err := s.adminAppRegSvc.Approve(r.Context(), id, actorID, provisioned.App.ID, provisioned.Registration.Client.ID)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "approve: mark approved", "request_id", id, "error", err)
 		writeAppRegError(w, err)
@@ -146,10 +120,10 @@ func (s *server) handleApproveAppRequest(w http.ResponseWriter, r *http.Request)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"request":          approved,
-		"app":              createdApp,
-		"client":           reg.Client,
-		"client_secret":    reg.ClientSecret,
-		"management_token": managementToken,
+		"app":              provisioned.App,
+		"client":           provisioned.Registration.Client,
+		"client_secret":    provisioned.Registration.ClientSecret,
+		"management_token": provisioned.ManagementToken,
 	})
 }
 
@@ -243,6 +217,7 @@ func writeAppRegError(w http.ResponseWriter, err error) {
 		errors.Is(err, appreg.ErrInvalidRedirectURI),
 		errors.Is(err, appreg.ErrInvalidURL),
 		errors.Is(err, appreg.ErrRedirectURIRequired),
+		errors.Is(err, appreg.ErrScopeNotAllowed),
 		errors.Is(err, appreg.ErrCannotResubmit),
 		errors.Is(err, appreg.ErrCannotWithdraw):
 		writeError(w, http.StatusBadRequest, err.Error())

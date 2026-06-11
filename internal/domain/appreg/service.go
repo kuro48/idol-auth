@@ -12,6 +12,13 @@ import (
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
+// SelfServiceReviewerID is recorded as the reviewer for auto-approved requests.
+const SelfServiceReviewerID = "self-service"
+
+// ProvisionFunc creates the app and OIDC client for an auto-approved request
+// and returns their IDs. It runs between review start and approval.
+type ProvisionFunc func(req Request) (appID, clientID uuid.UUID, err error)
+
 // Repository persists registration requests and their events.
 type Repository interface {
 	Create(ctx context.Context, req Request) (Request, error)
@@ -93,6 +100,36 @@ func (s *Service) Submit(ctx context.Context, identityID string, input SubmitInp
 	_ = s.notifier.NotifySubmitted(ctx, created)
 
 	return created, nil
+}
+
+// SubmitAutoApproved creates a request and immediately walks it through the
+// review state machine with SelfServiceReviewerID as reviewer. The provision
+// callback runs between review start and approval; if it fails, the request is
+// rejected so it never lingers in the admin review queue.
+func (s *Service) SubmitAutoApproved(ctx context.Context, identityID string, input SubmitInput, provision ProvisionFunc) (Request, error) {
+	input.SelfService = true
+	created, err := s.Submit(ctx, identityID, input)
+	if err != nil {
+		return Request{}, err
+	}
+
+	if _, err := s.BeginReview(ctx, created.ID, SelfServiceReviewerID); err != nil {
+		return Request{}, fmt.Errorf("auto-approve begin review: %w", err)
+	}
+
+	appID, clientID, err := provision(created)
+	if err != nil {
+		if _, rejectErr := s.Reject(ctx, created.ID, SelfServiceReviewerID, "automatic provisioning failed"); rejectErr != nil {
+			return Request{}, fmt.Errorf("provision failed (%w); reject failed: %v", err, rejectErr)
+		}
+		return Request{}, err
+	}
+
+	approved, err := s.Approve(ctx, created.ID, SelfServiceReviewerID, appID, clientID)
+	if err != nil {
+		return Request{}, fmt.Errorf("auto-approve: %w", err)
+	}
+	return approved, nil
 }
 
 // GetForOwner returns a request only if it belongs to the given identity.
@@ -381,7 +418,8 @@ func (s *Service) Reject(ctx context.Context, id uuid.UUID, reviewerID, note str
 	if req.IsTerminal() {
 		return Request{}, ErrAlreadyDecided
 	}
-	if req.Status == StatusUnderReview {
+	// A request under review is locked to its reviewer; only that reviewer may reject.
+	if req.Status == StatusUnderReview && req.ReviewerID != reviewerID {
 		return Request{}, ErrInvalidTransition
 	}
 
