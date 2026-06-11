@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <title>Security | idol-auth Docs</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="idol-auth と連携する第三者アプリ向けのセキュリティ注意点。" />
+    <link rel="stylesheet" href="../src/styles.css" />
+    <link rel="icon" href="../favicon.svg" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <aside class="sidebar">
+        <a class="brand" href="../">
+          <span class="brand-title">idol-auth Docs</span>
+          <span class="brand-subtitle">For app developers</span>
+        </a>
+        <div class="nav-section">
+          <p class="nav-label">Guides</p>
+          <nav class="nav" aria-label="Documentation navigation">
+            <a href="../">Overview</a>
+            <a href="../start/">Getting started</a>
+            <a href="../concepts/">Core concepts</a>
+            <a href="../sdk/">SDK integration</a>
+            <a href="../management/">User management</a>
+            <a href="../account/">Account center</a>
+            <a href="./" aria-current="page">Security</a>
+          </nav>
+        </div>
+        <div class="nav-section">
+          <p class="nav-label">Reference</p>
+          <nav class="nav" aria-label="Reference navigation">
+            <a href="../api/">Public API Reference</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main>
+        <div class="topbar">
+          <span class="topbar-title">Security</span>
+          <div class="topbar-actions">
+            <a class="button" href="../sdk/">SDK</a>
+            <a class="button primary" href="../api/">API Reference</a>
+          </div>
+        </div>
+
+        <header class="hero">
+          <div class="hero-inner">
+            <p class="eyebrow">Integration security</p>
+            <h1>安全に連携するためのチェックリスト</h1>
+            <p>
+              OAuth2/OIDC連携では、redirect URI、state、PKCE、token保管、secret管理の扱いが重要です。
+              このページは第三者アプリ側で守るべき実装上の注意をまとめています。
+            </p>
+          </div>
+        </header>
+
+        <div class="content doc">
+          <section>
+            <h2>OAuth2/OIDC</h2>
+            <ul>
+              <li>Authorization Code + PKCE を使ってください。</li>
+              <li>callbackでは必ず <code>state</code> を検証してください。</li>
+              <li>redirect URI は完全一致で登録し、任意の外部URLへ転送できる設計を避けてください。</li>
+              <li>必要最小限のscopeだけを要求してください。</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>Secretとtoken</h2>
+            <ul>
+              <li>Client Secret はconfidential clientのサーバー側だけで保管してください。</li>
+              <li>SPAやネイティブアプリにClient Secretを含めないでください。</li>
+              <li>Management Tokenはブラウザやモバイルアプリへ渡さないでください。</li>
+              <li>access token、refresh token、session tokenをURL query、ログ、分析イベントに出さないでください。</li>
+              <li>refresh tokenを使う場合は失効と再認証の導線を用意してください。</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>ユーザー体験</h2>
+            <ul>
+              <li>ログアウト後はアプリ側セッションも明示的に終了してください。</li>
+              <li>アプリ退会と共有アカウント削除を分けて説明してください。</li>
+              <li>連携解除されたユーザーに対して、再ログインまたは再連携の導線を用意してください。</li>
+              <li>MFAやパスワード変更はidol-authのアカウントセンターへ案内してください。</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>本番前レビュー</h2>
+            <div class="note">
+              公開前に、redirect URI、Secretの保管先、tokenログ出力、CORS設定、退会時の連携解除、エラー表示の情報量を確認してください。
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

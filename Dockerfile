@@ -10,7 +10,17 @@ FROM node:22-alpine AS build-docs
 WORKDIR /docs
 COPY docs-site/package.json docs-site/package-lock.json ./
 RUN npm ci
+COPY docs-site/vite.config.mjs ./
 COPY docs-site/index.html ./
+COPY docs-site/src ./src
+COPY docs-site/public ./public
+COPY docs-site/start ./start
+COPY docs-site/concepts ./concepts
+COPY docs-site/sdk ./sdk
+COPY docs-site/management ./management
+COPY docs-site/account ./account
+COPY docs-site/security ./security
+COPY docs-site/api ./api
 COPY docs/swagger/swagger.json ./public/openapi.json
 RUN npm run build
 

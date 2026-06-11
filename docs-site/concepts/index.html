@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <title>Core concepts | idol-auth Docs</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="idol-auth の共有アカウント、アプリ連携、OAuth2/OIDC フローの基本概念。" />
+    <link rel="stylesheet" href="../src/styles.css" />
+    <link rel="icon" href="../favicon.svg" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <aside class="sidebar">
+        <a class="brand" href="../">
+          <span class="brand-title">idol-auth Docs</span>
+          <span class="brand-subtitle">For app developers</span>
+        </a>
+        <div class="nav-section">
+          <p class="nav-label">Guides</p>
+          <nav class="nav" aria-label="Documentation navigation">
+            <a href="../">Overview</a>
+            <a href="../start/">Getting started</a>
+            <a href="./" aria-current="page">Core concepts</a>
+            <a href="../sdk/">SDK integration</a>
+            <a href="../management/">User management</a>
+            <a href="../account/">Account center</a>
+            <a href="../security/">Security</a>
+          </nav>
+        </div>
+        <div class="nav-section">
+          <p class="nav-label">Reference</p>
+          <nav class="nav" aria-label="Reference navigation">
+            <a href="../api/">Public API Reference</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main>
+        <div class="topbar">
+          <span class="topbar-title">Core concepts</span>
+          <div class="topbar-actions">
+            <a class="button" href="../start/">Start guide</a>
+            <a class="button primary" href="../api/">API Reference</a>
+          </div>
+        </div>
+
+        <header class="hero">
+          <div class="hero-inner">
+            <p class="eyebrow">Mental model</p>
+            <h1>共有アカウントとアプリ連携を理解する</h1>
+            <p>
+              idol-authでは、ユーザーの本人アカウントと、各アプリでの利用関係を分けて扱います。
+              アプリは必要な範囲の認可を受け、ユーザー本人はアカウントセンターから連携を管理できます。
+            </p>
+          </div>
+        </header>
+
+        <div class="content doc">
+          <section>
+            <h2>主要な用語</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>用語</th>
+                  <th>説明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>共有アカウント</td>
+                  <td>ユーザーがidol-auth上で持つ本人アカウントです。メール、パスワード、MFA、基本プロフィールを管理します。</td>
+                </tr>
+                <tr>
+                  <td>アプリ</td>
+                  <td>idol-authに接続する第三者サービスです。アプリごとにClient IDとredirect URIを持ちます。</td>
+                </tr>
+                <tr>
+                  <td>アプリ連携</td>
+                  <td>共有アカウントが特定アプリを利用できる状態です。退会や解除はこの連携を無効化する操作です。</td>
+                </tr>
+                <tr>
+                  <td>同意</td>
+                  <td>third-partyアプリが要求するスコープに対し、ユーザーが許可する操作です。</td>
+                </tr>
+                <tr>
+                  <td>Management Token</td>
+                  <td>自アプリの連携ユーザーだけを扱うためのサーバー側tokenです。</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section>
+            <h2>認証フロー</h2>
+            <div class="mermaid">
+sequenceDiagram
+    actor User as ユーザー
+    participant App as あなたのアプリ
+    participant Auth as idol-auth
+    User->>App: ログインを開始
+    App->>Auth: Authorization Code + PKCE
+    Auth->>User: ログイン / MFA / 同意
+    Auth-->>App: authorization code
+    App->>Auth: token exchange
+    Auth-->>App: access token / id token
+    App->>User: アプリセッションを開始
+            </div>
+          </section>
+
+          <section>
+            <h2>アプリ側の責務</h2>
+            <ul>
+              <li>ユーザーをidol-authの認可画面へ正しく遷移させる。</li>
+              <li>callbackでstateを検証し、認可コードを安全に処理する。</li>
+              <li>ID tokenやUserInfo相当の情報を、自アプリのユーザー表現に対応付ける。</li>
+              <li>退会導線では、共有アカウント削除ではなく自アプリの連携解除を使う。</li>
+              <li>tokenとsecretを用途に応じてサーバー側または安全なstorageに保管する。</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>公開APIの一次情報</h2>
+            <p>
+              このページでは概念だけを説明します。スコープ、schema、request、response、認証方式の詳細は
+              <a href="../api/">Public API Reference</a> を参照してください。
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "base",
+        securityLevel: "strict",
+        themeVariables: {
+          primaryColor: "#e9f4f2",
+          primaryTextColor: "#17202e",
+          primaryBorderColor: "#99c8c2",
+          lineColor: "#5f6d80",
+          secondaryColor: "#edf3f8",
+          tertiaryColor: "#ffffff"
+        }
+      });
+    </script>
+  </body>
+</html>

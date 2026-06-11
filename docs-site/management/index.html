@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <title>User management | idol-auth Docs</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Management Token を使った自アプリのユーザー連携管理ガイド。" />
+    <link rel="stylesheet" href="../src/styles.css" />
+    <link rel="icon" href="../favicon.svg" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <aside class="sidebar">
+        <a class="brand" href="../">
+          <span class="brand-title">idol-auth Docs</span>
+          <span class="brand-subtitle">For app developers</span>
+        </a>
+        <div class="nav-section">
+          <p class="nav-label">Guides</p>
+          <nav class="nav" aria-label="Documentation navigation">
+            <a href="../">Overview</a>
+            <a href="../start/">Getting started</a>
+            <a href="../concepts/">Core concepts</a>
+            <a href="../sdk/">SDK integration</a>
+            <a href="./" aria-current="page">User management</a>
+            <a href="../account/">Account center</a>
+            <a href="../security/">Security</a>
+          </nav>
+        </div>
+        <div class="nav-section">
+          <p class="nav-label">Reference</p>
+          <nav class="nav" aria-label="Reference navigation">
+            <a href="../api/">Public API Reference</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main>
+        <div class="topbar">
+          <span class="topbar-title">User management</span>
+          <div class="topbar-actions">
+            <a class="button" href="../account/">Account center</a>
+            <a class="button primary" href="../api/">API Reference</a>
+          </div>
+        </div>
+
+        <header class="hero">
+          <div class="hero-inner">
+            <p class="eyebrow">Management Token</p>
+            <h1>自アプリの連携ユーザーを管理する</h1>
+            <p>
+              Management Tokenは、あなたのアプリに紐づくユーザー連携だけを扱うためのサーバー側tokenです。
+              共有アカウント本体や他アプリの連携にはアクセスできません。
+            </p>
+          </div>
+        </header>
+
+        <div class="content doc">
+          <section>
+            <h2>できること</h2>
+            <div class="grid">
+              <article class="card">
+                <h3>連携ユーザーの確認</h3>
+                <p>自アプリに接続済みのユーザーを確認できます。</p>
+              </article>
+              <article class="card">
+                <h3>連携解除</h3>
+                <p>自アプリから見たユーザーのmembershipを無効化できます。</p>
+              </article>
+              <article class="card">
+                <h3>公開プロフィール参照</h3>
+                <p>許可された範囲の公開プロフィールを参照できます。</p>
+              </article>
+            </div>
+          </section>
+
+          <section>
+            <h2>できないこと</h2>
+            <ul>
+              <li>共有アカウント本体の完全削除。</li>
+              <li>他アプリの連携状態の参照や解除。</li>
+              <li>ユーザーのグローバルロールや認証設定の変更。</li>
+              <li>本人向けの非公開プロフィールの取得。</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2>サーバー側だけで使う</h2>
+            <p>
+              Management Tokenはブラウザ、モバイルアプリ、公開JavaScript bundleに含めないでください。
+              アプリのバックエンドで保管し、必要な操作だけを自アプリのAPIとして公開します。
+            </p>
+            <div class="note warning">
+              Management Tokenが漏えいすると、自アプリのユーザー連携操作を第三者に実行される可能性があります。
+              ログ、エラー通知、分析イベントにも含めないでください。
+            </div>
+          </section>
+
+          <section>
+            <h2>退会導線の考え方</h2>
+            <p>
+              ユーザーがあなたのアプリを退会する場合、まず自アプリの連携解除を行います。
+              共有アカウント本体の削除は、ユーザー本人がidol-authのアカウントセンターから管理します。
+            </p>
+          </section>
+
+          <section>
+            <h2>API仕様</h2>
+            <p>
+              Management Tokenで利用できる操作、request body、response schema、HTTP statusは
+              <a href="../api/">Public API Reference</a> を参照してください。
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

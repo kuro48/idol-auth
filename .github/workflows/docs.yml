@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docs-site/**'
+      - 'docs/swagger/swagger.json'
       - '.github/workflows/docs.yml'
 
 permissions:
@@ -26,6 +27,9 @@ jobs:
         working-directory: docs-site
         run: npm ci
 
+      - name: Sync OpenAPI document
+        run: cp docs/swagger/swagger.json docs-site/public/openapi.json
+
       - name: Build
         working-directory: docs-site
         run: npm run build
@@ -34,4 +38,4 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs-site/.vitepress/dist
+          publish_dir: docs-site/dist
