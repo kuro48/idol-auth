@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <title>SDK integration | idol-auth Docs</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="@idol-auth/client を使った OAuth2/OIDC ログイン実装ガイド。" />
+    <link rel="icon" href="../favicon.svg" />
+    <link rel="stylesheet" crossorigin href="../assets/styles-4a4IPfUl.css">
+  </head>
+  <body>
+    <div class="site-shell">
+      <aside class="sidebar">
+        <a class="brand" href="../">
+          <span class="brand-title">idol-auth Docs</span>
+          <span class="brand-subtitle">For app developers</span>
+        </a>
+        <div class="nav-section">
+          <p class="nav-label">Guides</p>
+          <nav class="nav" aria-label="Documentation navigation">
+            <a href="../">Overview</a>
+            <a href="../start/">Getting started</a>
+            <a href="../concepts/">Core concepts</a>
+            <a href="./" aria-current="page">SDK integration</a>
+            <a href="../management/">User management</a>
+            <a href="../account/">Account center</a>
+            <a href="../security/">Security</a>
+          </nav>
+        </div>
+        <div class="nav-section">
+          <p class="nav-label">Reference</p>
+          <nav class="nav" aria-label="Reference navigation">
+            <a href="../api/">Public API Reference</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main>
+        <div class="topbar">
+          <span class="topbar-title">SDK integration</span>
+          <div class="topbar-actions">
+            <a class="button" href="../security/">Security</a>
+            <a class="button primary" href="../api/">API Reference</a>
+          </div>
+        </div>
+
+        <header class="hero">
+          <div class="hero-inner">
+            <p class="eyebrow">TypeScript SDK</p>
+            <h1>SDKでログイン導線を実装する</h1>
+            <p>
+              <code>@idol-auth/client</code> はブラウザOAuth2フロー、PKCE helper、token refresh、
+              logout URL生成、headless auth helperを提供します。
+            </p>
+          </div>
+        </header>
+
+        <div class="content doc">
+          <section>
+            <h2>Install</h2>
+            <pre><code class="language-bash">npm install @idol-auth/client</code></pre>
+          </section>
+
+          <section>
+            <h2>Clientを初期化する</h2>
+            <pre><code class="language-ts">import { IdolAuthClient } from "@idol-auth/client";
+
+const auth = new IdolAuthClient({
+  baseUrl: "https://auth.example.com",
+});</code></pre>
+            <p>
+              <code>baseUrl</code> は提供されたidol-authの公開URLに置き換えてください。
+            </p>
+          </section>
+
+          <section>
+            <h2>ブラウザログイン</h2>
+            <pre><code class="language-ts">await auth.loginWithRedirect({
+  clientId: "your-client-id",
+  redirectUri: "https://yourapp.example.com/callback",
+});</code></pre>
+            <p>
+              SDKはPKCE verifier / challenge と state を生成し、ブラウザを認可画面へ遷移させます。
+            </p>
+          </section>
+
+          <section>
+            <h2>Callback処理</h2>
+            <pre><code class="language-ts">const tokens = await auth.handleRedirectCallback();
+
+// tokens.access_token
+// tokens.id_token
+// tokens.refresh_token</code></pre>
+            <p>
+              <code>handleRedirectCallback</code> は state 検証と token exchange を行います。
+              取得したtokenの保存方法はアプリの脅威モデルに合わせて選んでください。
+            </p>
+          </section>
+
+          <section>
+            <h2>Refreshとlogout</h2>
+            <pre><code class="language-ts">const refreshed = await auth.token({
+  grant_type: "refresh_token",
+  refresh_token: tokens.refresh_token!,
+  client_id: "your-client-id",
+});
+
+window.location.href = auth.browserLogoutUrl({
+  idTokenHint: tokens.id_token,
+  postLogoutRedirectUri: "https://yourapp.example.com/",
+});</code></pre>
+          </section>
+
+          <section>
+            <h2>低レベルPKCE helper</h2>
+            <p>認可URLの生成やstorage管理を自前で行う場合に使います。</p>
+            <pre><code class="language-ts">import { generatePKCE } from "@idol-auth/client";
+
+const { codeVerifier, codeChallenge } = await generatePKCE();
+const loginUrl = auth.browserLoginUrl({
+  clientId: "your-client-id",
+  redirectUri: "https://yourapp.example.com/callback",
+  scope: "openid email profile",
+  state: crypto.randomUUID(),
+  codeChallenge,
+  codeChallengeMethod: "S256",
+});</code></pre>
+          </section>
+
+          <section>
+            <h2>Headless auth</h2>
+            <p>
+              モバイルや一部のバックエンド連携ではheadless helperを利用できます。
+              Webアプリでは、ユーザーの認証情報をアプリ側で直接扱わないブラウザOAuth2フローを優先してください。
+            </p>
+            <pre><code class="language-ts">const result = await auth.login({
+  identifier: "user@example.com",
+  password: "secure-password",
+});
+
+const session = await auth.session(result.session_token);</code></pre>
+          </section>
+
+          <section>
+            <h2>API仕様</h2>
+            <p>
+              SDKが内部で呼ぶ公開APIの正確な仕様は
+              <a href="../api/">Public API Reference</a> を参照してください。
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
