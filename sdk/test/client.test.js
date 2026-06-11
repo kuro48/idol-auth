@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { IdolAuthClient, IdolAuthError } = require("../dist");
+const { IdolAuthClient, IdolAuthError } = require("../dist/cjs/index.js");
 
 function jsonResponse(data, init = {}) {
   return new Response(JSON.stringify(data), {

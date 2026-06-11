@@ -5,6 +5,33 @@ export interface IdolAuthClientOptions {
   fetch?: typeof fetch;
 }
 
+// ── High-level redirect flow ─────────────────────────────────────────────────
+
+/** Minimal storage interface; defaults to window.sessionStorage. */
+export interface TxStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+export interface LoginWithRedirectOptions {
+  clientId: string;
+  redirectUri: string;
+  /** Defaults to "openid email profile offline_access". */
+  scope?: string;
+  /** Where the PKCE verifier and state are kept until the callback. Defaults to sessionStorage. */
+  storage?: TxStorage;
+  /** Override navigation; defaults to assigning window.location. Receives the authorization URL. */
+  navigate?: (url: string) => void;
+}
+
+export interface HandleRedirectCallbackOptions {
+  /** Callback URL to parse; defaults to window.location.href. */
+  url?: string;
+  /** Must match the storage used in loginWithRedirect. Defaults to sessionStorage. */
+  storage?: TxStorage;
+}
+
 // ── Browser-mode ─────────────────────────────────────────────────────────────
 
 export interface BrowserLoginParams {

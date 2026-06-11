@@ -1,4 +1,6 @@
-export { IdolAuthClient, IdolAuthError } from "./client";
+export { IdolAuthClient, IdolAuthError, IdolAuthCallbackError } from "./client.js";
+export { generateCodeVerifier, generateCodeChallenge, generatePKCE } from "./pkce.js";
+export type { PKCEPair } from "./pkce.js";
 export type {
   IdolAuthClientOptions,
   BrowserLoginParams,
@@ -12,4 +14,7 @@ export type {
   RegisterRequest,
   LoginRequest,
   AuthResult,
-} from "./types";
+  TxStorage,
+  LoginWithRedirectOptions,
+  HandleRedirectCallbackOptions,
+} from "./types.js";

@@ -11,7 +11,30 @@ import type {
   RegisterRequest,
   LoginRequest,
   AuthResult,
-} from "./types";
+  TxStorage,
+  LoginWithRedirectOptions,
+  HandleRedirectCallbackOptions,
+} from "./types.js";
+import { generatePKCE } from "./pkce.js";
+
+const DEFAULT_SCOPE = "openid email profile offline_access";
+const TX_STORAGE_KEY = "idol_auth_tx";
+
+interface LoginTransaction {
+  codeVerifier: string;
+  state: string;
+  clientId: string;
+  redirectUri: string;
+}
+
+function defaultStorage(): TxStorage {
+  if (typeof window === "undefined" || !window.sessionStorage) {
+    throw new Error(
+      "idol-auth: sessionStorage is not available; pass a custom `storage` option"
+    );
+  }
+  return window.sessionStorage;
+}
 
 export class IdolAuthClient {
   private readonly baseUrl: string;
@@ -63,6 +86,95 @@ export class IdolAuthClient {
     if (params?.state) entries["state"] = params.state;
     const q = new URLSearchParams(entries).toString();
     return `${this.baseUrl}/v1/public/browser/logout${q ? "?" + q : ""}`;
+  }
+
+  // ── High-level redirect flow ──────────────────────────────────────────────
+
+  /**
+   * Starts the OAuth2 authorization code flow with PKCE: generates a
+   * verifier/challenge pair and state, stores them, and navigates to the
+   * authorization URL. Returns the URL (useful for testing or manual control).
+   */
+  async loginWithRedirect(options: LoginWithRedirectOptions): Promise<string> {
+    const storage = options.storage ?? defaultStorage();
+    const pkce = await generatePKCE();
+    const state = crypto.randomUUID();
+
+    const tx: LoginTransaction = {
+      codeVerifier: pkce.codeVerifier,
+      state,
+      clientId: options.clientId,
+      redirectUri: options.redirectUri,
+    };
+    storage.setItem(TX_STORAGE_KEY, JSON.stringify(tx));
+
+    const url = this.browserLoginUrl({
+      clientId: options.clientId,
+      redirectUri: options.redirectUri,
+      scope: options.scope ?? DEFAULT_SCOPE,
+      state,
+      codeChallenge: pkce.codeChallenge,
+      codeChallengeMethod: pkce.codeChallengeMethod,
+    });
+
+    if (options.navigate) {
+      options.navigate(url);
+    } else if (typeof window !== "undefined") {
+      window.location.assign(url);
+    }
+    return url;
+  }
+
+  /**
+   * Completes the redirect flow on the callback page: validates state,
+   * exchanges the authorization code for tokens using the stored PKCE
+   * verifier, and clears the stored transaction.
+   */
+  async handleRedirectCallback(
+    options?: HandleRedirectCallbackOptions
+  ): Promise<TokenResponse> {
+    const storage = options?.storage ?? defaultStorage();
+    const href =
+      options?.url ??
+      (typeof window !== "undefined" ? window.location.href : undefined);
+    if (!href) {
+      throw new Error("idol-auth: no callback URL available; pass `url`");
+    }
+
+    const params = new URL(href).searchParams;
+    const oauthError = params.get("error");
+    if (oauthError) {
+      storage.removeItem(TX_STORAGE_KEY);
+      throw new IdolAuthCallbackError(
+        oauthError,
+        params.get("error_description") ?? ""
+      );
+    }
+    const code = params.get("code");
+    if (!code) {
+      throw new Error("idol-auth: callback URL is missing the `code` parameter");
+    }
+
+    const raw = storage.getItem(TX_STORAGE_KEY);
+    if (!raw) {
+      throw new Error(
+        "idol-auth: no login transaction found; did you call loginWithRedirect() in this browser session?"
+      );
+    }
+    const tx = JSON.parse(raw) as LoginTransaction;
+    if (params.get("state") !== tx.state) {
+      storage.removeItem(TX_STORAGE_KEY);
+      throw new Error("idol-auth: state mismatch; possible CSRF, login aborted");
+    }
+    storage.removeItem(TX_STORAGE_KEY);
+
+    return this.token({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: tx.redirectUri,
+      client_id: tx.clientId,
+      code_verifier: tx.codeVerifier,
+    });
   }
 
   // ── Token operations ──────────────────────────────────────────────────────
@@ -170,5 +282,16 @@ export class IdolAuthError extends Error {
   ) {
     super(`idol-auth: HTTP ${status}: ${message}`);
     this.name = "IdolAuthError";
+  }
+}
+
+/** Thrown when the authorization server redirects back with an OAuth error. */
+export class IdolAuthCallbackError extends Error {
+  constructor(
+    public readonly error: string,
+    public readonly errorDescription: string
+  ) {
+    super(`idol-auth: authorization failed: ${error}${errorDescription ? `: ${errorDescription}` : ""}`);
+    this.name = "IdolAuthCallbackError";
   }
 }
