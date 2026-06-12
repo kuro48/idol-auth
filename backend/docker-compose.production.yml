@@ -130,8 +130,11 @@ services:
       - "8080"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.idol-auth-app.rule=Host(`${APP_HOSTNAME}`)"
+      # バックエンド専用パスのみを高優先度でルーティング
+      # SPA (/) は frontend サービス (priority=1) が受け持つ
+      - "traefik.http.routers.idol-auth-app.rule=Host(`${APP_HOSTNAME}`) && (PathPrefix(`/v1`) || PathPrefix(`/login`) || PathPrefix(`/register`) || PathPrefix(`/uploads`) || PathPrefix(`/legal`) || Path(`/account/restore`) || Path(`/healthz`) || Path(`/readyz`))"
       - "traefik.http.routers.idol-auth-app.entrypoints=web"
+      - "traefik.http.routers.idol-auth-app.priority=10"
       - "traefik.http.services.idol-auth-app.loadbalancer.server.port=8080"
     volumes:
       - uploads_data:/var/lib/idol-auth/uploads
@@ -159,8 +162,11 @@ services:
       - "80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.idol-auth-frontend.rule=Host(`${FRONTEND_HOSTNAME}`)"
+      # APP_HOSTNAME の全パスを低優先度でキャッチ (SPA フォールバック)
+      # /v1, /login 等は priority=10 の app ルーターが先に処理する
+      - "traefik.http.routers.idol-auth-frontend.rule=Host(`${APP_HOSTNAME}`)"
       - "traefik.http.routers.idol-auth-frontend.entrypoints=web"
+      - "traefik.http.routers.idol-auth-frontend.priority=1"
       - "traefik.http.services.idol-auth-frontend.loadbalancer.server.port=80"
     depends_on:
       app:

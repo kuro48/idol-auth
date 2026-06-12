@@ -159,6 +159,10 @@ services:
     networks:
       - idolium-network
 
+  # frontend: ローカルで本番イメージ (Caddy) を試す場合に使う
+  # 通常の開発には make frontend-dev (Vite dev server) を使うこと
+  # 本番では Traefik がパスルーティングを担うが、dev compose には Traefik がないため
+  # バックエンドへのルーティングは機能しない（静的ファイル配信のみ）
   frontend:
     build:
       context: ./frontend

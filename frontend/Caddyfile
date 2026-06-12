@@ -1,0 +1,9 @@
+:80 {
+    root * /srv
+    encode gzip
+
+    # SPA fallback: 存在しないパスはすべて index.html を返す
+    try_files {path} /index.html
+
+    file_server
+}
