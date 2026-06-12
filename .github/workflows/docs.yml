@@ -1,41 +1,12 @@
-name: Deploy docs
+# Docs are now served by the React frontend (frontend/src/routes/docs/).
+# This workflow is intentionally disabled — remove the file to clean up.
+name: Deploy docs (disabled)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs-site/**'
-      - 'backend/docs/swagger/swagger.json'
-      - '.github/workflows/docs.yml'
-
-permissions:
-  contents: write
+  workflow_dispatch: {}
 
 jobs:
-  deploy:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: docs-site/package-lock.json
-
-      - name: Install dependencies
-        working-directory: docs-site
-        run: npm ci
-
-      - name: Sync OpenAPI document
-        run: cp backend/docs/swagger/swagger.json docs-site/public/openapi.json
-
-      - name: Build
-        working-directory: docs-site
-        run: npm run build
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs-site/dist
+      - run: echo "Docs are served by the SPA frontend. This workflow is a no-op."

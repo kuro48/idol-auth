@@ -63,37 +63,6 @@ func TestHandleReadyz(t *testing.T) {
 	}
 }
 
-func TestDocsAreServed(t *testing.T) {
-	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
-
-	t.Run("ui", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/docs/", nil)
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
-		}
-		if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
-			t.Fatalf("expected HTML Content-Type, got %q", ct)
-		}
-	})
-
-	t.Run("short path redirects to trailing slash", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/docs", nil)
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusMovedPermanently {
-			t.Fatalf("expected status %d, got %d", http.StatusMovedPermanently, w.Code)
-		}
-		if location := w.Header().Get("Location"); location != "/docs/" {
-			t.Fatalf("expected redirect to /docs/, got %q", location)
-		}
-	})
-}
 
 func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), nil, nil, nil)

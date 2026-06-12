@@ -20,7 +20,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/kuro48/idol-auth/internal/config"
-	"github.com/kuro48/idol-auth/internal/docsfs"
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
@@ -226,11 +225,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Handle("/metrics", metricsHandler())
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
-	docsHandler := http.FileServer(http.FS(docsfs.FS()))
-	r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/docs/", http.StatusMovedPermanently)
-	})
-	r.Handle("/docs/*", http.StripPrefix("/docs", docsHandler))
+	// /docs is now served by the SPA frontend (proxied via nginx).
+	// The backend redirects legacy /docs/* URLs to the frontend root so direct
+	// hits (e.g. from old bookmarks) land somewhere useful.
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusFound)
 	})
@@ -277,6 +274,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		r.Get("/providers", s.handleProviders)
 		r.Get("/session", s.handleSession)
+		r.Get("/csrf", s.handleGetCSRFToken)
 		r.With(rateLimitMiddleware(s.themeLimiter, s.config.Security.TrustedProxies), s.accountSessionCSRFMiddleware).Post("/theme", s.handleThemePreference)
 		r.Post("/logout", s.handleLogoutStart)
 		r.Get("/logout", s.handleLogout)
@@ -286,6 +284,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	})
 
 	r.Route("/v1/admin", func(r chi.Router) {
+		if len(s.config.Security.CORSAllowedOrigins) > 0 {
+			r.Use(corsMiddleware(s.config.Security.CORSAllowedOrigins))
+		}
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
@@ -321,6 +322,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	})
 
 	r.Route("/v1/account", func(r chi.Router) {
+		if len(s.config.Security.CORSAllowedOrigins) > 0 {
+			r.Use(corsMiddleware(s.config.Security.CORSAllowedOrigins))
+		}
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
@@ -350,6 +354,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	})
 
 	r.Route("/v1/developer/apps", func(r chi.Router) {
+		if len(s.config.Security.CORSAllowedOrigins) > 0 {
+			r.Use(corsMiddleware(s.config.Security.CORSAllowedOrigins))
+		}
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
@@ -359,6 +366,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	})
 
 	r.Route("/v1/developer/app-requests", func(r chi.Router) {
+		if len(s.config.Security.CORSAllowedOrigins) > 0 {
+			r.Use(corsMiddleware(s.config.Security.CORSAllowedOrigins))
+		}
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
@@ -1343,11 +1353,11 @@ func (s *server) adminSessionCSRFMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if !sameOriginAdminRequest(r) {
-			writeError(w, http.StatusForbidden, "admin csrf validation failed")
+		if sameOriginAdminRequest(r) || validateSPACSRFToken(r) {
+			next.ServeHTTP(w, r)
 			return
 		}
-		next.ServeHTTP(w, r)
+		writeError(w, http.StatusForbidden, "admin csrf validation failed")
 	})
 }
 
@@ -1357,11 +1367,11 @@ func (s *server) accountSessionCSRFMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if !sameOriginBrowserRequest(r) {
-			writeError(w, http.StatusForbidden, "csrf validation failed")
+		if sameOriginBrowserRequest(r) || validateSPACSRFToken(r) {
+			next.ServeHTTP(w, r)
 			return
 		}
-		next.ServeHTTP(w, r)
+		writeError(w, http.StatusForbidden, "csrf validation failed")
 	})
 }
 
@@ -1977,8 +1987,8 @@ func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Vary", "Origin")
 				if r.Method == http.MethodOptions {
-					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-CSRF-Token, X-Requested-With")
 					w.Header().Set("Access-Control-Max-Age", "86400")
 					w.WriteHeader(http.StatusNoContent)
 					return

@@ -1,0 +1,27 @@
+.content { padding: var(--space-6) var(--space-8); }
+.empty { color: var(--color-text-muted); font-size: var(--text-sm); padding: var(--space-8) 0; text-align: center; }
+.cards { display: flex; flex-direction: column; gap: var(--space-3); }
+.appCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.appInfo { display: flex; flex-direction: column; gap: var(--space-1); }
+.appName { font-size: var(--text-base); font-weight: var(--font-weight-medium); color: var(--color-text); }
+.appSlug { font-size: var(--text-xs); font-family: var(--font-mono); color: var(--color-text-muted); }
+.appMeta { display: flex; align-items: center; gap: var(--space-3); }
+.disconnectBtn {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+}
+.disconnectBtn:disabled { opacity: 0.5; cursor: not-allowed; }
