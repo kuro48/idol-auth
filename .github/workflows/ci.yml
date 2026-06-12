@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: backend/go.mod
           cache: true
 
       - uses: actions/setup-node@v4
@@ -26,15 +26,19 @@ jobs:
           cache-dependency-path: sdk/package-lock.json
 
       - name: Build
+        working-directory: backend
         run: go build ./...
 
       - name: Test (race detector)
+        working-directory: backend
         run: go test -race ./...
 
       - name: govulncheck
+        working-directory: backend
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
       - name: gosec
+        working-directory: backend
         run: go run github.com/securego/gosec/v2/cmd/gosec@latest -exclude-dir=dist -exclude=G124,G203,G301,G306,G703,G704 ./...
 
       - name: SDK npm audit

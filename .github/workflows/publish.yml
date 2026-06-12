@@ -37,7 +37,7 @@ jobs:
       - name: Build and push ${{ matrix.target }}
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./backend
           target: ${{ matrix.target }}
           push: true
           tags: ghcr.io/${{ github.repository }}/${{ matrix.target }}:latest
@@ -57,7 +57,7 @@ jobs:
           ref: main
 
       - name: Build deploy bundle
-        run: bash scripts/build-production-bundle.sh /tmp/bundle
+        run: bash backend/scripts/build-production-bundle.sh /tmp/bundle
 
       - name: Push deploy branch
         run: |

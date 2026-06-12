@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docs-site/**'
-      - 'docs/swagger/swagger.json'
+      - 'backend/docs/swagger/swagger.json'
       - '.github/workflows/docs.yml'
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Sync OpenAPI document
-        run: cp docs/swagger/swagger.json docs-site/public/openapi.json
+        run: cp backend/docs/swagger/swagger.json docs-site/public/openapi.json
 
       - name: Build
         working-directory: docs-site

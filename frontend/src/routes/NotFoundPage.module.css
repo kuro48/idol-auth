@@ -1,0 +1,26 @@
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-16);
+}
+
+.code {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+  letter-spacing: -0.04em;
+}
+
+.heading {
+  font-size: var(--text-xl);
+  color: var(--color-text);
+}
+
+.link {
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+}
