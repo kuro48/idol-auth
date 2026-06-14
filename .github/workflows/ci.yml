@@ -36,7 +36,7 @@ jobs:
         run: go run github.com/securego/gosec/v2/cmd/gosec@latest -exclude-dir=dist -exclude=G124,G203,G301,G306,G703,G704 ./...
 
   frontend:
-    name: Frontend — Type-check / Build
+    name: Frontend — Lint / Test / Build
     runs-on: ubuntu-latest
 
     steps:
@@ -51,6 +51,14 @@ jobs:
       - name: Install
         working-directory: frontend
         run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Test
+        working-directory: frontend
+        run: npm run test
 
       - name: Build
         working-directory: frontend
