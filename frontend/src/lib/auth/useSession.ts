@@ -1,24 +1,30 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api/client'
+import { api } from '@/lib/api/client'
+import type { SessionView } from '@/lib/api/types'
 
 export interface Session {
   identityId: string
   email: string
   roles: string[]
+  oshiColor: string
+}
+
+function toSession(view: SessionView): Session | null {
+  if (!view.authenticated) return null
+  return {
+    identityId: view.identity_id ?? '',
+    email: view.email ?? '',
+    roles: view.roles ?? [],
+    oshiColor: view.oshi_color ?? '',
+  }
 }
 
 export function useSession() {
   const { data, isLoading, error } = useQuery<Session | null>({
     queryKey: ['session'],
     queryFn: async () => {
-      try {
-        return await api.get<Session>('/v1/auth/session')
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          return null
-        }
-        throw err
-      }
+      const view = await api.get<SessionView>('/v1/auth/session')
+      return toSession(view)
     },
     staleTime: 5 * 60 * 1000,
     retry: false,
@@ -28,7 +34,7 @@ export function useSession() {
     session: data ?? null,
     isLoading,
     isAuthenticated: data != null,
-    isAdmin: data?.roles.includes('admin') ?? false,
+    isAdmin: (data?.roles ?? []).includes('admin'),
     error,
   }
 }

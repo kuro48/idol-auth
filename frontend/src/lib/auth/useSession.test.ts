@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 // These tests document the CONTRACT that /v1/auth/session provides,
-// and verify that useSession interprets it correctly.
+// and verify that useSession's toSession() interprets it correctly.
 //
 // Backend contract (router.go handleSession):
 //   - Always returns 200 (never 401)
@@ -11,19 +11,16 @@ import { describe, it, expect } from 'vitest'
 //   - Unauthenticated: { authenticated: false }
 //   - Authenticated:   { authenticated: true, identity_id: "...", email: "...", roles: ["admin"] }
 
-// --- parseSessionView: the pure transformation logic under test ---
-// We import the type from types.ts to validate shape alignment.
-
 import type { SessionView } from '@/lib/api/types'
 
+// Mirror the toSession logic from useSession.ts for pure-function testing.
 function parseSessionFromView(view: SessionView) {
-  if (!view.authenticated) {
-    return null
-  }
+  if (!view.authenticated) return null
   return {
     identityId: view.identity_id ?? '',
     email: view.email ?? '',
     roles: view.roles ?? [],
+    oshiColor: view.oshi_color ?? '',
   }
 }
 
