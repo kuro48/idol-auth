@@ -19,7 +19,7 @@ COMPOSE_ENV = POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 	DEMO_APP_URL=$(DEMO_APP_URL) \
 	CORS_ALLOWED_ORIGINS=$(CORS_ALLOWED_ORIGINS)
 
-.PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config production-bundle publish-deploy-branch nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres docs docs-dev frontend-dev frontend-build
+.PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config production-bundle publish-deploy-branch nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres frontend-dev frontend-build frontend-openapi
 
 up:
 	$(COMPOSE_ENV) docker compose up -d --build
@@ -78,16 +78,9 @@ wait:
 
 verify-local: up wait test e2e
 
-docs:
+frontend-openapi:
 	$(MAKE) swagger
-	cp backend/docs/swagger/swagger.json docs-site/public/openapi.json
-	cd docs-site && npm ci && npm run build
-	cp -r docs-site/dist/. backend/internal/docsfs/dist/
-
-docs-dev:
-	$(MAKE) swagger
-	cp backend/docs/swagger/swagger.json docs-site/public/openapi.json
-	cd docs-site && npm run dev
+	cp backend/docs/swagger/swagger.json frontend/public/openapi.json
 
 frontend-dev:
 	cd frontend && npm run dev

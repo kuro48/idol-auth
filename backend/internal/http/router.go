@@ -225,9 +225,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	r.Handle("/metrics", metricsHandler())
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
-	// /docs is now served by the SPA frontend (proxied via nginx).
-	// The backend redirects legacy /docs/* URLs to the frontend root so direct
-	// hits (e.g. from old bookmarks) land somewhere useful.
+	// /docs and all non-API paths are served by the React SPA (Caddy container).
+	// Traefik routes those requests to the frontend at lower priority than /v1/*.
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusFound)
 	})
