@@ -860,6 +860,10 @@ func (s *stubKratosAuthClient) ToSession(_ context.Context, _ *http.Request) (Kr
 	return s.session, nil
 }
 
+func (s *stubKratosAuthClient) LogoutBrowser(_ context.Context, _ *http.Request) error {
+	return nil
+}
+
 func (s *stubKratosAuthClient) BrowserLoginURL(returnTo string) string {
 	return "http://kratos/login?return_to=" + returnTo
 }

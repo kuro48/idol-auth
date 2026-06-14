@@ -108,6 +108,7 @@ type HydraAuthClient interface {
 
 type KratosAuthClient interface {
 	ToSession(ctx context.Context, r *http.Request) (KratosSession, error)
+	LogoutBrowser(ctx context.Context, r *http.Request) error
 	BrowserLoginURL(returnTo string) string
 	BrowserSettingsURL(returnTo string) string
 	GetSettingsFlow(ctx context.Context, r *http.Request, flowID string) (*KratosSettingsFlow, error)
@@ -378,6 +379,10 @@ func (s *authService) HandleLogout(ctx context.Context, logoutChallenge string) 
 		return AuthFlowResult{}, fmt.Errorf("accept hydra logout request: %w", err)
 	}
 	return AuthFlowResult{RedirectTo: redirectTo}, nil
+}
+
+func (s *authService) LogoutSession(ctx context.Context, r *http.Request) error {
+	return s.kratos.LogoutBrowser(ctx, r)
 }
 
 func (s *authService) CurrentSession(ctx context.Context, r *http.Request) (SessionView, error) {

@@ -115,6 +115,7 @@ type AuthService interface {
 	HandleConsent(ctx context.Context, r *http.Request, consentChallenge string) (ConsentFlowResult, error)
 	SubmitConsent(ctx context.Context, r *http.Request, consentChallenge string, input ConsentDecisionInput) (AuthFlowResult, error)
 	HandleLogout(ctx context.Context, logoutChallenge string) (AuthFlowResult, error)
+	LogoutSession(ctx context.Context, r *http.Request) error
 	CurrentSession(ctx context.Context, r *http.Request) (SessionView, error)
 }
 

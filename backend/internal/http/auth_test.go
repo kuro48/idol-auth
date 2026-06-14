@@ -263,7 +263,7 @@ func TestProvidersReturnsPublicEndpoints(t *testing.T) {
 	}
 }
 
-func TestLogoutStartReturnsKratosLogoutURL(t *testing.T) {
+func TestLogoutStartReturnsBaseURL(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodPost, "/v1/auth/logout", nil)
 	w := httptest.NewRecorder()
@@ -273,8 +273,9 @@ func TestLogoutStartReturnsKratosLogoutURL(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "/self-service/logout/browser") {
-		t.Fatalf("unexpected body: %s", w.Body.String())
+	body := w.Body.String()
+	if !strings.Contains(body, "localhost:8080") {
+		t.Fatalf("unexpected body: %s", body)
 	}
 }
 
@@ -298,7 +299,7 @@ func TestLogoutChallengeRedirects(t *testing.T) {
 	}
 }
 
-func TestLogoutGetWithoutChallengeRedirectsToBrowser(t *testing.T) {
+func TestLogoutGetWithoutChallengeRedirectsToBaseURL(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/auth/logout", nil)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
@@ -309,8 +310,8 @@ func TestLogoutGetWithoutChallengeRedirectsToBrowser(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, w.Code)
 	}
-	if got := w.Header().Get("Location"); !strings.Contains(got, "/self-service/logout/browser") {
-		t.Fatalf("expected logout redirect, got %q", got)
+	if got := w.Header().Get("Location"); !strings.Contains(got, "localhost:8080") {
+		t.Fatalf("expected redirect to portal base URL, got %q", got)
 	}
 }
 
@@ -399,8 +400,8 @@ func TestLogoutStartPostBrowserRequestRedirects(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, w.Code)
 	}
-	if got := w.Header().Get("Location"); !strings.Contains(got, "/self-service/logout/browser") {
-		t.Fatalf("expected logout redirect, got %q", got)
+	if got := w.Header().Get("Location"); !strings.Contains(got, "localhost:8080") {
+		t.Fatalf("expected redirect to portal base URL, got %q", got)
 	}
 }
 
@@ -438,6 +439,10 @@ func (s *stubAuthService) SubmitConsent(_ context.Context, _ *http.Request, _ st
 
 func (s *stubAuthService) HandleLogout(_ context.Context, _ string) (apphttp.AuthFlowResult, error) {
 	return s.logoutResult, s.logoutErr
+}
+
+func (s *stubAuthService) LogoutSession(_ context.Context, _ *http.Request) error {
+	return nil
 }
 
 func (s *stubAuthService) CurrentSession(_ context.Context, _ *http.Request) (apphttp.SessionView, error) {

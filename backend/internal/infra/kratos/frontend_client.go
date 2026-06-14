@@ -112,6 +112,57 @@ func filterOryCookies(cookieHeader string) string {
 	return strings.Join(ory, "; ")
 }
 
+func (c *FrontendClient) LogoutBrowser(ctx context.Context, r *http.Request) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiBaseURL+"/self-service/logout/browser", nil)
+	if err != nil {
+		return fmt.Errorf("build kratos logout browser request: %w", err)
+	}
+	if cookie := r.Header.Get("Cookie"); cookie != "" {
+		if filtered := filterOryCookies(cookie); filtered != "" {
+			req.Header.Set("Cookie", filtered)
+		}
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("call kratos logout browser: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "logout_browser", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos logout browser returned status %d", resp.StatusCode)
+	}
+
+	var decoded struct {
+		LogoutURL string `json:"logout_url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return fmt.Errorf("decode kratos logout browser response: %w", err)
+	}
+	if decoded.LogoutURL == "" {
+		return nil
+	}
+
+	logoutReq, err := http.NewRequestWithContext(ctx, http.MethodGet, decoded.LogoutURL, nil)
+	if err != nil {
+		return fmt.Errorf("build kratos logout request: %w", err)
+	}
+	noRedirect := *c.httpClient
+	noRedirect.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	logoutResp, err := noRedirect.Do(logoutReq)
+	if err != nil {
+		return fmt.Errorf("call kratos logout: %w", err)
+	}
+	logoutResp.Body.Close()
+	return nil
+}
+
 func (c *FrontendClient) BrowserLoginURL(returnTo string) string {
 	values := url.Values{}
 	if returnTo != "" {
