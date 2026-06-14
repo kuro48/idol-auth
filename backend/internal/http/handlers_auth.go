@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -85,12 +86,14 @@ func (s *server) handleThemePreference(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
-	logoutURL := strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout"
+	hydraLogoutURL := strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout"
+	kratosLogoutURL := strings.TrimRight(s.config.Ory.KratosBrowserURL, "/") +
+		"/self-service/logout/browser?return_to=" + url.QueryEscape(hydraLogoutURL)
 	if wantsJSON(r) {
-		writeJSON(w, http.StatusOK, map[string]string{"logout_url": logoutURL})
+		writeJSON(w, http.StatusOK, map[string]string{"logout_url": kratosLogoutURL})
 		return
 	}
-	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
+	http.Redirect(w, r, kratosLogoutURL, http.StatusSeeOther)
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {

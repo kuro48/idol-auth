@@ -263,7 +263,7 @@ func TestProvidersReturnsPublicEndpoints(t *testing.T) {
 	}
 }
 
-func TestLogoutStartReturnsHydraLogoutURL(t *testing.T) {
+func TestLogoutStartReturnsKratosLogoutURL(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodPost, "/v1/auth/logout", nil)
 	w := httptest.NewRecorder()
@@ -273,7 +273,7 @@ func TestLogoutStartReturnsHydraLogoutURL(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "/oauth2/sessions/logout") {
+	if !strings.Contains(w.Body.String(), "/self-service/logout/browser") {
 		t.Fatalf("unexpected body: %s", w.Body.String())
 	}
 }
@@ -309,7 +309,7 @@ func TestLogoutGetWithoutChallengeRedirectsToBrowser(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, w.Code)
 	}
-	if got := w.Header().Get("Location"); !strings.Contains(got, "/oauth2/sessions/logout") {
+	if got := w.Header().Get("Location"); !strings.Contains(got, "/self-service/logout/browser") {
 		t.Fatalf("expected logout redirect, got %q", got)
 	}
 }
@@ -399,7 +399,7 @@ func TestLogoutStartPostBrowserRequestRedirects(t *testing.T) {
 	if w.Code != http.StatusSeeOther {
 		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, w.Code)
 	}
-	if got := w.Header().Get("Location"); !strings.Contains(got, "/oauth2/sessions/logout") {
+	if got := w.Header().Get("Location"); !strings.Contains(got, "/self-service/logout/browser") {
 		t.Fatalf("expected logout redirect, got %q", got)
 	}
 }
