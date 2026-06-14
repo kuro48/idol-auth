@@ -86,9 +86,9 @@ func (s *server) handleThemePreference(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
-	hydraLogoutURL := strings.TrimRight(s.config.Ory.HydraBrowserURL, "/") + "/oauth2/sessions/logout"
+	returnTo := strings.TrimRight(s.config.App.BaseURL, "/") + "/"
 	kratosLogoutURL := strings.TrimRight(s.config.Ory.KratosBrowserURL, "/") +
-		"/self-service/logout/browser?return_to=" + url.QueryEscape(hydraLogoutURL)
+		"/self-service/logout/browser?return_to=" + url.QueryEscape(returnTo)
 	if wantsJSON(r) {
 		writeJSON(w, http.StatusOK, map[string]string{"logout_url": kratosLogoutURL})
 		return
