@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { AppShell } from '@/components/layout/AppShell'
@@ -17,7 +17,9 @@ import { AdminAppRequestsPage } from '@/routes/admin/AdminAppRequestsPage'
 import { AccountOverviewPage } from '@/routes/account/AccountOverviewPage'
 import { AccountProfilePage } from '@/routes/account/AccountProfilePage'
 import { AccountSessionsPage } from '@/routes/account/AccountSessionsPage'
+import { DeveloperRegistrationPage } from '@/routes/account/DeveloperRegistrationPage'
 import { SettingsRedirectPage } from '@/routes/SettingsRedirectPage'
+import { useSession } from '@/lib/auth/useSession'
 // Docs
 import { DocsOverviewPage } from '@/routes/docs/DocsOverviewPage'
 import { DocsStartPage } from '@/routes/docs/DocsStartPage'
@@ -44,8 +46,20 @@ function RootRedirect() {
 // Root redirects to /login (server-rendered by the backend)
 const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: RootRedirect })
 
+// Developer guard: redirects to registration page if user lacks developer/admin role
+function DeveloperGuard() {
+  const { isDeveloper, isLoading } = useSession()
+  useEffect(() => {
+    if (!isLoading && !isDeveloper) {
+      window.location.replace('/account/developer')
+    }
+  }, [isDeveloper, isLoading])
+  if (isLoading || !isDeveloper) return null
+  return <Outlet />
+}
+
 // Developer routes
-const devRoute = createRoute({ getParentRoute: () => shellRoute, path: '/developer' })
+const devRoute = createRoute({ getParentRoute: () => shellRoute, path: '/developer', component: DeveloperGuard })
 const devAppRequestsRoute = createRoute({ getParentRoute: () => devRoute, path: '/app-requests', component: AppRequestsPage })
 const devAppRequestsNewRoute = createRoute({ getParentRoute: () => devRoute, path: '/app-requests/new', component: NewAppRequestPage })
 const devAppRequestDetailRoute = createRoute({ getParentRoute: () => devRoute, path: '/app-requests/$id', component: AppRequestDetailPage })
@@ -62,6 +76,7 @@ const accountRoute = createRoute({ getParentRoute: () => shellRoute, path: '/acc
 const accountOverviewRoute = createRoute({ getParentRoute: () => accountRoute, path: '/', component: AccountOverviewPage })
 const accountProfileRoute = createRoute({ getParentRoute: () => accountRoute, path: '/profile', component: AccountProfilePage })
 const accountSessionsRoute = createRoute({ getParentRoute: () => accountRoute, path: '/sessions', component: AccountSessionsPage })
+const accountDeveloperRoute = createRoute({ getParentRoute: () => accountRoute, path: '/developer', component: DeveloperRegistrationPage })
 
 // Settings redirect
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsRedirectPage })
@@ -83,7 +98,7 @@ export const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     devRoute.addChildren([devAppRequestsRoute, devAppRequestsNewRoute, devAppRequestDetailRoute]),
     adminRoute.addChildren([adminAppsRoute, adminUsersRoute, adminAuditRoute, adminAppRequestsRoute]),
-    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute]),
+    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute, accountDeveloperRoute]),
   ]),
   docsRoute.addChildren([
     docsIndexRoute,

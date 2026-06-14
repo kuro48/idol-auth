@@ -1,4 +1,7 @@
-.content { padding: var(--space-6) var(--space-8); }
+.content { padding: var(--space-6) var(--space-8); display: flex; flex-direction: column; gap: var(--space-4); }
+.devBanner { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-5); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.devBannerText { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.devBannerLink { font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--color-accent); text-decoration: none; }
 .empty { color: var(--color-text-muted); font-size: var(--text-sm); padding: var(--space-8) 0; text-align: center; }
 .cards { display: flex; flex-direction: column; gap: var(--space-3); }
 .appCard {

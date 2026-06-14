@@ -1,13 +1,16 @@
+import { Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
 import type { AppMembership } from '@/lib/api/types'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { statusVariant } from '@/lib/api/statusVariant'
+import { useSession } from '@/lib/auth/useSession'
 import styles from './AccountPage.module.css'
 
 export function AccountOverviewPage() {
   const qc = useQueryClient()
+  const { isDeveloper } = useSession()
 
   const { data, isLoading } = useQuery({
     queryKey: ['account', 'overview'],
@@ -23,6 +26,17 @@ export function AccountOverviewPage() {
     <div>
       <PageHeader title="Account Overview" description="Apps connected to your account." />
       <div className={styles.content}>
+        {isDeveloper ? (
+          <div className={styles.devBanner}>
+            <span className={styles.devBannerText}>開発者として登録済みです。</span>
+            <Link to="/developer/app-requests" className={styles.devBannerLink}>Developer Portal →</Link>
+          </div>
+        ) : (
+          <div className={styles.devBanner}>
+            <span className={styles.devBannerText}>アプリ開発者の方はこちら</span>
+            <Link to="/account/developer" className={styles.devBannerLink}>開発者登録 →</Link>
+          </div>
+        )}
         {isLoading && <p className={styles.empty}>Loading…</p>}
         {data?.memberships?.length === 0 && <p className={styles.empty}>No connected apps.</p>}
         <div className={styles.cards}>

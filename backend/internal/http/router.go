@@ -275,6 +275,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Patch("/profile", s.handlePatchProfile)
 		r.Post("/profile/avatar", s.handleUploadAvatar)
 		r.Get("/export", s.handleExportAccount)
+		r.Post("/developer-registration", s.handleDeveloperRegistration)
 		if s.sessionMgr != nil {
 			r.Get("/sessions", s.handleListSessions)
 			r.Delete("/sessions/{sessionId}", s.handleRevokeSession)
