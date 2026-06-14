@@ -117,18 +117,19 @@ func run() error {
 	)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)
 	router := apphttp.NewRouter(apphttp.RouterConfig{
-		App:            cfg.App,
-		Admin:          cfg.Admin,
-		Ory:            cfg.Ory,
-		Security:       cfg.Security,
-		Limiter:        limiter,
-		ProfileSvc:     profileService,
-		PublicSvc:      publicService,
+		App:                cfg.App,
+		Admin:              cfg.Admin,
+		Ory:                cfg.Ory,
+		Security:           cfg.Security,
+		Limiter:            limiter,
+		AccountSvc:         accountService,
+		ProfileSvc:         profileService,
+		PublicSvc:          publicService,
 		AdminAppRegSvc:     appRegService,
 		DeveloperAppRegSvc: appRegService,
 		WebhookRepo:        webhookRepo,
 		SessionMgr:         kratosAdmin,
-	}, adminService, db.NewReadinessChecker(dbPool), authService, accountService)
+	}, adminService, db.NewReadinessChecker(dbPool), authService)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),

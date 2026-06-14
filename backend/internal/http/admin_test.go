@@ -349,7 +349,7 @@ func TestAccountOverviewReturnsMemberships(t *testing.T) {
 			Email:         "user@example.com",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodGet, "/v1/account", nil)
 	w := httptest.NewRecorder()
 
@@ -377,7 +377,7 @@ func TestAccountDeletionScheduleReturnsAccepted(t *testing.T) {
 			IdentityID:    "identity-123",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodPost, "/v1/account/deletion", bytes.NewBufferString(`{"reason":"user_requested"}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -399,7 +399,7 @@ func TestAccountMutatingRequestRejectsCrossSiteOrigin(t *testing.T) {
 			IdentityID:    "identity-123",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodPost, "/v1/account/deletion", bytes.NewBufferString(`{"reason":"user_requested"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "https://evil.example")
@@ -428,7 +428,7 @@ func TestAppScopedListUsersReturnsMemberships(t *testing.T) {
 			Status:     account.MembershipStatusActive,
 		}},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users", nil)
 	req.Header.Set("Authorization", "Bearer app-token")
 	w := httptest.NewRecorder()
@@ -452,7 +452,7 @@ func TestAppScopedDeleteUserRevokesMembership(t *testing.T) {
 			Name: "Idol Web",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodDelete, "/v1/apps/self/users/identity-123", nil)
 	req.Header.Set("Authorization", "Bearer app-token")
 	w := httptest.NewRecorder()
@@ -1214,7 +1214,7 @@ func TestRevokeSessionRejectsSessionOutsideCurrentIdentity(t *testing.T) {
 	}
 	cfg := testConfig()
 	cfg.SessionMgr = sessionMgr
-	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, authn, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := cfg; c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodDelete, "/v1/account/sessions/other-session", nil)
 	w := httptest.NewRecorder()
 
@@ -1240,7 +1240,7 @@ func TestRevokeSessionAllowsCurrentIdentitySession(t *testing.T) {
 	}
 	cfg := testConfig()
 	cfg.SessionMgr = sessionMgr
-	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, authn, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := cfg; c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodDelete, "/v1/account/sessions/own-session", nil)
 	w := httptest.NewRecorder()
 
@@ -1261,7 +1261,7 @@ func TestAccountDeletionCancelReturnsNoContent(t *testing.T) {
 			IdentityID:    "identity-123",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodDelete, "/v1/account/deletion", nil)
 	w := httptest.NewRecorder()
 
@@ -1287,7 +1287,7 @@ func TestAccountGetDeletionRequestReturnsScheduledDeletion(t *testing.T) {
 			IdentityID:    "identity-123",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodGet, "/v1/account/deletion", nil)
 	w := httptest.NewRecorder()
 
@@ -1310,7 +1310,7 @@ func TestAppScopedDeleteUserDoesNotDeleteSharedIdentity(t *testing.T) {
 			Name: "Idol Web",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodDelete, "/v1/apps/self/users/identity-123", nil)
 	req.Header.Set("Authorization", "Bearer app-token")
 	w := httptest.NewRecorder()
@@ -1331,7 +1331,7 @@ func TestAppScopedDeleteUserDoesNotDeleteSharedIdentity(t *testing.T) {
 }
 
 func TestRegisterAppUser_RequiresAppToken(t *testing.T) {
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"email":"u@example.com"}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -1346,7 +1346,7 @@ func TestRegisterAppUser_RequiresAppToken(t *testing.T) {
 func TestRegisterAppUser_RejectsMissingEmail(t *testing.T) {
 	appID := uuid.New()
 	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web", PartyType: app.PartyTypeFirst}}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"display_name":"Test"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer app-token")
@@ -1362,7 +1362,7 @@ func TestRegisterAppUser_RejectsMissingEmail(t *testing.T) {
 func TestRegisterAppUser_ThirdPartyAppIsForbidden(t *testing.T) {
 	appID := uuid.New()
 	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "third-app", PartyType: app.PartyTypeThird}}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	body, _ := json.Marshal(map[string]string{"email": "victim@example.com"})
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -1379,7 +1379,7 @@ func TestRegisterAppUser_ThirdPartyAppIsForbidden(t *testing.T) {
 func TestRegisterAppUser_ReturnsCreatedWithRecoveryLink(t *testing.T) {
 	appID := uuid.New()
 	accountSvc := &stubAccountService{resolvedApp: app.App{ID: appID, Slug: "idol-web", PartyType: app.PartyTypeFirst}}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	body, _ := json.Marshal(map[string]string{"email": "user@example.com", "display_name": "Test User"})
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -1402,7 +1402,7 @@ func TestRegisterAppUser_ReturnsConflictForExistingSharedAccount(t *testing.T) {
 		resolvedApp: app.App{ID: appID, Slug: "idol-web", PartyType: app.PartyTypeFirst},
 		registerErr: account.ErrSharedAccountAlreadyExists,
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	body, _ := json.Marshal(map[string]string{"email": "user@example.com"})
 	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -1417,7 +1417,7 @@ func TestRegisterAppUser_ReturnsConflictForExistingSharedAccount(t *testing.T) {
 }
 
 func TestGetAppUserProfile_RequiresAppToken(t *testing.T) {
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users/identity-123/profile", nil)
 	w := httptest.NewRecorder()
 
@@ -1441,7 +1441,7 @@ func TestGetAppUserProfile_ReturnsPublicProfileForMember(t *testing.T) {
 	}
 	cfg := testConfig()
 	cfg.ProfileSvc = profileSvc
-	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := cfg; c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users/identity-123/profile", nil)
 	req.Header.Set("Authorization", "Bearer app-token")
 	w := httptest.NewRecorder()
@@ -1467,7 +1467,7 @@ func TestGetAppUserProfile_ReturnsNotFoundWhenMembershipMissing(t *testing.T) {
 	}
 	cfg := testConfig()
 	cfg.ProfileSvc = &stubProfileService{}
-	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, &stubAuthService{}, accountSvc)
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := cfg; c.AccountSvc = accountSvc; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/apps/self/users/identity-123/profile", nil)
 	req.Header.Set("Authorization", "Bearer app-token")
 	w := httptest.NewRecorder()

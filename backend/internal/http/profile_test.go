@@ -62,11 +62,11 @@ func authenticatedProfileRouterWithConfig(cfg apphttp.RouterConfig) http.Handler
 			Email:         "user@example.com",
 		},
 	}
-	return apphttp.NewRouter(cfg, &stubAdminService{}, nil, authn, &stubAccountService{})
+	return apphttp.NewRouter(func() apphttp.RouterConfig { c := cfg; c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, authn)
 }
 
 func TestGetProfile_RequiresAuthenticatedSession(t *testing.T) {
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/account/profile", nil)
 	w := httptest.NewRecorder()
 
@@ -78,7 +78,7 @@ func TestGetProfile_RequiresAuthenticatedSession(t *testing.T) {
 }
 
 func TestAccountCenter_RequiresAuthenticatedSession(t *testing.T) {
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/account/", nil)
 	w := httptest.NewRecorder()
 
@@ -100,7 +100,7 @@ func TestAccountCenter_RendersAtBarePath(t *testing.T) {
 			Email:         "user@example.com",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodGet, "/account", nil)
 	w := httptest.NewRecorder()
 
@@ -122,7 +122,7 @@ func TestAccountCenter_RendersHTMLWhenAuthenticated(t *testing.T) {
 			Email:         "user@example.com",
 		},
 	}
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, authn, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, authn)
 	req := httptest.NewRequest(http.MethodGet, "/account/", nil)
 	w := httptest.NewRecorder()
 
@@ -223,7 +223,7 @@ func TestGetProfile_ReturnsServiceUnavailable_WhenNoProfileSvc(t *testing.T) {
 }
 
 func TestPatchProfile_RequiresAuthenticatedSession(t *testing.T) {
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodPatch, "/v1/account/profile", bytes.NewBufferString(`{"display_name":"テスト"}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -607,7 +607,7 @@ func TestAdminPatchProfileAwards_UpdatesBadges(t *testing.T) {
 	}
 	cfg := testConfig()
 	cfg.ProfileSvc = svc
-	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := cfg; c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	body, _ := json.Marshal(map[string]any{
 		"badges": []map[string]any{{
 			"id":        "top",
@@ -639,7 +639,7 @@ func TestAdminPatchProfileAwards_UpdatesBadges(t *testing.T) {
 }
 
 func TestGetPublicUserProfile_RequiresAuthentication(t *testing.T) {
-	router := apphttp.NewRouter(testConfig(), &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodGet, "/v1/users/other-user/profile", nil)
 	w := httptest.NewRecorder()
 
@@ -687,7 +687,7 @@ func TestAdminPatchProfileAwards_RejectsInvalidPrimaryBadge(t *testing.T) {
 	identityID := "8a7b9e7b-0f84-4f54-a7e7-1ef8d8aa4f73"
 	cfg := testConfig()
 	cfg.ProfileSvc = &stubProfileService{}
-	router := apphttp.NewRouter(cfg, &stubAdminService{}, nil, &stubAuthService{}, &stubAccountService{})
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := cfg; c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodPatch, "/v1/admin/users/"+identityID+"/profile-awards", bytes.NewBufferString(`{"badges":[{"id":"top","label":"Top"}],"primary_badge_id":"missing"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer secret")
