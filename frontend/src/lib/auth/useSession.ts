@@ -30,11 +30,13 @@ export function useSession() {
     retry: false,
   })
 
+  const roles = data?.roles ?? []
   return {
     session: data ?? null,
     isLoading,
     isAuthenticated: data != null,
-    isAdmin: (data?.roles ?? []).includes('admin'),
+    isAdmin: roles.includes('admin'),
+    isDeveloper: roles.includes('developer') || roles.includes('admin'),
     error,
   }
 }

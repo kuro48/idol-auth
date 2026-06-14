@@ -12,14 +12,8 @@ interface NavSection {
   items: NavItem[]
 }
 
-function buildSections(isAdmin: boolean): NavSection[] {
+function buildSections(isAdmin: boolean, isDeveloper: boolean): NavSection[] {
   const sections: NavSection[] = [
-    {
-      title: 'Developer',
-      items: [
-        { to: '/developer/app-requests', label: 'App Requests' },
-      ],
-    },
     {
       title: 'Account',
       items: [
@@ -29,6 +23,15 @@ function buildSections(isAdmin: boolean): NavSection[] {
       ],
     },
   ]
+
+  if (isDeveloper) {
+    sections.unshift({
+      title: 'Developer',
+      items: [
+        { to: '/developer/app-requests', label: 'App Requests' },
+      ],
+    })
+  }
 
   if (isAdmin) {
     sections.unshift({
@@ -56,8 +59,8 @@ function NavLink({ to, label }: NavItem) {
 }
 
 export function AppShell() {
-  const { session, isAdmin } = useSession()
-  const sections = buildSections(isAdmin)
+  const { session, isAdmin, isDeveloper } = useSession()
+  const sections = buildSections(isAdmin, isDeveloper)
 
   return (
     <div className={styles.shell}>

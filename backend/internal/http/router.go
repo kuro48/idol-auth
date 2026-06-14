@@ -295,7 +295,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
-		r.Use(s.accountAuth)
+		r.Use(s.developerAuth)
 		r.Use(s.accountSessionCSRFMiddleware)
 		r.Post("/", s.handleDeveloperCreateApp)
 	})
@@ -307,7 +307,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
-		r.Use(s.accountAuth)
+		r.Use(s.developerAuth)
 		r.Use(s.accountSessionCSRFMiddleware)
 		r.Get("/", s.handleListMyAppRequests)
 		r.Post("/", s.handleSubmitAppRequest)

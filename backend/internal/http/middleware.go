@@ -228,6 +228,30 @@ func (s *server) accountAuth(next http.Handler) http.Handler {
 	})
 }
 
+func (s *server) developerAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.authSvc == nil {
+			writeError(w, http.StatusServiceUnavailable, "auth service unavailable")
+			return
+		}
+		session, err := s.authSvc.CurrentSession(r.Context(), r)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to resolve account session")
+			return
+		}
+		if !session.Authenticated || strings.TrimSpace(session.IdentityID) == "" {
+			writeError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+		if !roleAllowed([]string{"developer", "admin"}, session.Roles) {
+			writeError(w, http.StatusForbidden, "developer access required")
+			return
+		}
+		ctx := context.WithValue(r.Context(), accountIdentityIDKey, session)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func (s *server) appTokenAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.accountSvc == nil {
