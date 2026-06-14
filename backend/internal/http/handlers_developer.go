@@ -6,11 +6,23 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/kuro48/idol-auth/internal/domain/app"
 	"github.com/kuro48/idol-auth/internal/domain/appreg"
 )
+
+// DeveloperAppRegService is the subset of appreg.Service used by developer-facing handlers.
+type DeveloperAppRegService interface {
+	Submit(ctx context.Context, ownerID string, input appreg.SubmitInput) (appreg.Request, error)
+	SubmitAutoApproved(ctx context.Context, ownerID string, input appreg.SubmitInput, provision appreg.ProvisionFunc) (appreg.Request, error)
+	GetForOwner(ctx context.Context, id uuid.UUID, ownerID string) (appreg.Request, error)
+	ListMine(ctx context.Context, ownerID string) ([]appreg.Request, error)
+	Withdraw(ctx context.Context, id uuid.UUID, ownerID string) (appreg.Request, error)
+	Resubmit(ctx context.Context, id uuid.UUID, ownerID string, input appreg.SubmitInput) (appreg.Request, error)
+}
 
 // MaxSelfServiceAppsPerDeveloper caps how many live registrations a single
 // developer account can hold via instant (auto-approved) issuance.
@@ -41,8 +53,7 @@ type provisionedApp struct {
 
 // provisionAppFromRequest creates the app record, OIDC client, and management
 // token for a registration request. Shared by admin approval and instant
-// self-service issuance. The client_secret inside the registration is returned
-// once only and never stored in plain text.
+// self-service issuance.
 func (s *server) provisionAppFromRequest(ctx context.Context, regReq appreg.Request, partyType app.PartyType, actorID string) (provisionedApp, error) {
 	createdApp, err := s.adminSvc.CreateApp(ctx, app.CreateAppInput{
 		Name:        regReq.Name,
@@ -74,9 +85,24 @@ func (s *server) provisionAppFromRequest(ctx context.Context, regReq appreg.Requ
 	return provisionedApp{App: createdApp, Registration: reg, ManagementToken: managementToken}, nil
 }
 
+func (s *server) developerAppLimitReached(ctx context.Context, identityID string) (bool, error) {
+	mine, err := s.developerAppRegSvc.ListMine(ctx, identityID)
+	if err != nil {
+		return false, err
+	}
+	active := 0
+	for _, req := range mine {
+		switch req.Status {
+		case appreg.StatusRejected, appreg.StatusWithdrawn:
+		default:
+			active++
+		}
+	}
+	return active >= MaxSelfServiceAppsPerDeveloper, nil
+}
+
 // handleDeveloperCreateApp handles POST /v1/developer/apps: instant
-// self-service registration. The request is auto-approved after provisioning;
-// credentials are returned once in the response and never again.
+// self-service registration with auto-approval.
 func (s *server) handleDeveloperCreateApp(w http.ResponseWriter, r *http.Request) {
 	if s.developerAppRegSvc == nil || s.adminSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "app registration service unavailable")
@@ -152,99 +178,121 @@ func (s *server) handleDeveloperCreateApp(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// handleDeveloperAppsCreateHTML handles the browser form POST /developer/apps.
-// Same instant issuance as the JSON endpoint, but renders the one-time
-// credentials page on success.
-func (s *server) handleDeveloperAppsCreateHTML(w http.ResponseWriter, r *http.Request) {
-	if s.developerAppRegSvc == nil || s.adminSvc == nil {
-		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+func (s *server) handleListMyAppRequests(w http.ResponseWriter, r *http.Request) {
+	if s.developerAppRegSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "app registration service unavailable")
 		return
 	}
 	session, ok := accountSessionFromContext(r.Context())
 	if !ok {
-		http.Redirect(w, r, s.kratosLoginURL(r.RequestURI), http.StatusSeeOther)
+		writeError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-	if !validateDeveloperCSRF(r) {
-		http.Error(w, "csrf validation failed", http.StatusForbidden)
-		return
-	}
-
-	input := parseSubmitInputFromForm(r)
-	input.SelfService = true
-	if input.ContactEmail == "" {
-		input.ContactEmail = session.Email
-	}
-
-	renderFormError := func(message string) {
-		csrfToken, _ := s.newDeveloperCSRFToken(w, r)
-		setAccountCenterHeaders(w, "")
-		_ = developerRequestFormTpl.Execute(w, developerRequestFormData{
-			devPageBase: devPageBaseFromSession(s, session),
-			CSRFToken:   csrfToken,
-			Error:       message,
-		})
-	}
-
-	overLimit, err := s.developerAppLimitReached(r.Context(), session.IdentityID)
+	reqs, err := s.developerAppRegSvc.ListMine(r.Context(), session.IdentityID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "instant app: count registrations", "error", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		slog.ErrorContext(r.Context(), "list my app requests", "error", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	if overLimit {
-		renderFormError(fmt.Sprintf("登録できるアプリは最大 %d 件です。不要なアプリを取り下げてから再度お試しください", MaxSelfServiceAppsPerDeveloper))
-		return
+	if reqs == nil {
+		reqs = []appreg.Request{}
 	}
-
-	var provisioned provisionedApp
-	approved, err := s.developerAppRegSvc.SubmitAutoApproved(r.Context(), session.IdentityID, input,
-		func(regReq appreg.Request) (uuid.UUID, uuid.UUID, error) {
-			p, perr := s.provisionAppFromRequest(r.Context(), regReq, app.PartyTypeThird, session.IdentityID)
-			if perr != nil {
-				return uuid.Nil, uuid.Nil, perr
-			}
-			provisioned = p
-			return p.App.ID, p.Registration.Client.ID, nil
-		})
-	if err != nil {
-		slog.ErrorContext(r.Context(), "instant app registration failed",
-			"identity_id", session.IdentityID, "error", err)
-		renderFormError(friendlyAppRegError(err))
-		return
-	}
-
-	setAccountCenterHeaders(w, "")
-	_ = developerCredentialsTpl.Execute(w, developerCredentialsData{
-		devPageBase:     devPageBaseFromSession(s, session),
-		AppName:         approved.Name,
-		ClientID:        provisioned.Registration.Client.HydraClientID,
-		ClientSecret:    provisioned.Registration.ClientSecret,
-		ManagementToken: provisioned.ManagementToken,
-		DetailURL:       "/developer/app-requests/" + approved.ID.String(),
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"items": reqs})
 }
 
-// developerAppLimitReached counts registrations that occupy quota: everything
-// except rejected and withdrawn ones.
-func (s *server) developerAppLimitReached(ctx context.Context, identityID string) (bool, error) {
-	mine, err := s.developerAppRegSvc.ListMine(ctx, identityID)
+func (s *server) handleSubmitAppRequest(w http.ResponseWriter, r *http.Request) {
+	if s.developerAppRegSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "app registration service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	var input appreg.SubmitInput
+	if err := decodeJSON(w, r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	input.SelfService = false
+	req, err := s.developerAppRegSvc.Submit(r.Context(), session.IdentityID, input)
 	if err != nil {
-		return false, err
+		writeAppRegError(w, err)
+		return
 	}
-	active := 0
-	for _, req := range mine {
-		switch req.Status {
-		case appreg.StatusRejected, appreg.StatusWithdrawn:
-		default:
-			active++
-		}
+	writeJSON(w, http.StatusCreated, req)
+}
+
+func (s *server) handleGetMyAppRequest(w http.ResponseWriter, r *http.Request) {
+	if s.developerAppRegSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "app registration service unavailable")
+		return
 	}
-	return active >= MaxSelfServiceAppsPerDeveloper, nil
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	id, ok := parseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+	req, err := s.developerAppRegSvc.GetForOwner(r.Context(), id, session.IdentityID)
+	if err != nil {
+		writeAppRegError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, req)
+}
+
+func (s *server) handleWithdrawMyAppRequest(w http.ResponseWriter, r *http.Request) {
+	if s.developerAppRegSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "app registration service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	id, ok := parseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+	req, err := s.developerAppRegSvc.Withdraw(r.Context(), id, session.IdentityID)
+	if err != nil {
+		writeAppRegError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, req)
+}
+
+func (s *server) handleResubmitMyAppRequest(w http.ResponseWriter, r *http.Request) {
+	if s.developerAppRegSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "app registration service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	id, ok := parseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+	var input appreg.SubmitInput
+	if err := decodeJSON(w, r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	req, err := s.developerAppRegSvc.Resubmit(r.Context(), id, session.IdentityID, input)
+	if err != nil {
+		writeAppRegError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, req)
 }
 
 // writeInstantRegError maps errors from both the appreg and app domains.
@@ -270,4 +318,14 @@ func isAppRegError(err error) bool {
 		}
 	}
 	return false
+}
+
+// sameOrigin reports whether u and allowedRaw have the same scheme and host.
+// Used by public_browser.go to validate Kratos redirect URLs.
+func sameOrigin(u *url.URL, allowedRaw string) bool {
+	allowed, err := url.Parse(strings.TrimSpace(allowedRaw))
+	if err != nil || allowed.Host == "" {
+		return false
+	}
+	return strings.EqualFold(u.Scheme, allowed.Scheme) && strings.EqualFold(u.Host, allowed.Host)
 }

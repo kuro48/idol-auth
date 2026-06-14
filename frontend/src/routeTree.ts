@@ -15,6 +15,9 @@ import { AdminAuditLogsPage } from '@/routes/admin/AdminAuditLogsPage'
 import { AdminAppRequestsPage } from '@/routes/admin/AdminAppRequestsPage'
 // Account
 import { AccountOverviewPage } from '@/routes/account/AccountOverviewPage'
+import { AccountProfilePage } from '@/routes/account/AccountProfilePage'
+import { AccountSessionsPage } from '@/routes/account/AccountSessionsPage'
+import { SettingsRedirectPage } from '@/routes/SettingsRedirectPage'
 // Docs
 import { DocsOverviewPage } from '@/routes/docs/DocsOverviewPage'
 import { DocsStartPage } from '@/routes/docs/DocsStartPage'
@@ -52,6 +55,11 @@ const adminAppRequestsRoute = createRoute({ getParentRoute: () => adminRoute, pa
 // Account routes
 const accountRoute = createRoute({ getParentRoute: () => shellRoute, path: '/account' })
 const accountOverviewRoute = createRoute({ getParentRoute: () => accountRoute, path: '/', component: AccountOverviewPage })
+const accountProfileRoute = createRoute({ getParentRoute: () => accountRoute, path: '/profile', component: AccountProfilePage })
+const accountSessionsRoute = createRoute({ getParentRoute: () => accountRoute, path: '/sessions', component: AccountSessionsPage })
+
+// Settings redirect
+const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsRedirectPage })
 
 // Docs routes (separate layout, no app shell)
 const docsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/docs', component: DocsLayout })
@@ -66,10 +74,11 @@ const docsApiRoute = createRoute({ getParentRoute: () => docsRoute, path: '/api'
 
 export const routeTree = rootRoute.addChildren([
   indexRoute,
+  settingsRoute,
   shellRoute.addChildren([
     devRoute.addChildren([devAppRequestsRoute, devAppRequestsNewRoute, devAppRequestDetailRoute]),
     adminRoute.addChildren([adminAppsRoute, adminUsersRoute, adminAuditRoute, adminAppRequestsRoute]),
-    accountRoute.addChildren([accountOverviewRoute]),
+    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute]),
   ]),
   docsRoute.addChildren([
     docsIndexRoute,

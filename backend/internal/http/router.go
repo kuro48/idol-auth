@@ -213,32 +213,6 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 	})
 	r.Get("/account/restore", s.handleRestoreAccount)
 	r.With(s.accountSessionCSRFMiddleware).Post("/account/restore", s.handleSubmitRestore)
-	r.Route("/account", func(r chi.Router) {
-		r.Use(s.accountUIAuth)
-		r.Get("/", s.handleAccountCenter)
-	})
-	r.Route("/developer/apps", func(r chi.Router) {
-		r.Use(s.accountUIAuth)
-		r.Post("/", s.handleDeveloperAppsCreateHTML)
-	})
-	r.Route("/developer/app-requests", func(r chi.Router) {
-		r.Use(s.accountUIAuth)
-		r.Get("/", s.handleDeveloperAppRequestsList)
-		r.Get("/new", s.handleDeveloperAppRequestsNew)
-		r.Post("/", s.handleDeveloperAppRequestsCreate)
-		r.Get("/{id}", s.handleDeveloperAppRequestDetail)
-		r.Get("/{id}/edit", s.handleDeveloperAppRequestEdit)
-		r.Post("/{id}/resubmit", s.handleDeveloperAppRequestResubmit)
-		r.Post("/{id}/withdraw", s.handleDeveloperAppRequestWithdraw)
-	})
-	r.With(s.accountUIAuth).Get("/settings", s.handleSettings)
-	r.Route("/v1/settings", func(r chi.Router) {
-		r.Use(s.accountUIAuth)
-		r.Use(s.accountSessionCSRFMiddleware)
-		r.Get("/flow", s.handleSettingsFlowGet)
-		r.Post("/flow", s.handleSettingsFlowSubmit)
-	})
-
 	r.Route("/v1/auth", func(r chi.Router) {
 		if s.config.Limiter != nil {
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
@@ -280,16 +254,6 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Post("/app-requests/{id}/approve", s.handleApproveAppRequest)
 		r.Post("/app-requests/{id}/reject", s.handleRejectAppRequest)
 		r.Post("/app-requests/{id}/request-changes", s.handleRequestChangesAppRequest)
-	})
-
-	r.Route("/admin-ui", func(r chi.Router) {
-		r.Use(s.adminUIAuth)
-		r.Get("/", s.handleAdminUIOverview)
-		r.Get("/apps", s.handleAdminUIApps)
-		r.Get("/users", s.handleAdminUIUsers)
-		r.Get("/audit-logs", s.handleAdminUIAuditLogs)
-		r.Get("/app-requests", s.handleAdminUIAppRequests)
-		r.Get("/app-requests/{id}", s.handleAdminUIAppRequestDetail)
 	})
 
 	r.Route("/v1/account", func(r chi.Router) {
