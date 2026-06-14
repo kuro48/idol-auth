@@ -28,12 +28,6 @@ function buildSections(isAdmin: boolean): NavSection[] {
         { to: '/account/sessions', label: 'Sessions' },
       ],
     },
-    {
-      title: 'Docs',
-      items: [
-        { to: '/docs', label: 'Documentation' },
-      ],
-    },
   ]
 
   if (isAdmin) {
