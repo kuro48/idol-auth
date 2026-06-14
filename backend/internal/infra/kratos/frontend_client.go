@@ -159,7 +159,7 @@ func (c *FrontendClient) LogoutBrowser(ctx context.Context, r *http.Request) err
 	if err != nil {
 		return fmt.Errorf("call kratos logout: %w", err)
 	}
-	logoutResp.Body.Close()
+	defer logoutResp.Body.Close()
 	return nil
 }
 

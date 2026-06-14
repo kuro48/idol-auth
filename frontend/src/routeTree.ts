@@ -1,8 +1,7 @@
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { AppShell } from '@/components/layout/AppShell'
 import { DocsLayout } from '@/routes/docs/DocsLayout'
-import { DashboardPage } from '@/routes/DashboardPage'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 // Developer
 import { AppRequestsPage } from '@/routes/developer/AppRequestsPage'
@@ -36,8 +35,12 @@ const rootRoute = createRootRoute({
 // Shell layout (sidebar)
 const shellRoute = createRoute({ getParentRoute: () => rootRoute, id: 'shell', component: AppShell })
 
-// Public index
-const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: DashboardPage })
+// Root redirects to /login (server-rendered by the backend)
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  beforeLoad: () => { throw redirect({ href: '/login' }) },
+})
 
 // Developer routes
 const devRoute = createRoute({ getParentRoute: () => shellRoute, path: '/developer' })
