@@ -31,30 +31,30 @@ var (
 
 // Request represents a developer's application registration request.
 type Request struct {
-	ID                     uuid.UUID
-	IdentityID             string
-	Status                 Status
-	Name                   string
-	Slug                   string
-	Type                   string
-	Description            string
-	HomepageURL            string
-	PrivacyPolicyURL       string
-	TermsURL               string
-	ContactEmail           string
-	Organization           string
-	Purpose                string
-	RedirectURIs           []string
-	PostLogoutRedirectURIs []string
-	Scopes                 []string
-	ReviewerID             string
-	ReviewerNote           string
-	DecidedAt              *time.Time
-	CreatedAppID           *uuid.UUID
-	CreatedClientID        *uuid.UUID
-	Version                int
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	ID                     uuid.UUID  `json:"id"`
+	IdentityID             string     `json:"identity_id"`
+	Status                 Status     `json:"status"`
+	Name                   string     `json:"name"`
+	Slug                   string     `json:"slug"`
+	Type                   string     `json:"type"`
+	Description            string     `json:"description"`
+	HomepageURL            string     `json:"homepage_url"`
+	PrivacyPolicyURL       string     `json:"privacy_policy_url"`
+	TermsURL               string     `json:"terms_url"`
+	ContactEmail           string     `json:"contact_email"`
+	Organization           string     `json:"organization"`
+	Purpose                string     `json:"purpose"`
+	RedirectURIs           []string   `json:"redirect_uris"`
+	PostLogoutRedirectURIs []string   `json:"post_logout_redirect_uris"`
+	Scopes                 []string   `json:"scopes"`
+	ReviewerID             string     `json:"reviewer_id"`
+	ReviewerNote           string     `json:"reviewer_note"`
+	DecidedAt              *time.Time `json:"decided_at"`
+	CreatedAppID           *uuid.UUID `json:"created_app_id"`
+	CreatedClientID        *uuid.UUID `json:"created_client_id"`
+	Version                int        `json:"version"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 // Event records a state transition in a request's lifecycle.

@@ -30,12 +30,12 @@ export function AppRequestsPage() {
           <p className={styles.empty}>No app requests yet. Create one to get started.</p>
         )}
         {data?.items.map(req => (
-          <a key={req.ID} href={`/developer/app-requests/${req.ID}`} className={styles.card}>
+          <a key={req.id} href={`/developer/app-requests/${req.id}`} className={styles.card}>
             <div className={styles.cardMain}>
-              <span className={styles.cardName}>{req.Name}</span>
-              <span className={styles.cardSlug}>{req.Slug}</span>
+              <span className={styles.cardName}>{req.name}</span>
+              <span className={styles.cardSlug}>{req.slug}</span>
             </div>
-            <Badge variant={statusVariant(req.Status)}>{req.Status.replace('_', ' ')}</Badge>
+            <Badge variant={statusVariant(req.status)}>{req.status.replace('_', ' ')}</Badge>
           </a>
         ))}
       </div>

@@ -27,32 +27,32 @@ export interface OIDCClient {
   updated_at: string
 }
 
-// AppRequest (no JSON tags in appreg.go → PascalCase fields)
+// AppRequest (snake_case JSON tags from appreg.go)
 export interface AppRequest {
-  ID: string
-  IdentityID: string
-  Status: string
-  Name: string
-  Slug: string
-  Type: string
-  Description: string
-  HomepageURL: string
-  PrivacyPolicyURL: string
-  TermsURL: string
-  ContactEmail: string
-  Organization: string
-  Purpose: string
-  RedirectURIs: string[]
-  PostLogoutRedirectURIs: string[]
-  Scopes: string[]
-  ReviewerID: string
-  ReviewerNote: string
-  DecidedAt: string | null
-  CreatedAppID: string | null
-  CreatedClientID: string | null
-  Version: number
-  CreatedAt: string
-  UpdatedAt: string
+  id: string
+  identity_id: string
+  status: string
+  name: string
+  slug: string
+  type: string
+  description: string
+  homepage_url: string
+  privacy_policy_url: string
+  terms_url: string
+  contact_email: string
+  organization: string
+  purpose: string
+  redirect_uris: string[]
+  post_logout_redirect_uris: string[]
+  scopes: string[]
+  reviewer_id: string
+  reviewer_note: string
+  decided_at: string | null
+  created_app_id: string | null
+  created_client_id: string | null
+  version: number
+  created_at: string
+  updated_at: string
 }
 
 // Identity (snake_case JSON tags from identity.go)
@@ -66,20 +66,20 @@ export interface Identity {
   roles?: string[]
 }
 
-// AuditLog (no JSON tags in audit.go → PascalCase)
+// AuditLog (snake_case JSON tags from audit.go)
 export interface AuditLog {
-  ID: string
-  EventType: string
-  ActorType: string
-  ActorID: string
-  TargetType: string
-  TargetID: string
-  Result: string
-  IPAddress: string
-  UserAgent: string
-  RequestID: string
-  Metadata: unknown
-  OccurredAt: string
+  id: string
+  event_type: string
+  actor_type: string
+  actor_id: string
+  target_type: string
+  target_id: string
+  result: string
+  ip_address: string
+  user_agent: string
+  request_id: string
+  metadata: unknown
+  occurred_at: string
 }
 
 // Account types (snake_case from account.go)

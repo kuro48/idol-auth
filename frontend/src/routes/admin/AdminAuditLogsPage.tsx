@@ -28,12 +28,12 @@ export function AdminAuditLogsPage() {
           </thead>
           <tbody>
             {data?.items.map(log => (
-              <tr key={log.ID}>
-                <td className={styles.mono}>{log.EventType}</td>
-                <td className={styles.muted}>{log.ActorType}:{log.ActorID.slice(0, 8)}</td>
-                <td className={styles.muted}>{log.TargetType}:{log.TargetID.slice(0, 8)}</td>
-                <td><Badge variant={log.Result === 'success' ? 'success' : 'danger'}>{log.Result}</Badge></td>
-                <td className={styles.muted}>{new Date(log.OccurredAt).toLocaleString()}</td>
+              <tr key={log.id}>
+                <td className={styles.mono}>{log.event_type}</td>
+                <td className={styles.muted}>{log.actor_type}:{log.actor_id.slice(0, 8)}</td>
+                <td className={styles.muted}>{log.target_type}:{log.target_id.slice(0, 8)}</td>
+                <td><Badge variant={log.result === 'success' ? 'success' : 'danger'}>{log.result}</Badge></td>
+                <td className={styles.muted}>{new Date(log.occurred_at).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>

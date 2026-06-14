@@ -48,7 +48,7 @@ export function NewAppRequestPage() {
     }),
     onSuccess: (req) => {
       qc.invalidateQueries({ queryKey: ['developer', 'app-requests'] })
-      navigate({ to: `/developer/app-requests/${req.ID}` })
+      navigate({ to: `/developer/app-requests/${req.id}` })
     },
   })
 

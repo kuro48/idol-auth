@@ -30,18 +30,18 @@ const (
 
 // Log is a single immutable audit event.
 type Log struct {
-	ID         uuid.UUID
-	EventType  string
-	ActorType  ActorType
-	ActorID    string
-	TargetType TargetType
-	TargetID   string
-	Result     Result
-	IPAddress  string
-	UserAgent  string
-	RequestID  string
-	Metadata   json.RawMessage
-	OccurredAt time.Time
+	ID         uuid.UUID       `json:"id"`
+	EventType  string          `json:"event_type"`
+	ActorType  ActorType       `json:"actor_type"`
+	ActorID    string          `json:"actor_id"`
+	TargetType TargetType      `json:"target_type"`
+	TargetID   string          `json:"target_id"`
+	Result     Result          `json:"result"`
+	IPAddress  string          `json:"ip_address"`
+	UserAgent  string          `json:"user_agent"`
+	RequestID  string          `json:"request_id"`
+	Metadata   json.RawMessage `json:"metadata"`
+	OccurredAt time.Time       `json:"occurred_at"`
 }
 
 // Repository is the write-only interface for persisting audit events.

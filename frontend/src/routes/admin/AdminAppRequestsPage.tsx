@@ -41,16 +41,16 @@ export function AdminAppRequestsPage() {
           </thead>
           <tbody>
             {data?.items.map(req => (
-              <tr key={req.ID}>
-                <td className={styles.bold}>{req.Name}</td>
-                <td>{req.Type}</td>
-                <td><Badge variant={statusVariant(req.Status)}>{req.Status.replace('_', ' ')}</Badge></td>
-                <td className={styles.muted}>{new Date(req.CreatedAt).toLocaleDateString()}</td>
+              <tr key={req.id}>
+                <td className={styles.bold}>{req.name}</td>
+                <td>{req.type}</td>
+                <td><Badge variant={statusVariant(req.status)}>{req.status.replace('_', ' ')}</Badge></td>
+                <td className={styles.muted}>{new Date(req.created_at).toLocaleDateString()}</td>
                 <td className={styles.actions}>
-                  {req.Status === 'pending' && (
+                  {req.status === 'pending' && (
                     <>
-                      <button className={styles.approveBtn} onClick={() => approve.mutate(req.ID)} disabled={approve.isPending}>Approve</button>
-                      <button className={styles.rejectBtn} onClick={() => reject.mutate(req.ID)} disabled={reject.isPending}>Reject</button>
+                      <button className={styles.approveBtn} onClick={() => approve.mutate(req.id)} disabled={approve.isPending}>Approve</button>
+                      <button className={styles.rejectBtn} onClick={() => reject.mutate(req.id)} disabled={reject.isPending}>Reject</button>
                     </>
                   )}
                 </td>

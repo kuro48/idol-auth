@@ -31,23 +31,23 @@ export function AppRequestDetailPage() {
   return (
     <div>
       <PageHeader
-        title={req.Name}
-        description={req.Description}
-        action={<Badge variant={statusVariant(req.Status)}>{req.Status.replace('_', ' ')}</Badge>}
+        title={req.name}
+        description={req.description}
+        action={<Badge variant={statusVariant(req.status)}>{req.status.replace('_', ' ')}</Badge>}
       />
       <div className={styles.content}>
         <dl className={styles.grid}>
-          <Field label="Type" value={req.Type} />
-          <Field label="Slug" value={req.Slug} mono />
-          <Field label="Contact" value={req.ContactEmail} />
-          <Field label="Organization" value={req.Organization} />
-          <Field label="Homepage" value={req.HomepageURL} />
-          <Field label="Purpose" value={req.Purpose} />
-          <Field label="Redirect URIs" value={req.RedirectURIs?.join('\n')} mono />
-          <Field label="Scopes" value={req.Scopes?.join(', ')} mono />
-          {req.ReviewerNote && <Field label="Reviewer Note" value={req.ReviewerNote} />}
+          <Field label="Type" value={req.type} />
+          <Field label="Slug" value={req.slug} mono />
+          <Field label="Contact" value={req.contact_email} />
+          <Field label="Organization" value={req.organization} />
+          <Field label="Homepage" value={req.homepage_url} />
+          <Field label="Purpose" value={req.purpose} />
+          <Field label="Redirect URIs" value={req.redirect_uris?.join('\n')} mono />
+          <Field label="Scopes" value={req.scopes?.join(', ')} mono />
+          {req.reviewer_note && <Field label="Reviewer Note" value={req.reviewer_note} />}
         </dl>
-        {(req.Status === 'pending' || req.Status === 'changes_requested') && (
+        {(req.status === 'pending' || req.status === 'changes_requested') && (
           <div className={styles.actions}>
             <button
               className={styles.dangerBtn}
