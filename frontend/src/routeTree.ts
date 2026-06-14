@@ -1,4 +1,5 @@
-import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { AppShell } from '@/components/layout/AppShell'
 import { DocsLayout } from '@/routes/docs/DocsLayout'
@@ -35,12 +36,13 @@ const rootRoute = createRootRoute({
 // Shell layout (sidebar)
 const shellRoute = createRoute({ getParentRoute: () => rootRoute, id: 'shell', component: AppShell })
 
+function RootRedirect() {
+  useEffect(() => { window.location.replace('/login') }, [])
+  return null
+}
+
 // Root redirects to /login (server-rendered by the backend)
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  beforeLoad: () => { throw redirect({ href: '/login' }) },
-})
+const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: RootRedirect })
 
 // Developer routes
 const devRoute = createRoute({ getParentRoute: () => shellRoute, path: '/developer' })
