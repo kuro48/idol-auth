@@ -3,10 +3,7 @@ POSTGRES_PASSWORD ?= postgrespass
 REDIS_PASSWORD ?= redispass
 HYDRA_SYSTEM_SECRET ?= 0123456789abcdef0123456789abcdef
 ADMIN_BOOTSTRAP_TOKEN ?= dev-bootstrap-token-0123456789abcdef0123456789abcdef
-DEMO_PORT ?= 3002
-DEMO_APP_URL ?= http://localhost:3002
 CORS_ALLOWED_ORIGINS ?= http://localhost:3000
-APP_URL ?= $(DEMO_APP_URL)
 AUTH_URL ?= http://localhost:8080
 KRATOS_BROWSER_URL ?= http://localhost:4433
 MAILPIT_URL ?= http://localhost:8025
@@ -15,8 +12,6 @@ COMPOSE_ENV = POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 	REDIS_PASSWORD=$(REDIS_PASSWORD) \
 	HYDRA_SYSTEM_SECRET=$(HYDRA_SYSTEM_SECRET) \
 	ADMIN_BOOTSTRAP_TOKEN=$(ADMIN_BOOTSTRAP_TOKEN) \
-	DEMO_PORT=$(DEMO_PORT) \
-	DEMO_APP_URL=$(DEMO_APP_URL) \
 	CORS_ALLOWED_ORIGINS=$(CORS_ALLOWED_ORIGINS)
 
 .PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config production-bundle publish-deploy-branch nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres frontend-dev frontend-build frontend-openapi
@@ -68,13 +63,12 @@ nix-backup-postgres:
 	cd backend && nix --extra-experimental-features "nix-command flakes" run .#backup-postgres -- ../.env.production
 
 e2e:
-	cd backend && RUN_E2E=1 APP_URL=$(APP_URL) AUTH_URL=$(AUTH_URL) KRATOS_BROWSER_URL=$(KRATOS_BROWSER_URL) MAILPIT_URL=$(MAILPIT_URL) go test ./integration/... -v
+	cd backend && RUN_E2E=1 AUTH_URL=$(AUTH_URL) KRATOS_BROWSER_URL=$(KRATOS_BROWSER_URL) MAILPIT_URL=$(MAILPIT_URL) go test ./integration/... -v
 
 wait:
-	@echo "Waiting for app and demo to become ready..."
+	@echo "Waiting for app to become ready..."
 	@until curl -fsS $(AUTH_URL)/healthz >/dev/null; do sleep 1; done
 	@until curl -fsS $(AUTH_URL)/readyz >/dev/null; do sleep 1; done
-	@until curl -fsS $(APP_URL)/ >/dev/null; do sleep 1; done
 
 verify-local: up wait test e2e
 

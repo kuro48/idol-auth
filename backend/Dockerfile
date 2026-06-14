@@ -18,10 +18,6 @@ FROM deps AS build-configcheck
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/configcheck ./cmd/configcheck
 
-FROM deps AS build-demo
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/demo ./cmd/demo
-
 FROM deps AS build-portal
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /out/portal ./cmd/portal
@@ -49,10 +45,6 @@ ENTRYPOINT ["/migrate"]
 FROM gcr.io/distroless/static-debian12 AS configcheck
 COPY --from=build-configcheck /out/configcheck /configcheck
 ENTRYPOINT ["/configcheck"]
-
-FROM gcr.io/distroless/static-debian12 AS demo
-COPY --from=build-demo /out/demo /demo
-ENTRYPOINT ["/demo"]
 
 FROM gcr.io/distroless/static-debian12 AS portal
 COPY --from=build-portal /out/portal /portal

@@ -136,29 +136,6 @@ services:
     networks:
       - idolium-network
 
-  demo:
-    build:
-      context: ./backend
-      target: demo
-    environment:
-      DEMO_PORT: 3001
-      DEMO_APP_URL: ${DEMO_APP_URL:-http://localhost:3002}
-      DEMO_AUTH_INTERNAL_URL: http://app:8080
-      DEMO_KRATOS_PUBLIC_URL: http://kratos:4433
-      DEMO_KRATOS_ADMIN_URL: http://kratos:4434
-      DEMO_KRATOS_BROWSER_URL: http://localhost:4433
-      DEMO_HYDRA_PUBLIC_URL: http://hydra:4444
-      DEMO_HYDRA_BROWSER_URL: http://localhost:4444
-      ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN}
-    ports:
-      - "${DEMO_PORT:-3002}:3001"
-    depends_on:
-      app:
-        condition: service_started
-    restart: unless-stopped
-    networks:
-      - idolium-network
-
   # frontend: ローカルで本番イメージ (Caddy) を試す場合に使う
   # 通常の開発には make frontend-dev (Vite dev server) を使うこと
   # 本番では Traefik がパスルーティングを担うが、dev compose には Traefik がないため
