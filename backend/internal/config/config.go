@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net/netip"
 	"net/url"
 	"strings"
 
@@ -52,7 +51,6 @@ type AdminConfig struct {
 	BootstrapToken string   `env:"ADMIN_BOOTSTRAP_TOKEN"`
 	AllowedEmails  []string `env:"ADMIN_ALLOWED_EMAILS" envSeparator:","`
 	AllowedRoles   []string `env:"ADMIN_ALLOWED_ROLES" envSeparator:","`
-	AllowedCIDRs   []string `env:"ADMIN_ALLOWED_CIDR" envSeparator:","`
 }
 
 type SecurityConfig struct {
@@ -115,8 +113,8 @@ func (c *Config) Validate() error {
 		if token == "" {
 			return fmt.Errorf("config: production requires ADMIN_BOOTSTRAP_TOKEN")
 		}
-		if len(c.Admin.AllowedCIDRs) == 0 {
-			return fmt.Errorf("config: production requires ADMIN_ALLOWED_CIDR")
+		if len(c.Admin.AllowedEmails) == 0 {
+			return fmt.Errorf("config: production requires ADMIN_ALLOWED_EMAILS")
 		}
 		secret := strings.TrimSpace(c.Ory.HydraSystemSecret)
 		if secret == "" {
@@ -124,17 +122,6 @@ func (c *Config) Validate() error {
 		}
 		if len(secret) < 32 {
 			return fmt.Errorf("config: HYDRA_SYSTEM_SECRET must be at least 32 characters")
-		}
-	}
-	for _, cidr := range c.Admin.AllowedCIDRs {
-		cidr = strings.TrimSpace(cidr)
-		if cidr == "" {
-			continue
-		}
-		if _, err := netip.ParsePrefix(cidr); err != nil {
-			if _, addrErr := netip.ParseAddr(cidr); addrErr != nil {
-				return fmt.Errorf("config: invalid ADMIN_ALLOWED_CIDR %q", cidr)
-			}
 		}
 	}
 	return nil

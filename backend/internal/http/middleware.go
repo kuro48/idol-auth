@@ -5,7 +5,6 @@ import (
 	"crypto/subtle"
 	"errors"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"strings"
 
@@ -32,10 +31,6 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		ip := clientIP(r, s.config.Security.TrustedProxies)
-		if !adminIPAllowed(ip, s.config.Admin.AllowedCIDRs) {
-			writeError(w, http.StatusForbidden, "admin access denied")
-			return
-		}
 		if token != "" {
 			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
 				// Valid bootstrap token — do not consume the failure rate-limit budget.
@@ -183,29 +178,6 @@ func requestOriginMatchesHost(r *http.Request, raw string) bool {
 		host = r.URL.Host
 	}
 	return strings.EqualFold(u.Host, host)
-}
-
-func adminIPAllowed(ip string, allowedCIDRs []string) bool {
-	if len(allowedCIDRs) == 0 {
-		return true
-	}
-	addr, err := netip.ParseAddr(strings.TrimSpace(ip))
-	if err != nil {
-		return false
-	}
-	for _, candidate := range allowedCIDRs {
-		candidate = strings.TrimSpace(candidate)
-		if candidate == "" {
-			continue
-		}
-		if prefix, err := netip.ParsePrefix(candidate); err == nil && prefix.Contains(addr) {
-			return true
-		}
-		if allowedIP, err := netip.ParseAddr(candidate); err == nil && allowedIP == addr {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *server) accountAuth(next http.Handler) http.Handler {

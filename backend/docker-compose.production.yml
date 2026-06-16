@@ -118,9 +118,8 @@ services:
       HYDRA_BROWSER_URL: ${HYDRA_BROWSER_URL}
       HYDRA_SYSTEM_SECRET: ${HYDRA_SYSTEM_SECRET}
       ADMIN_BOOTSTRAP_TOKEN: ${ADMIN_BOOTSTRAP_TOKEN}
-      ADMIN_ALLOWED_EMAILS: ${ADMIN_ALLOWED_EMAILS:-}
+      ADMIN_ALLOWED_EMAILS: ${ADMIN_ALLOWED_EMAILS}
       ADMIN_ALLOWED_ROLES: ${ADMIN_ALLOWED_ROLES:-}
-      ADMIN_ALLOWED_CIDR: ${ADMIN_ALLOWED_CIDR}
       SESSION_COOKIE_SECURE: "true"
       SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES}
@@ -180,19 +179,21 @@ services:
     pull_policy: always
     environment:
       PORTAL_PORT: 3003
-      PORTAL_APP_URL: ${PORTAL_APP_URL}
+      PORTAL_APP_URL: ${APP_BASE_URL}
       PORTAL_ACCOUNT_CENTER_URL: ${APP_BASE_URL}/account/
       PORTAL_KRATOS_PUBLIC_URL: http://kratos:4433
       PORTAL_KRATOS_ADMIN_URL: ${PORTAL_KRATOS_ADMIN_URL:-http://kratos:4434}
-      PORTAL_KRATOS_BROWSER_URL: ${KRATOS_BROWSER_URL}
+      PORTAL_KRATOS_BROWSER_URL: ${APP_BASE_URL}
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
     expose:
       - "3003"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.idol-auth-portal.rule=Host(`${PORTAL_HOSTNAME}`)"
+      # Portal が担うパス: Kratos self-service プロキシ + 各フロー UI + .well-known
+      - "traefik.http.routers.idol-auth-portal.rule=Host(`${APP_HOSTNAME}`) && (PathPrefix(`/self-service`) || PathPrefix(`/.well-known`) || PathPrefix(`/login`) || PathPrefix(`/registration`) || PathPrefix(`/settings`) || PathPrefix(`/recovery`) || PathPrefix(`/verification`) || Path(`/logout`) || PathPrefix(`/ui`) || Path(`/error`))"
       - "traefik.http.routers.idol-auth-portal.entrypoints=web"
+      - "traefik.http.routers.idol-auth-portal.priority=20"
       - "traefik.http.services.idol-auth-portal.loadbalancer.server.port=3003"
     depends_on:
       kratos:

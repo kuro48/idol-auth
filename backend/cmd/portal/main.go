@@ -63,6 +63,7 @@ func newPortalHandler(cfg *demo.PortalConfig, httpClient *http.Client) (http.Han
 
 	mux := http.NewServeMux()
 	mux.Handle("/self-service/", demo.ProtectRegistration(kratosProxy, turnstile))
+	mux.Handle("/.well-known/", kratosProxy)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

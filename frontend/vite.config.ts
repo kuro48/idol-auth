@@ -43,6 +43,14 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/self-service': {
+        target: 'http://localhost:4433',
+        changeOrigin: true,
+      },
+      '/.well-known': {
+        target: 'http://localhost:4433',
+        changeOrigin: true,
+      },
     },
   },
 })

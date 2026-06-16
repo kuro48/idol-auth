@@ -51,8 +51,13 @@ type KratosAttributes struct {
 			Secret string `json:"secret"`
 		} `json:"context"`
 	} `json:"text"`
-	Required bool `json:"required"`
-	Disabled bool `json:"disabled"`
+	Required    bool   `json:"required"`
+	Disabled    bool   `json:"disabled"`
+	OnClick     string `json:"onclick"`
+	Async       bool   `json:"async"`
+	CrossOrigin string `json:"crossorigin"`
+	Integrity   string `json:"integrity"`
+	Nonce       string `json:"nonce"`
 }
 
 type KratosMessage struct {
@@ -116,6 +121,11 @@ var kratosLabelJA = map[string]string{ // #nosec G101 -- UI label translations, 
 	"Add Authenticator App":     "認証アプリを追加",
 	"Confirm":                   "確認する",
 	"Reauthenticate":            "再認証",
+	"Sign in with passkey":      "パスキーでログイン",
+	"Use passkey":               "パスキーを使用",
+	"Register a passkey":        "パスキーを登録する",
+	"Add passkey":               "パスキーを追加",
+	"Remove passkey":            "パスキーを削除",
 }
 
 func translateLabel(text string) string {
@@ -491,6 +501,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     }
     button:hover, input[type=submit]:hover { transform: translateY(-1px); opacity: 0.92; }
     button:active, input[type=submit]:active { transform: scale(0.99); }
+    .passkey-btn { background: var(--oshi-bg); color: var(--oshi-text); border-color: var(--oshi-border); font-weight: 700; }
+    .passkey-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
     .totp-reveal {
       border: 2px solid var(--border);
       border-radius: var(--radius-sm);
@@ -712,8 +724,12 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             </div>
           {{ end }}
           <button type="submit" name="{{ .Attributes.Name }}" value="password">{{ nodeLabel . }}</button>
+        {{ else if eq .Type "script" }}
+          <script src="{{ .Attributes.Src }}" async{{ if .Attributes.CrossOrigin }} crossorigin="{{ .Attributes.CrossOrigin }}"{{ end }}{{ if .Attributes.Integrity }} integrity="{{ .Attributes.Integrity }}"{{ end }}{{ if .Attributes.Nonce }} nonce="{{ .Attributes.Nonce }}"{{ end }}></script>
+        {{ else if and (eq .Attributes.Type "button") (ne .Attributes.OnClick "") }}
+          <button type="button" class="passkey-btn" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}" onclick="{{ .Attributes.OnClick }}"{{ if .Attributes.Disabled }} disabled{{ end }}>{{ nodeLabel . }}</button>
         {{ else if eq .Attributes.Type "submit" }}
-          <button type="submit" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">{{ nodeLabel . }}</button>
+          <button type="submit" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}"{{ if .Attributes.Disabled }} disabled{{ end }}>{{ nodeLabel . }}</button>
         {{ else }}
           <div class="field">
             <label for="{{ .Attributes.Name }}">{{ nodeLabel . }}</label>

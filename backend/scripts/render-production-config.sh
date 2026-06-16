@@ -6,7 +6,6 @@ OUT_DIR="${1:-$ROOT_DIR/dist}"
 
 required_vars=(
   APP_BASE_URL
-  PORTAL_APP_URL
   KRATOS_BROWSER_URL
   HYDRA_BROWSER_URL
   SESSION_COOKIE_DOMAIN
@@ -14,6 +13,8 @@ required_vars=(
   KRATOS_SMTP_FROM_ADDRESS
   KRATOS_SMTP_FROM_NAME
   ORY_LOG_LEVEL
+  WEBAUTHN_RP_ID
+  WEBAUTHN_RP_DISPLAY_NAME
 )
 
 for var_name in "${required_vars[@]}"; do

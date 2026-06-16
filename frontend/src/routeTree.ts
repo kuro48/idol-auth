@@ -1,5 +1,5 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { createElement, useEffect } from 'react'
 import { RootLayout } from '@/components/layout/RootLayout'
 import { AppShell } from '@/components/layout/AppShell'
 import { DocsLayout } from '@/routes/docs/DocsLayout'
@@ -18,6 +18,7 @@ import { AccountOverviewPage } from '@/routes/account/AccountOverviewPage'
 import { AccountProfilePage } from '@/routes/account/AccountProfilePage'
 import { AccountSessionsPage } from '@/routes/account/AccountSessionsPage'
 import { DeveloperRegistrationPage } from '@/routes/account/DeveloperRegistrationPage'
+import { AccountSecurityPage } from '@/routes/account/AccountSecurityPage'
 import { SettingsRedirectPage } from '@/routes/SettingsRedirectPage'
 import { useSession } from '@/lib/auth/useSession'
 // Docs
@@ -55,7 +56,7 @@ function DeveloperGuard() {
     }
   }, [isDeveloper, isLoading])
   if (isLoading || !isDeveloper) return null
-  return <Outlet />
+  return createElement(Outlet, null)
 }
 
 // Developer routes
@@ -77,6 +78,7 @@ const accountOverviewRoute = createRoute({ getParentRoute: () => accountRoute, p
 const accountProfileRoute = createRoute({ getParentRoute: () => accountRoute, path: '/profile', component: AccountProfilePage })
 const accountSessionsRoute = createRoute({ getParentRoute: () => accountRoute, path: '/sessions', component: AccountSessionsPage })
 const accountDeveloperRoute = createRoute({ getParentRoute: () => accountRoute, path: '/developer', component: DeveloperRegistrationPage })
+const accountSecurityRoute = createRoute({ getParentRoute: () => accountRoute, path: '/security', component: AccountSecurityPage })
 
 // Settings redirect
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsRedirectPage })
@@ -98,7 +100,7 @@ export const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     devRoute.addChildren([devAppRequestsRoute, devAppRequestsNewRoute, devAppRequestDetailRoute]),
     adminRoute.addChildren([adminAppsRoute, adminUsersRoute, adminAuditRoute, adminAppRequestsRoute]),
-    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute, accountDeveloperRoute]),
+    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute, accountDeveloperRoute, accountSecurityRoute]),
   ]),
   docsRoute.addChildren([
     docsIndexRoute,

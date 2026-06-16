@@ -20,6 +20,7 @@ function buildSections(isAdmin: boolean, isDeveloper: boolean): NavSection[] {
         { to: '/account', label: 'Overview' },
         { to: '/account/profile', label: 'Profile' },
         { to: '/account/sessions', label: 'Sessions' },
+        { to: '/account/security', label: 'Security' },
       ],
     },
   ]

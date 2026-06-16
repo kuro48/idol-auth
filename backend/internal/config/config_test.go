@@ -79,7 +79,6 @@ func TestLoad_CustomValues(t *testing.T) {
 	t.Setenv("HYDRA_BROWSER_URL", "http://browser-hydra:4444")
 	t.Setenv("ADMIN_ALLOWED_EMAILS", "admin@example.com,ops@example.com")
 	t.Setenv("ADMIN_ALLOWED_ROLES", "admin,platform-operator")
-	t.Setenv("ADMIN_ALLOWED_CIDR", "203.0.113.10/32,10.8.0.0/24")
 
 	// Act
 	cfg, err := config.Load()
@@ -123,9 +122,6 @@ func TestLoad_CustomValues(t *testing.T) {
 	}
 	if len(cfg.Admin.AllowedRoles) != 2 || cfg.Admin.AllowedRoles[0] != "admin" || cfg.Admin.AllowedRoles[1] != "platform-operator" {
 		t.Errorf("unexpected admin allowed roles: %v", cfg.Admin.AllowedRoles)
-	}
-	if len(cfg.Admin.AllowedCIDRs) != 2 || cfg.Admin.AllowedCIDRs[0] != "203.0.113.10/32" {
-		t.Errorf("unexpected admin allowed cidrs: %v", cfg.Admin.AllowedCIDRs)
 	}
 }
 
@@ -214,7 +210,7 @@ func TestLoad_ProductionAllowsHardenedSettings(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "info")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
 	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
-	t.Setenv("ADMIN_ALLOWED_CIDR", "203.0.113.10/32")
+	t.Setenv("ADMIN_ALLOWED_EMAILS", "admin@example.com")
 
 	cfg, err := config.Load()
 
@@ -237,7 +233,7 @@ func TestLoad_ProductionAllowsInternalComposePostgresWithoutSSL(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "info")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
 	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
-	t.Setenv("ADMIN_ALLOWED_CIDR", "203.0.113.10/32")
+	t.Setenv("ADMIN_ALLOWED_EMAILS", "admin@example.com")
 
 	if _, err := config.Load(); err != nil {
 		t.Fatalf("expected internal compose postgres to load, got %v", err)
@@ -262,12 +258,3 @@ func TestLoad_ProductionRejectsExternalDatabaseWithoutSSL(t *testing.T) {
 	}
 }
 
-func TestLoad_RejectsInvalidAdminAllowedCIDR(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/testdb")
-	setRequiredOryVars(t)
-	t.Setenv("ADMIN_ALLOWED_CIDR", "not-a-cidr")
-
-	if _, err := config.Load(); err == nil {
-		t.Fatal("expected invalid ADMIN_ALLOWED_CIDR to be rejected")
-	}
-}

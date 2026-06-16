@@ -8,6 +8,7 @@ serve:
     cors:
       enabled: true
       allowed_origins:
+        - http://localhost:3000
         - http://localhost:3002
         - http://localhost:8080
       allowed_methods:
@@ -41,6 +42,16 @@ selfservice:
       enabled: true
       config:
         issuer: idol-auth
+    passkey:
+      enabled: true
+      config:
+        rp:
+          display_name: OshiLink
+          id: localhost
+          origins:
+            - http://localhost:3000
+            - http://localhost:8080
+            - http://localhost:3002
     lookup_secret:
       enabled: false
     link:
