@@ -33,4 +33,70 @@
 .profileInfo { display: flex; flex-direction: column; gap: var(--space-3); }
 .profileField { display: flex; flex-direction: column; gap: var(--space-1); }
 .profileLabel { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.editBtn { display: inline-block; padding: var(--space-2) var(--space-4); background: var(--color-accent); color: #fff; border-radius: var(--radius-sm); font-size: var(--text-sm); text-decoration: none; }
+.editBtn { display: inline-block; padding: var(--space-2) var(--space-4); background: var(--color-accent); color: #fff; border-radius: var(--radius-sm); font-size: var(--text-sm); text-decoration: none; cursor: pointer; border: none; }
+.input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-bg);
+  width: 100%;
+  max-width: 320px;
+}
+.input:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.formActions { display: flex; gap: var(--space-3); align-items: center; }
+.saveBtn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+}
+.saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cancelBtn {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.formError { font-size: var(--text-sm); color: var(--color-danger); }
+.dangerSection {
+  margin-top: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.dangerTitle { font-size: var(--text-base); font-weight: var(--font-weight-medium); color: var(--color-danger); }
+.dangerText { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.dangerBtn {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+}
+.dangerBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.deletionStatus {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.deletionDate { font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--color-danger); }
