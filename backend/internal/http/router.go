@@ -13,6 +13,7 @@ import (
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/loginhistory"
 	"github.com/kuro48/idol-auth/internal/domain/profile"
 )
 
@@ -43,6 +44,7 @@ type RouterConfig struct {
 	DeveloperAppRegSvc DeveloperAppRegService // optional; nil disables /developer/app-requests endpoints
 	WebhookRepo        app.WebhookRepository  // optional; nil disables PATCH /v1/apps/self/webhook
 	SessionMgr         SessionManager         // optional; nil disables session list/revoke endpoints
+	LoginHistorySvc    LoginHistoryService    // optional; nil disables /v1/account/login-history
 }
 
 type LoginFlowResult struct {
@@ -145,6 +147,11 @@ type SessionManager interface {
 	RevokeSession(ctx context.Context, sessionID string) error
 }
 
+// LoginHistoryService returns observed-login records for the current identity.
+type LoginHistoryService interface {
+	List(ctx context.Context, identityID string, limit int) ([]loginhistory.Event, error)
+}
+
 type themePreferenceService interface {
 	UpdateThemePreference(ctx context.Context, r *http.Request, color string) (SessionView, error)
 }
@@ -164,6 +171,7 @@ type server struct {
 	developerAppRegSvc DeveloperAppRegService
 	webhookRepo        app.WebhookRepository
 	sessionMgr         SessionManager
+	loginHistorySvc    LoginHistoryService
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -182,6 +190,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		developerAppRegSvc: cfg.DeveloperAppRegSvc,
 		webhookRepo:        cfg.WebhookRepo,
 		sessionMgr:         cfg.SessionMgr,
+		loginHistorySvc:    cfg.LoginHistorySvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -279,6 +288,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		if s.sessionMgr != nil {
 			r.Get("/sessions", s.handleListSessions)
 			r.Delete("/sessions/{sessionId}", s.handleRevokeSession)
+		}
+		if s.loginHistorySvc != nil {
+			r.Get("/login-history", s.handleListLoginHistory)
 		}
 	})
 

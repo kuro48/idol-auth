@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/kuro48/idol-auth/internal/domain/profile"
 	"github.com/kuro48/idol-auth/internal/oshi"
@@ -78,6 +79,7 @@ type HydraLogoutRequest struct {
 
 type KratosSession struct {
 	Active                      bool
+	ID                          string
 	IdentityID                  string
 	Email                       string
 	Phone                       string
@@ -87,6 +89,10 @@ type KratosSession struct {
 	Roles                       []string
 	Methods                     []string
 	AuthenticatorAssuranceLevel string
+	AuthenticatedAt             time.Time
+	IssuedAt                    time.Time
+	IPAddress                   string
+	UserAgent                   string
 }
 
 // ConsentSessionClaims holds custom JWT claims injected into access and ID tokens
@@ -123,12 +129,20 @@ type MembershipRecorder interface {
 	EnsureMembershipForHydraClient(ctx context.Context, hydraClientID, identityID, actorID string) error
 }
 
+// LoginRecorder asynchronously persists observed Kratos sessions as login events.
+// Implementations must be safe to call from any request goroutine and must not
+// block on slow I/O.
+type LoginRecorder interface {
+	RecordObservedSession(ctx context.Context, session KratosSession)
+}
+
 type authService struct {
-	baseURL      string
-	hydra        HydraAuthClient
-	kratos       KratosAuthClient
-	themeUpdater ThemePreferenceUpdater
-	memberships  MembershipRecorder
+	baseURL       string
+	hydra         HydraAuthClient
+	kratos        KratosAuthClient
+	themeUpdater  ThemePreferenceUpdater
+	memberships   MembershipRecorder
+	loginRecorder LoginRecorder
 }
 
 func scopeContains(scopes []string, target string) bool {
@@ -172,6 +186,14 @@ func NewAuthServiceWithOptions(baseURL string, hydra HydraAuthClient, kratos Kra
 		kratos:       kratos,
 		themeUpdater: themeUpdater,
 		memberships:  memberships,
+	}
+}
+
+// SetLoginRecorder attaches recorder to svc. If svc is not an *authService
+// (for example a mock), this is a no-op. Pass nil to detach.
+func SetLoginRecorder(svc AuthService, recorder LoginRecorder) {
+	if as, ok := svc.(*authService); ok {
+		as.loginRecorder = recorder
 	}
 }
 
@@ -395,6 +417,9 @@ func (s *authService) CurrentSession(ctx context.Context, r *http.Request) (Sess
 	}
 	if !session.Active {
 		return SessionView{Authenticated: false}, nil
+	}
+	if s.loginRecorder != nil {
+		s.loginRecorder.RecordObservedSession(ctx, session)
 	}
 	return SessionView{
 		Authenticated:               true,

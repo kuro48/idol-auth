@@ -17,6 +17,7 @@ import { AdminAppRequestsPage } from '@/routes/admin/AdminAppRequestsPage'
 import { AccountOverviewPage } from '@/routes/account/AccountOverviewPage'
 import { AccountProfilePage } from '@/routes/account/AccountProfilePage'
 import { AccountSessionsPage } from '@/routes/account/AccountSessionsPage'
+import { AccountLoginHistoryPage } from '@/routes/account/AccountLoginHistoryPage'
 import { DeveloperRegistrationPage } from '@/routes/account/DeveloperRegistrationPage'
 import { AccountSecurityPage } from '@/routes/account/AccountSecurityPage'
 import { SettingsRedirectPage } from '@/routes/SettingsRedirectPage'
@@ -77,6 +78,7 @@ const accountRoute = createRoute({ getParentRoute: () => shellRoute, path: '/acc
 const accountOverviewRoute = createRoute({ getParentRoute: () => accountRoute, path: '/', component: AccountOverviewPage })
 const accountProfileRoute = createRoute({ getParentRoute: () => accountRoute, path: '/profile', component: AccountProfilePage })
 const accountSessionsRoute = createRoute({ getParentRoute: () => accountRoute, path: '/sessions', component: AccountSessionsPage })
+const accountLoginHistoryRoute = createRoute({ getParentRoute: () => accountRoute, path: '/login-history', component: AccountLoginHistoryPage })
 const accountDeveloperRoute = createRoute({ getParentRoute: () => accountRoute, path: '/developer', component: DeveloperRegistrationPage })
 const accountSecurityRoute = createRoute({ getParentRoute: () => accountRoute, path: '/security', component: AccountSecurityPage })
 
@@ -100,7 +102,7 @@ export const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     devRoute.addChildren([devAppRequestsRoute, devAppRequestsNewRoute, devAppRequestDetailRoute]),
     adminRoute.addChildren([adminAppsRoute, adminUsersRoute, adminAuditRoute, adminAppRequestsRoute]),
-    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute, accountDeveloperRoute, accountSecurityRoute]),
+    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute, accountLoginHistoryRoute, accountDeveloperRoute, accountSecurityRoute]),
   ]),
   docsRoute.addChildren([
     docsIndexRoute,

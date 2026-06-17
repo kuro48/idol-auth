@@ -16,6 +16,7 @@ import (
 	admindomain "github.com/kuro48/idol-auth/internal/domain/admin"
 	"github.com/kuro48/idol-auth/internal/domain/app"
 	"github.com/kuro48/idol-auth/internal/domain/appreg"
+	"github.com/kuro48/idol-auth/internal/domain/loginhistory"
 	"github.com/kuro48/idol-auth/internal/domain/profile"
 	apphttp "github.com/kuro48/idol-auth/internal/http"
 	"github.com/kuro48/idol-auth/internal/infra/db"
@@ -102,6 +103,8 @@ func run() error {
 		accountService,
 		kratosAdmin,
 	)
+	loginHistoryService := loginhistory.NewService(db.NewLoginEventRepository(dbPool))
+	apphttp.SetLoginRecorder(authService, newLoginRecorder(loginHistoryService))
 	profileService := profile.NewService(kratosAdmin)
 	publicService := apphttp.NewPublicAuthService(
 		hydraFacade,
@@ -129,6 +132,7 @@ func run() error {
 		DeveloperAppRegSvc: appRegService,
 		WebhookRepo:        webhookRepo,
 		SessionMgr:         kratosAdmin,
+		LoginHistorySvc:    loginHistoryService,
 	}, adminService, db.NewReadinessChecker(dbPool), authService)
 
 	srv := &http.Server{
@@ -182,6 +186,43 @@ func runDeletionWorker(ctx context.Context, accountSvc *account.Service) {
 			}
 		}
 	}
+}
+
+// loginRecorderAdapter bridges apphttp.LoginRecorder to loginhistory.Service.
+// RecordObservedSession returns immediately and persists the event from a
+// background goroutine so request handling latency is unaffected.
+type loginRecorderAdapter struct {
+	svc *loginhistory.Service
+}
+
+func newLoginRecorder(svc *loginhistory.Service) *loginRecorderAdapter {
+	return &loginRecorderAdapter{svc: svc}
+}
+
+func (a *loginRecorderAdapter) RecordObservedSession(_ context.Context, session apphttp.KratosSession) {
+	if a == nil || a.svc == nil {
+		return
+	}
+	if session.ID == "" || session.IdentityID == "" {
+		return
+	}
+	evt := loginhistory.Event{
+		IdentityID:      session.IdentityID,
+		SessionID:       session.ID,
+		AuthenticatedAt: session.AuthenticatedAt,
+		IssuedAt:        session.IssuedAt,
+		AAL:             session.AuthenticatorAssuranceLevel,
+		Methods:         session.Methods,
+		IPAddress:       session.IPAddress,
+		UserAgent:       session.UserAgent,
+	}
+	go func() {
+		bg, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := a.svc.Record(bg, evt); err != nil {
+			slog.Warn("login history record failed", "session_id", evt.SessionID, "error", err)
+		}
+	}()
 }
 
 func setupLogger(level string) {

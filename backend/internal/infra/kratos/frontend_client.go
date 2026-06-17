@@ -56,11 +56,18 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 	}
 
 	var decoded struct {
-		Active                      bool   `json:"active"`
-		AuthenticatorAssuranceLevel string `json:"authenticator_assurance_level"`
+		ID                          string    `json:"id"`
+		Active                      bool      `json:"active"`
+		AuthenticatorAssuranceLevel string    `json:"authenticator_assurance_level"`
+		AuthenticatedAt             time.Time `json:"authenticated_at"`
+		IssuedAt                    time.Time `json:"issued_at"`
 		AuthenticationMethods       []struct {
 			Method string `json:"method"`
 		} `json:"authentication_methods"`
+		Devices []struct {
+			IPAddress string `json:"ip_address"`
+			UserAgent string `json:"user_agent"`
+		} `json:"devices"`
 		Identity struct {
 			ID     string `json:"id"`
 			Traits struct {
@@ -84,8 +91,17 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 			methods = append(methods, method.Method)
 		}
 	}
+	var (
+		ipAddress string
+		userAgent string
+	)
+	if len(decoded.Devices) > 0 {
+		ipAddress = decoded.Devices[0].IPAddress
+		userAgent = decoded.Devices[0].UserAgent
+	}
 	return apphttp.KratosSession{
 		Active:                      decoded.Active,
+		ID:                          decoded.ID,
 		IdentityID:                  decoded.Identity.ID,
 		Email:                       decoded.Identity.Traits.Email,
 		Phone:                       decoded.Identity.Traits.Phone,
@@ -95,6 +111,10 @@ func (c *FrontendClient) ToSession(ctx context.Context, r *http.Request) (apphtt
 		Oshis:                       decoded.Identity.MetadataPublic.Oshis,
 		Methods:                     methods,
 		AuthenticatorAssuranceLevel: decoded.AuthenticatorAssuranceLevel,
+		AuthenticatedAt:             decoded.AuthenticatedAt,
+		IssuedAt:                    decoded.IssuedAt,
+		IPAddress:                   ipAddress,
+		UserAgent:                   userAgent,
 	}, nil
 }
 
