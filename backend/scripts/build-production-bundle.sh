@@ -6,6 +6,7 @@ OUT_DIR="${1:-$ROOT_DIR/dist/production-bundle}"
 
 include_paths=(
   .env.production.example
+  Makefile
   docker-compose.production.yml
   deploy/hydra
   deploy/kratos

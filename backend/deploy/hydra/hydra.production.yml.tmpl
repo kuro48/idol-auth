@@ -1,6 +1,6 @@
 serve:
   public:
-    base_url: {{HYDRA_BROWSER_URL}}/
+    base_url: https://{{HYDRA_HOSTNAME}}/
     tls:
       allow_termination_from:
         - 0.0.0.0/0
@@ -15,11 +15,11 @@ oauth2:
 
 urls:
   self:
-    issuer: {{HYDRA_BROWSER_URL}}/
+    issuer: https://{{HYDRA_HOSTNAME}}/
   consent: {{APP_BASE_URL}}/v1/auth/consent
   login: {{APP_BASE_URL}}/v1/auth/login
   logout: {{APP_BASE_URL}}/v1/auth/logout
-  post_logout_redirect: {{PORTAL_APP_URL}}/login
+  post_logout_redirect: {{APP_BASE_URL}}/login
 
 ttl:
   access_token: 5m

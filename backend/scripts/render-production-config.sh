@@ -6,8 +6,7 @@ OUT_DIR="${1:-$ROOT_DIR/dist}"
 
 required_vars=(
   APP_BASE_URL
-  KRATOS_BROWSER_URL
-  HYDRA_BROWSER_URL
+  HYDRA_HOSTNAME
   SESSION_COOKIE_DOMAIN
   KRATOS_TOTP_ISSUER
   KRATOS_SMTP_FROM_ADDRESS
@@ -23,6 +22,11 @@ for var_name in "${required_vars[@]}"; do
     exit 1
   fi
 done
+
+# Derive browser-facing URLs from canonical base URLs.
+# These are always the same domain in this deployment topology
+# and do not need to be set separately in .env.production.
+export HYDRA_HOSTNAME
 
 render_template() {
   local src="$1"
