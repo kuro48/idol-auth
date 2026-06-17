@@ -100,3 +100,70 @@
   gap: var(--space-2);
 }
 .deletionDate { font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--color-danger); }
+
+.oshiColorRow { display: inline-flex; align-items: center; gap: var(--space-2); }
+.oshiColorChip { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--color-border); display: inline-block; }
+.oshiColorHex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-secondary); }
+.oshiList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.oshiListItem { display: flex; gap: var(--space-3); align-items: baseline; font-size: var(--text-sm); }
+.oshiListId { color: var(--color-text); font-weight: var(--font-weight-medium); }
+.oshiListSince { color: var(--color-text-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: var(--space-2);
+  max-width: 320px;
+}
+.swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  cursor: pointer;
+  padding: 0;
+  background: var(--color-surface-raised);
+  transition: transform var(--duration-fast), border-color var(--duration-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.swatch:hover { transform: scale(1.08); }
+.swatch[data-selected="true"] {
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-text);
+}
+.swatchClear { font-size: var(--text-base); color: var(--color-text-muted); }
+
+.oshiHeader { display: flex; justify-content: space-between; align-items: center; }
+.oshiAddBtn {
+  padding: var(--space-1) var(--space-3);
+  background: transparent;
+  color: var(--color-accent);
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.oshiAddBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.oshiHint { font-size: var(--text-sm); color: var(--color-text-muted); }
+.oshiEditList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.oshiEditItem {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+.oshiRemoveBtn {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .oshiEditItem { grid-template-columns: 1fr; }
+}
