@@ -110,11 +110,13 @@ export interface DeletionRequest {
 export interface SessionView {
   authenticated: boolean
   subject?: string
+  session_id?: string
   identity_id?: string
   email?: string
   display_name?: string
   roles?: string[]
   oshi_color?: string
+  methods?: string[]
   authenticator_assurance_level?: string
 }
 

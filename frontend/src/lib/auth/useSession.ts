@@ -7,15 +7,24 @@ export interface Session {
   email: string
   roles: string[]
   oshiColor: string
+  sessionId: string
+  session_id: string
+  methods: string[]
+  authenticatorAssuranceLevel: string
 }
 
 function toSession(view: SessionView): Session | null {
   if (!view.authenticated) return null
+  const sessionId = view.session_id ?? ''
   return {
     identityId: view.identity_id ?? '',
     email: view.email ?? '',
     roles: view.roles ?? [],
     oshiColor: view.oshi_color ?? '',
+    sessionId,
+    session_id: sessionId,
+    methods: view.methods ?? [],
+    authenticatorAssuranceLevel: view.authenticator_assurance_level ?? '',
   }
 }
 

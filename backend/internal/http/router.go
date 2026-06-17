@@ -77,6 +77,7 @@ type ConsentFlowResult struct {
 type SessionView struct {
 	Authenticated               bool     `json:"authenticated"`
 	Subject                     string   `json:"subject,omitempty"`
+	SessionID                   string   `json:"session_id,omitempty"`
 	IdentityID                  string   `json:"identity_id,omitempty"`
 	Email                       string   `json:"email,omitempty"`
 	Phone                       string   `json:"phone,omitempty"`

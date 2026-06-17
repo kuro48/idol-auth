@@ -424,6 +424,7 @@ func (s *authService) CurrentSession(ctx context.Context, r *http.Request) (Sess
 	return SessionView{
 		Authenticated:               true,
 		Subject:                     session.IdentityID,
+		SessionID:                   session.ID,
 		IdentityID:                  session.IdentityID,
 		Email:                       session.Email,
 		Phone:                       session.Phone,

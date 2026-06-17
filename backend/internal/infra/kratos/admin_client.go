@@ -469,13 +469,19 @@ func (c *AdminClient) ListSessionsForIdentity(ctx context.Context, identityID st
 	}
 
 	var raw []struct {
-		ID              string `json:"id"`
-		Active          bool   `json:"active"`
-		ExpiresAt       string `json:"expires_at"`
-		AuthenticatedAt string `json:"authenticated_at"`
-		IssuedAt        string `json:"issued_at"`
-		Devices         []struct {
+		ID                          string `json:"id"`
+		Active                      bool   `json:"active"`
+		ExpiresAt                   string `json:"expires_at"`
+		AuthenticatedAt             string `json:"authenticated_at"`
+		IssuedAt                    string `json:"issued_at"`
+		AuthenticatorAssuranceLevel string `json:"authenticator_assurance_level"`
+		AuthenticationMethods       []struct {
+			Method string `json:"method"`
+		} `json:"authentication_methods"`
+		Devices []struct {
 			UserAgent string `json:"user_agent"`
+			IPAddress string `json:"ip_address"`
+			Location  string `json:"location"`
 		} `json:"devices"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
@@ -484,9 +490,21 @@ func (c *AdminClient) ListSessionsForIdentity(ctx context.Context, identityID st
 
 	sessions := make([]account.SessionInfo, len(raw))
 	for i, r := range raw {
-		device := ""
+		var (
+			device    string
+			ipAddress string
+			location  string
+		)
 		if len(r.Devices) > 0 {
 			device = r.Devices[0].UserAgent
+			ipAddress = r.Devices[0].IPAddress
+			location = r.Devices[0].Location
+		}
+		methods := make([]string, 0, len(r.AuthenticationMethods))
+		for _, m := range r.AuthenticationMethods {
+			if m.Method != "" {
+				methods = append(methods, m.Method)
+			}
 		}
 		sessions[i] = account.SessionInfo{
 			ID:              r.ID,
@@ -495,6 +513,10 @@ func (c *AdminClient) ListSessionsForIdentity(ctx context.Context, identityID st
 			AuthenticatedAt: r.AuthenticatedAt,
 			CreatedAt:       r.IssuedAt,
 			Device:          device,
+			IPAddress:       ipAddress,
+			Location:        location,
+			AAL:             r.AuthenticatorAssuranceLevel,
+			Methods:         methods,
 		}
 	}
 	return sessions, nil
