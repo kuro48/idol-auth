@@ -29,6 +29,9 @@ type Repository interface {
 	Record(ctx context.Context, evt Event) error
 	// ListByIdentity returns events for identityID ordered by AuthenticatedAt DESC.
 	ListByIdentity(ctx context.Context, identityID string, limit int) ([]Event, error)
+	// HasLoginFromUserAgent returns true when identityID has at least one recorded
+	// event with the given user agent whose authenticated_at is after since.
+	HasLoginFromUserAgent(ctx context.Context, identityID, userAgent string, since time.Time) (bool, error)
 }
 
 // Service is a thin wrapper that trims input and calls the repository.
@@ -63,4 +66,20 @@ func (s *Service) List(ctx context.Context, identityID string, limit int) ([]Eve
 		limit = 50
 	}
 	return s.repo.ListByIdentity(ctx, id, limit)
+}
+
+// IsNewDevice returns true if no prior login event exists for identityID with
+// the given user agent within 30 days before the provided reference time.
+// Returns false when identityID or userAgent is blank.
+func (s *Service) IsNewDevice(ctx context.Context, identityID, userAgent string, since time.Time) (bool, error) {
+	id := strings.TrimSpace(identityID)
+	ua := strings.TrimSpace(userAgent)
+	if id == "" || ua == "" {
+		return false, nil
+	}
+	seen, err := s.repo.HasLoginFromUserAgent(ctx, id, ua, since)
+	if err != nil {
+		return false, err
+	}
+	return !seen, nil
 }

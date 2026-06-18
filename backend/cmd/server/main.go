@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -104,7 +105,7 @@ func run() error {
 		kratosAdmin,
 	)
 	loginHistoryService := loginhistory.NewService(db.NewLoginEventRepository(dbPool))
-	apphttp.SetLoginRecorder(authService, newLoginRecorder(loginHistoryService))
+	apphttp.SetLoginRecorder(authService, newLoginRecorder(loginHistoryService, accountNotifier, kratosAdmin))
 	profileService := profile.NewService(kratosAdmin)
 	publicService := apphttp.NewPublicAuthService(
 		hydraFacade,
@@ -189,15 +190,29 @@ func runDeletionWorker(ctx context.Context, accountSvc *account.Service) {
 	}
 }
 
+// deviceLoginNotifier sends an email when a login from a new device is detected.
+type deviceLoginNotifier interface {
+	NotifyNewDeviceLogin(ctx context.Context, identityID, ipAddress, userAgent string, at time.Time) error
+}
+
+// profileGetter retrieves an identity's profile including notification preferences.
+type profileGetter interface {
+	GetIdentityProfile(ctx context.Context, identityID string) (profile.Profile, error)
+}
+
 // loginRecorderAdapter bridges apphttp.LoginRecorder to loginhistory.Service.
 // RecordObservedSession returns immediately and persists the event from a
 // background goroutine so request handling latency is unaffected.
+// When mailer and profiler are set, it also detects new-device logins and
+// sends a notification when security_alerts preferences are enabled.
 type loginRecorderAdapter struct {
-	svc *loginhistory.Service
+	svc     *loginhistory.Service
+	mailer  deviceLoginNotifier
+	profiler profileGetter
 }
 
-func newLoginRecorder(svc *loginhistory.Service) *loginRecorderAdapter {
-	return &loginRecorderAdapter{svc: svc}
+func newLoginRecorder(svc *loginhistory.Service, mailer deviceLoginNotifier, profiler profileGetter) *loginRecorderAdapter {
+	return &loginRecorderAdapter{svc: svc, mailer: mailer, profiler: profiler}
 }
 
 func (a *loginRecorderAdapter) RecordObservedSession(_ context.Context, session apphttp.KratosSession) {
@@ -218,10 +233,39 @@ func (a *loginRecorderAdapter) RecordObservedSession(_ context.Context, session 
 		UserAgent:       session.UserAgent,
 	}
 	go func() {
-		bg, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := a.svc.Record(bg, evt); err != nil {
+
+		// Check for new device BEFORE recording so the current session is not included.
+		isNew := false
+		if a.mailer != nil && a.profiler != nil && strings.TrimSpace(evt.UserAgent) != "" {
+			since := evt.AuthenticatedAt.Add(-30 * 24 * time.Hour)
+			var err error
+			isNew, err = a.svc.IsNewDevice(ctx, evt.IdentityID, evt.UserAgent, since)
+			if err != nil {
+				slog.Warn("check new device failed", "identity_id", evt.IdentityID, "error", err)
+				isNew = false
+			}
+		}
+
+		if err := a.svc.Record(ctx, evt); err != nil {
 			slog.Warn("login history record failed", "session_id", evt.SessionID, "error", err)
+			return
+		}
+
+		if !isNew {
+			return
+		}
+		p, err := a.profiler.GetIdentityProfile(ctx, evt.IdentityID)
+		if err != nil {
+			slog.Warn("get profile for new device check failed", "identity_id", evt.IdentityID, "error", err)
+			return
+		}
+		if !p.NotificationPreferences.SecurityAlerts {
+			return
+		}
+		if err := a.mailer.NotifyNewDeviceLogin(ctx, evt.IdentityID, evt.IPAddress, evt.UserAgent, evt.AuthenticatedAt); err != nil {
+			slog.Warn("new device login notification failed", "identity_id", evt.IdentityID, "error", err)
 		}
 	}()
 }

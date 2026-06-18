@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kuro48/idol-auth/internal/domain/loginhistory"
@@ -82,4 +83,18 @@ func (r *LoginEventRepository) ListByIdentity(ctx context.Context, identityID st
 		return nil, fmt.Errorf("iterate login events: %w", err)
 	}
 	return out, nil
+}
+
+func (r *LoginEventRepository) HasLoginFromUserAgent(ctx context.Context, identityID, userAgent string, since time.Time) (bool, error) {
+	const query = `
+		SELECT EXISTS(
+			SELECT 1 FROM login_events
+			WHERE identity_id = $1 AND user_agent = $2 AND authenticated_at > $3
+		)
+	`
+	var exists bool
+	if err := r.pool.QueryRow(ctx, query, identityID, userAgent, since).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check login from user agent: %w", err)
+	}
+	return exists, nil
 }

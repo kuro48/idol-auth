@@ -81,6 +81,28 @@ func execTemplate(tmpl *template.Template, data map[string]any) string {
 	return buf.String()
 }
 
+// NotifyNewDeviceLogin sends an email to identityID when a login from a previously
+// unseen device is detected. No-ops when the notifier is not configured.
+func (n *AccountSMTPNotifier) NotifyNewDeviceLogin(ctx context.Context, identityID, ipAddress, userAgent string, at time.Time) error {
+	email, err := n.resolver.GetIdentityEmail(ctx, identityID)
+	if err != nil {
+		return fmt.Errorf("account notifier: resolve email for new device: %w", err)
+	}
+	if strings.TrimSpace(email) == "" {
+		return nil
+	}
+	subject := fmt.Sprintf("[%s] 新しいデバイスからのログインを検出しました", n.appName)
+	body := execTemplate(newDeviceLoginTmpl, map[string]any{
+		"AppName":    n.appName,
+		"Time":       at.UTC().Format("2006-01-02 15:04:05 UTC"),
+		"IPAddress":  ipAddress,
+		"UserAgent":  userAgent,
+		"AccountURL": n.baseURL + "/account",
+	})
+	helper := &SMTPNotifier{from: n.from, addr: n.addr}
+	return helper.send(email, subject, body)
+}
+
 var deletionScheduledTmpl = template.Must(template.New("deletion_scheduled").Parse(`Hello,
 
 Your account on {{.AppName}} has been scheduled for deletion on {{.ScheduledFor}}.
@@ -91,4 +113,19 @@ If you did not request this, you can cancel the deletion by signing in to your a
 If you want to proceed with deletion, no action is needed.
 
 — The {{.AppName}} Team
+`))
+
+var newDeviceLoginTmpl = template.Must(template.New("new_device_login").Parse(`こんにちは、
+
+{{.AppName}} のアカウントに新しいデバイスからのログインが検出されました。
+
+日時: {{.Time}}
+IPアドレス: {{.IPAddress}}
+デバイス: {{.UserAgent}}
+
+ご自身のログインであれば、このメールは無視してください。
+身に覚えがない場合は、すぐにパスワードを変更してください:
+{{.AccountURL}}
+
+— {{.AppName}} チーム
 `))
