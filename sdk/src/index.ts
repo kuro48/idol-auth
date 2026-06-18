@@ -1,6 +1,11 @@
 export { IdolAuthClient, IdolAuthError, IdolAuthCallbackError } from "./client.js";
 export { generateCodeVerifier, generateCodeChallenge, generatePKCE } from "./pkce.js";
 export type { PKCEPair } from "./pkce.js";
+export {
+  createSignInWithIdoliumButton,
+  mountSignInWithIdoliumButton,
+} from "./signInButton.js";
+export type { SignInWithIdoliumOptions } from "./signInButton.js";
 export type {
   IdolAuthClientOptions,
   BrowserLoginParams,

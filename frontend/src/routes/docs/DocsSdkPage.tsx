@@ -35,6 +35,51 @@ export const auth = new IdolAuthClient({
   scopes: ["openid", "profile"],
 });`}</code></pre>
 
+      <h2>「idoliumでログイン」ボタン</h2>
+      <p>
+        SDK にはフレームワーク非依存の公式ログインボタンが含まれており、HTML要素として
+        任意の DOM コンテナにマウントできます。クリック時に <code>loginWithRedirect</code> を
+        呼び出して OAuth2 + PKCE フローを開始します。
+      </p>
+      <pre><code>{`import {
+  IdolAuthClient,
+  mountSignInWithIdoliumButton,
+} from "@idol-auth/client";
+
+const client = new IdolAuthClient({ baseUrl: "https://auth.example.com" });
+
+mountSignInWithIdoliumButton(
+  document.getElementById("signin-container")!,
+  {
+    client,
+    clientId: "YOUR_CLIENT_ID",
+    redirectUri: "https://your-app.example.com/callback",
+    theme: "auto", // "light" | "dark" | "auto"
+    onError: err => console.error(err),
+  },
+);`}</code></pre>
+      <p>
+        React など仮想 DOM フレームワークから利用する場合は <code>createSignInWithIdoliumButton</code> を
+        useEffect 内で呼び、返ってきた要素を ref 経由でマウントしてください。
+      </p>
+      <pre><code>{`import { useEffect, useRef } from "react";
+import { createSignInWithIdoliumButton } from "@idol-auth/client";
+
+export function SignInButton() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const btn = createSignInWithIdoliumButton({
+      client,
+      clientId: "YOUR_CLIENT_ID",
+      redirectUri: "https://your-app.example.com/callback",
+    });
+    ref.current.appendChild(btn);
+    return () => { btn.remove(); };
+  }, []);
+  return <div ref={ref} />;
+}`}</code></pre>
+
       <h2>Authorization Code + PKCE フロー</h2>
       <p>
         SPA・ネイティブアプリは Client Secret を安全に保持できないため、必ず PKCE を使用してください。
