@@ -41,7 +41,7 @@
             echo "idol-auth nix shell"
             echo "  make test"
             echo "  nix run .#render-production-config"
-            echo "  nix run .#deploy-production -- .env.production"
+            echo "  nix run .#deploy-production -- .env"
           '';
         };
 
@@ -82,28 +82,6 @@
                 exec "$PWD/scripts/deploy-production.sh" "$@"
               '';
             }}/bin/deploy-production";
-          };
-
-          backup-postgres = {
-            type = "app";
-            program = "${pkgs.writeShellApplication {
-              name = "backup-postgres";
-              runtimeInputs = with pkgs; [
-                bash
-                coreutils
-                docker-client
-                docker-compose
-                gzip
-              ];
-              text = ''
-                if [[ $# -gt 0 ]]; then
-                  export ENV_FILE="$1"
-                  shift
-                fi
-
-                exec "$PWD/scripts/backup-postgres.sh" "$@"
-              '';
-            }}/bin/backup-postgres";
           };
         };
       });

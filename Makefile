@@ -14,7 +14,7 @@ COMPOSE_ENV = POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 	ADMIN_BOOTSTRAP_TOKEN=$(ADMIN_BOOTSTRAP_TOKEN) \
 	CORS_ALLOWED_ORIGINS=$(CORS_ALLOWED_ORIGINS)
 
-.PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config production-bundle publish-deploy-branch nix-develop nix-config-check nix-render-production-config nix-deploy-production nix-backup-postgres frontend-dev frontend-build frontend-openapi
+.PHONY: up down test vuln swagger check-health e2e wait verify-local config-check render-production-config production-bundle publish-deploy-branch nix-develop nix-config-check nix-render-production-config nix-deploy-production frontend-dev frontend-build frontend-openapi
 
 up:
 	$(COMPOSE_ENV) docker compose up -d --build
@@ -57,10 +57,7 @@ nix-render-production-config:
 	cd backend && nix --extra-experimental-features "nix-command flakes" run .#render-production-config
 
 nix-deploy-production:
-	cd backend && nix --extra-experimental-features "nix-command flakes" run .#deploy-production -- ../.env.production
-
-nix-backup-postgres:
-	cd backend && nix --extra-experimental-features "nix-command flakes" run .#backup-postgres -- ../.env.production
+	cd backend && nix --extra-experimental-features "nix-command flakes" run .#deploy-production -- ../.env
 
 e2e:
 	cd backend && RUN_E2E=1 AUTH_URL=$(AUTH_URL) KRATOS_BROWSER_URL=$(KRATOS_BROWSER_URL) MAILPIT_URL=$(MAILPIT_URL) go test ./integration/... -v

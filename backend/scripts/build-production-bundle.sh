@@ -5,13 +5,11 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/dist/production-bundle}"
 
 include_paths=(
-  .env.production.example
-  Makefile
-  docker-compose.production.yml
-  deploy/hydra
-  deploy/kratos
+  docker-compose.yml
+  deploy/hydra/hydra.production.yml.tmpl
+  deploy/kratos/identity.schema.json
+  deploy/kratos/kratos.production.yml.tmpl
   deploy/postgres
-  scripts/backup-postgres.sh
   scripts/deploy-production.sh
   scripts/export-env-file.sh
   scripts/render-production-config.sh
@@ -37,8 +35,6 @@ copy_path() {
 for path in "${include_paths[@]}"; do
   copy_path "$path"
 done
-
-find "$OUT_DIR" -type f -name '*_test.go' -delete
 
 file_count="$(find "$OUT_DIR" -type f | wc -l | tr -d ' ')"
 bundle_size="$(du -sh "$OUT_DIR" | awk '{print $1}')"

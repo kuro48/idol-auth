@@ -25,7 +25,7 @@ done
 
 # Derive browser-facing URLs from canonical base URLs.
 # These are always the same domain in this deployment topology
-# and do not need to be set separately in .env.production.
+# and do not need to be set separately in the deploy .env file.
 export HYDRA_HOSTNAME
 
 render_template() {
