@@ -121,7 +121,8 @@ func registerFlow(mux *http.ServeMux, page flowPageConfig, flowType, title, desc
 		}
 		flow, err := page.kratosClient.GetFlow(r.Context(), r, flowType, flowID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			slog.Warn("flow fetch failed, restarting flow", "flow_type", flowType, "flow_id", flowID, "error", err)
+			http.Redirect(w, r, page.kratosClient.BrowserInitURL(flowType), http.StatusFound)
 			return
 		}
 		if err := demo.RenderPage(w, demo.PageData{
