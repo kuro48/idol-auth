@@ -42,8 +42,22 @@ const rootRoute = createRootRoute({
 const shellRoute = createRoute({ getParentRoute: () => rootRoute, id: 'shell', component: AppShell })
 
 function RootRedirect() {
-  useEffect(() => { window.location.replace('/login') }, [])
+  useEffect(() => {
+    const dest = window.location.hostname.startsWith('admin.') ? '/admin/apps' : '/login'
+    window.location.replace(dest)
+  }, [])
   return null
+}
+
+function AdminGuard() {
+  const { isAdmin, isLoading } = useSession()
+  useEffect(() => {
+    if (!isLoading && !isAdmin) {
+      window.location.replace('/login')
+    }
+  }, [isAdmin, isLoading])
+  if (isLoading || !isAdmin) return null
+  return createElement(Outlet, null)
 }
 
 // Root redirects to /login (server-rendered by the backend)
@@ -68,7 +82,7 @@ const devAppRequestsNewRoute = createRoute({ getParentRoute: () => devRoute, pat
 const devAppRequestDetailRoute = createRoute({ getParentRoute: () => devRoute, path: '/app-requests/$id', component: AppRequestDetailPage })
 
 // Admin routes
-const adminRoute = createRoute({ getParentRoute: () => shellRoute, path: '/admin' })
+const adminRoute = createRoute({ getParentRoute: () => shellRoute, path: '/admin', component: AdminGuard })
 const adminAppsRoute = createRoute({ getParentRoute: () => adminRoute, path: '/apps', component: AdminAppsPage })
 const adminUsersRoute = createRoute({ getParentRoute: () => adminRoute, path: '/users', component: AdminUsersPage })
 const adminAuditRoute = createRoute({ getParentRoute: () => adminRoute, path: '/audit-logs', component: AdminAuditLogsPage })

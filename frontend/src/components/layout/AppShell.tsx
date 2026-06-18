@@ -12,7 +12,18 @@ interface NavSection {
   items: NavItem[]
 }
 
-function buildSections(isAdmin: boolean, isDeveloper: boolean): NavSection[] {
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  { to: '/admin/apps', label: 'Apps' },
+  { to: '/admin/users', label: 'Users' },
+  { to: '/admin/app-requests', label: 'App Requests' },
+  { to: '/admin/audit-logs', label: 'Audit Logs' },
+]
+
+function buildSections(isAdmin: boolean, isDeveloper: boolean, isAdminHost: boolean): NavSection[] {
+  if (isAdminHost) {
+    return [{ title: 'Admin', items: ADMIN_NAV_ITEMS }]
+  }
+
   const sections: NavSection[] = [
     {
       title: 'Account',
@@ -39,12 +50,7 @@ function buildSections(isAdmin: boolean, isDeveloper: boolean): NavSection[] {
   if (isAdmin) {
     sections.unshift({
       title: 'Admin',
-      items: [
-        { to: '/admin/apps', label: 'Apps' },
-        { to: '/admin/users', label: 'Users' },
-        { to: '/admin/app-requests', label: 'App Requests' },
-        { to: '/admin/audit-logs', label: 'Audit Logs' },
-      ],
+      items: ADMIN_NAV_ITEMS,
     })
   }
 
@@ -63,7 +69,8 @@ function NavLink({ to, label }: NavItem) {
 
 export function AppShell() {
   const { session, isAdmin, isDeveloper } = useSession()
-  const sections = buildSections(isAdmin, isDeveloper)
+  const isAdminHost = window.location.hostname.startsWith('admin.')
+  const sections = buildSections(isAdmin, isDeveloper, isAdminHost)
 
   return (
     <div className={styles.shell}>
