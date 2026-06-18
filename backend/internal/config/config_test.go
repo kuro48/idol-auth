@@ -202,6 +202,7 @@ func TestLoad_ProductionRejectsInsecureSettings(t *testing.T) {
 func TestLoad_ProductionAllowsHardenedSettings(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://user:pass@db.example.com:5432/prod?sslmode=require")
 	setRequiredOryVars(t)
+	t.Setenv("ADMIN_BOOTSTRAP_TOKEN", "")
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("APP_BASE_URL", "https://auth.example.com")
 	t.Setenv("KRATOS_BROWSER_URL", "https://accounts.example.com")
@@ -257,4 +258,3 @@ func TestLoad_ProductionRejectsExternalDatabaseWithoutSSL(t *testing.T) {
 		t.Fatal("expected external production database without SSL to be rejected")
 	}
 }
-
