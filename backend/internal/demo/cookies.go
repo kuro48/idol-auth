@@ -12,7 +12,7 @@ func FilterOryCookies(cookieHeader string) string {
 	ory := make([]string, 0, len(parts))
 	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
-		if strings.HasPrefix(trimmed, "ory_") {
+		if strings.HasPrefix(trimmed, "ory_") || strings.HasPrefix(trimmed, "csrf_token_") {
 			ory = append(ory, trimmed)
 		}
 	}

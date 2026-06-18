@@ -50,8 +50,8 @@ func TestKratosFlowClientGetFlowUsesAPIBaseAndForwardsOnlyOryCookies(t *testing.
 }
 
 func TestFilterOryCookies(t *testing.T) {
-	got := FilterOryCookies("foo=bar; ory_session=test; csrf=x; ory_kratos_session=y")
-	for _, want := range []string{"ory_session=test", "ory_kratos_session=y"} {
+	got := FilterOryCookies("foo=bar; ory_session=test; csrf=x; ory_kratos_session=y; csrf_token_abc=z")
+	for _, want := range []string{"ory_session=test", "ory_kratos_session=y", "csrf_token_abc=z"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q to contain %q", got, want)
 		}
