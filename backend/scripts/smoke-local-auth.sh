@@ -148,7 +148,6 @@ curl -sS -D "$WORKDIR/registration-complete.headers" -o "$WORKDIR/registration-c
   --data-urlencode "csrf_token=$CSRF" \
   --data-urlencode "traits.primary_identifier_type=email" \
   --data-urlencode "traits.email=$EMAIL" \
-  --data-urlencode "traits.phone=" \
   --data-urlencode "password=$PASSWORD" \
   --data-urlencode "method=password"
 VERIFICATION_URL="$(awk '/^Location:/ {print $2}' "$WORKDIR/registration-complete.headers" | tr -d '\r')"

@@ -686,8 +686,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     {{ if eq .FlowType "registration" }}
       <section class="registration-intro" aria-labelledby="registration-intro-title">
         <p class="registration-kicker">Registration</p>
-        <h2 id="registration-intro-title">メールアドレスまたは電話番号とパスワードを同じ画面で入力</h2>
-        <p class="registration-copy">この画面で、連絡先とログイン用パスワードをまとめて登録します。メールアドレスか電話番号のどちらかは必ず入力してください。</p>
+        <h2 id="registration-intro-title">メールアドレスとパスワードを入力</h2>
+        <p class="registration-copy">登録にはメールアドレスが必要です。登録後、メールに届く確認コードを入力するとログインできるようになります。</p>
         <div class="registration-guidance">
           <p class="guidance-title">パスワード条件</p>
           <p class="guidance-copy">8文字以上で、英大文字・英小文字・数字・記号のうち3種類以上を含めてください。</p>
@@ -711,15 +711,6 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
       </div>
     {{ end }}
     <form id="kratos-flow-form" action="{{ .Flow.UI.Action }}" method="{{ .Flow.UI.Method }}" data-flow-type="{{ .FlowType }}">
-      {{ if and (eq $.FlowType "registration") (hasBothIdentifiers $.Flow.UI.Nodes) }}
-        <div class="field" id="primary-identifier-field">
-          <label for="primary_identifier_display">メールアドレスまたは電話番号</label>
-          <input id="primary_identifier_display" name="primary_identifier_display" type="text" autocomplete="email" inputmode="email" placeholder="you@example.com または 09012345678" required>
-          <input type="hidden" name="traits.email" id="hidden-traits-email">
-          <input type="hidden" name="traits.phone" id="hidden-traits-phone">
-          <span id="identifier-type-hint" class="identifier-hint"></span>
-        </div>
-      {{ end }}
       {{ range .Flow.UI.Nodes }}
         {{ range .Messages }}<div class="alert alert-error">{{ translateMessage . }}</div>{{ end }}
         {{ if eq .Type "img" }}
@@ -739,8 +730,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             </div>
           </details>
         {{ else if eq .Attributes.Name "traits.primary_identifier_type" }}
-          <input type="hidden" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">
-        {{ else if and (eq $.FlowType "registration") (isPrimaryIdentifierTrait .Attributes.Name) (hasBothIdentifiers $.Flow.UI.Nodes) }}
+          <input type="hidden" name="{{ .Attributes.Name }}" value="email">
+        {{ else if and (eq $.FlowType "registration") (eq .Attributes.Name "traits.phone") }}
         {{ else if eq .Attributes.Type "hidden" }}
           <input type="hidden" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">
         {{ else if and (eq $.FlowType "registration") (eq .Attributes.Name "method") (eq .Attributes.Value "profile") }}
@@ -802,13 +793,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           form.appendChild(hidden);
         }
         var email=form.querySelector('input[name="traits.email"]');
-        var phone=form.querySelector('input[name="traits.phone"]');
-        var primaryInput=form.querySelector('#primary_identifier_display');
-        var hiddenEmailField=form.querySelector('#hidden-traits-email');
-        var hiddenPhoneField=form.querySelector('#hidden-traits-phone');
         var passwordField=form.querySelector('input[name="password"]');
         var passwordStrengthPanel=document.getElementById('password-strength-panel');
-        var lastIdentifierType='';
         function passwordState(value){
           var hasUpper=/[A-Z]/.test(value);
           var hasLower=/[a-z]/.test(value);
@@ -845,46 +831,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             label:label
           };
         }
-        function detectIdentifierType(v){
-          if(!v)return null;
-          if(v.indexOf('@')>=0)return 'email';
-          var cleaned=v.replace(/[\s\-()+]/g,'');
-          if(/^[0-9+]/.test(v)&&/^[0-9\s\-().+]+$/.test(v)&&cleaned.length>=7)return 'phone';
-          return null;
-        }
-        function syncCombinedIdentifier(){
-          var val=(primaryInput.value||'').trim();
-          var type=detectIdentifierType(val);
-          var hint=document.getElementById('identifier-type-hint');
-          if(type==='email'){
-            hiddenEmailField.value=val;
-            hiddenPhoneField.value='';
-            hidden.value='email';
-            primaryInput.setAttribute('autocomplete','email');
-            primaryInput.setAttribute('inputmode','email');
-            if(hint){hint.textContent='メールアドレスとして登録されます';hint.className='identifier-hint is-email';}
-          }else if(type==='phone'){
-            hiddenEmailField.value='';
-            hiddenPhoneField.value=val;
-            hidden.value='phone';
-            primaryInput.setAttribute('autocomplete','tel');
-            primaryInput.setAttribute('inputmode','tel');
-            if(hint){hint.textContent='電話番号として登録されます';hint.className='identifier-hint is-phone';}
-          }else{
-            hiddenEmailField.value=val;
-            hiddenPhoneField.value='';
-            hidden.value=val?'email':'';
-            if(hint){hint.textContent='';hint.className='identifier-hint';}
-          }
-        }
         function syncPrimaryIdentifierType(){
-          if(primaryInput&&hiddenEmailField&&hiddenPhoneField){syncCombinedIdentifier();return;}
-          var emailValue=email&&email.value.trim();
-          var phoneValue=phone&&phone.value.trim();
-          if(emailValue&&!phoneValue){hidden.value='email';return;}
-          if(phoneValue&&!emailValue){hidden.value='phone';return;}
-          if(emailValue&&phoneValue){hidden.value=lastIdentifierType||hidden.value||'email';return;}
-          hidden.value='';
+          hidden.value='email';
         }
         function syncPasswordStrength(){
           if(!passwordField||!passwordStrengthPanel){
@@ -919,15 +867,10 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           passwordField.setCustomValidity(state.valid||passwordField.value.length===0?'':'パスワードは8文字以上で、英大文字・英小文字・数字・記号のうち3種類以上を含めてください。');
           return state.valid||passwordField.value.length===0;
         }
-        if(!primaryInput){
-          if(email){
-            email.autocomplete='email';
-            email.placeholder='you@example.com';
-          }
-          if(phone){
-            phone.autocomplete='tel';
-            phone.placeholder='09012345678';
-          }
+        if(email){
+          email.autocomplete='email';
+          email.inputMode='email';
+          email.placeholder='you@example.com';
         }
         if(passwordField){
           passwordField.autocomplete='new-password';
@@ -940,21 +883,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           passwordField.addEventListener('blur',syncPasswordStrength);
           syncPasswordStrength();
         }
-        if(primaryInput){
-          primaryInput.addEventListener('input',syncPrimaryIdentifierType);
-        }else{
-          if(email){
-            email.addEventListener('input',function(){
-              lastIdentifierType='email';
-              syncPrimaryIdentifierType();
-            });
-          }
-          if(phone){
-            phone.addEventListener('input',function(){
-              lastIdentifierType='phone';
-              syncPrimaryIdentifierType();
-            });
-          }
+        if(email){
+          email.addEventListener('input',syncPrimaryIdentifierType);
         }
         form.addEventListener('submit',function(){
           syncPrimaryIdentifierType();

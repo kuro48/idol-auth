@@ -59,12 +59,14 @@ func TestKratosIdentitySchemaOnlyAllowsEmailAsRegistrationIdentifier(t *testing.
 		t.Fatalf("expected primary_identifier_type enum to only allow email, got %v", enum)
 	}
 
-	phone := nestedMap(t, traits, "phone", "ory.sh/kratos")
-	if _, ok := phone["credentials"]; ok {
-		t.Fatal("phone must not be usable as a registration or login credential")
-	}
-	if _, ok := phone["verification"]; ok {
-		t.Fatal("phone verification is disabled until an SMS provider is configured")
+	phone := nestedMap(t, traits, "phone")
+	if kratos, ok := phone["ory.sh/kratos"].(map[string]any); ok {
+		if _, ok := kratos["credentials"]; ok {
+			t.Fatal("phone must not be usable as a registration or login credential")
+		}
+		if _, ok := kratos["verification"]; ok {
+			t.Fatal("phone verification is disabled until an SMS provider is configured")
+		}
 	}
 }
 
