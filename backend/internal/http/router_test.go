@@ -63,7 +63,6 @@ func TestHandleReadyz(t *testing.T) {
 	}
 }
 
-
 func TestLoginPageUsesAccountCenterDesignSystem(t *testing.T) {
 	router := apphttp.NewRouter(testConfig(), nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
@@ -248,6 +247,33 @@ func TestPublicRegisterRejectsUnknownJSONFields(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "invalid JSON body") {
 		t.Fatalf("expected invalid JSON body error, got %s", w.Body.String())
+	}
+}
+
+func TestPublicRegisterOmitsSessionTokenWhenRegistrationDoesNotCreateSession(t *testing.T) {
+	cfg := testConfig()
+	cfg.PublicSvc = &stubPublicService{
+		registerResult: apphttp.AuthResult{
+			IdentityID: "identity-123",
+			Email:      "user@example.com",
+		},
+	}
+	router := apphttp.NewRouter(cfg, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/v1/public/api/register", bytes.NewBufferString(`{"email":"user@example.com","password":"CorrectHorseBatteryStaple123!"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if strings.Contains(body, "session_token") {
+		t.Fatalf("expected session_token to be omitted when no session is issued, got %s", body)
+	}
+	if !strings.Contains(body, `"identity_id":"identity-123"`) {
+		t.Fatalf("expected identity_id in response, got %s", body)
 	}
 }
 
