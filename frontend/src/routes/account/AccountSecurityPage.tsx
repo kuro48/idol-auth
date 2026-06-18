@@ -17,6 +17,17 @@ interface RecoveryContacts {
   recovery_phone: string
 }
 
+interface SocialProvider {
+  provider: string
+  subject: string
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  google: 'Google',
+  twitter: 'X (Twitter)',
+  apple: 'Apple',
+}
+
 function isAal2Error(err: unknown): boolean {
   return (
     err != null &&
@@ -32,6 +43,12 @@ export function AccountSecurityPage() {
     queryKey: ['account', 'email-status'],
     queryFn: () => api.get<EmailStatus>('/v1/account/email-status'),
   })
+
+  const { data: socialProvidersData } = useQuery({
+    queryKey: ['account', 'social-providers'],
+    queryFn: () => api.get<{ items: SocialProvider[] }>('/v1/account/social-providers'),
+  })
+  const socialProviders = socialProvidersData?.items ?? []
 
   const { data: recoveryContacts } = useQuery({
     queryKey: ['account', 'recovery-contacts'],
@@ -257,6 +274,34 @@ export function AccountSecurityPage() {
             )}
           </section>
         )}
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <h2 className={styles.sectionTitle}>連携済みソーシャルログイン</h2>
+              <p className={styles.sectionDesc}>
+                Google / X / Apple などのアカウントで直接ログインできます。
+              </p>
+            </div>
+            <a className={styles.addBtn} href="/settings">
+              ソーシャルログインを追加
+            </a>
+          </div>
+          {socialProviders.length === 0 ? (
+            <p className={styles.empty}>連携済みのソーシャルログインはありません。</p>
+          ) : (
+            <ul className={styles.list} aria-label="連携済みソーシャルログイン">
+              {socialProviders.map(p => (
+                <li key={p.provider + ':' + p.subject} className={styles.item}>
+                  <div className={styles.itemInfo}>
+                    <span className={styles.itemName}>{PROVIDER_LABELS[p.provider] ?? p.provider}</span>
+                    <span className={styles.sectionDesc}>{p.subject}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>

@@ -459,6 +459,12 @@ func (s *Service) GetMembershipForApp(ctx context.Context, appID uuid.UUID, iden
 	return s.memberships.GetByAppAndIdentity(ctx, appID, strings.TrimSpace(identityID))
 }
 
+// SocialProvider represents a linked OIDC social login provider.
+type SocialProvider struct {
+	Provider string `json:"provider"`
+	Subject  string `json:"subject"`
+}
+
 // SessionInfo holds summary data for a single authenticated session.
 type SessionInfo struct {
 	ID              string   `json:"id"`

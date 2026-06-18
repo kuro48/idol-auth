@@ -1,6 +1,9 @@
 import type { IdolAuthClient } from "./client.js";
 import type { LoginWithRedirectOptions } from "./types.js";
 
+/** OIDC social provider identifier passed to Kratos login flow. */
+export type SocialProvider = "google" | "twitter" | "apple";
+
 export interface SignInWithIdoliumOptions {
   /** Configured IdolAuthClient instance. */
   client: IdolAuthClient;
@@ -16,6 +19,12 @@ export interface SignInWithIdoliumOptions {
   theme?: "light" | "dark" | "auto";
   /** Disable the button. */
   disabled?: boolean;
+  /**
+   * Optional social/OIDC provider to use for login.
+   * When set the Kratos login URL will include `?provider=<id>` so the browser
+   * is taken directly to the social provider's OAuth screen.
+   */
+  provider?: SocialProvider;
   /** Called before the redirect is initiated. */
   onClick?: (event: MouseEvent) => void;
   /** Called if loginWithRedirect throws. */

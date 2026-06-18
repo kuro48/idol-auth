@@ -47,6 +47,7 @@ type RouterConfig struct {
 	LoginHistorySvc    LoginHistoryService    // optional; nil disables /v1/account/login-history
 	EmailVerifSvc      EmailVerifChecker      // optional; nil disables /v1/account/email-status
 	PasswordChangeSvc  PasswordChanger        // optional; nil disables /v1/account/password-change
+	SocialProviderSvc  SocialProviderLister   // optional; nil disables /v1/account/social-providers
 }
 
 type LoginFlowResult struct {
@@ -165,6 +166,11 @@ type PasswordChanger interface {
 	ChangePassword(ctx context.Context, r *http.Request, newPassword string) error
 }
 
+// SocialProviderLister lists the OIDC social providers linked to an identity.
+type SocialProviderLister interface {
+	GetSocialProviders(ctx context.Context, identityID string) ([]account.SocialProvider, error)
+}
+
 type themePreferenceService interface {
 	UpdateThemePreference(ctx context.Context, r *http.Request, color string) (SessionView, error)
 }
@@ -187,6 +193,7 @@ type server struct {
 	loginHistorySvc    LoginHistoryService
 	emailVerifSvc      EmailVerifChecker
 	passwordChangeSvc  PasswordChanger
+	socialProviderSvc  SocialProviderLister
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -208,6 +215,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		loginHistorySvc:    cfg.LoginHistorySvc,
 		emailVerifSvc:      cfg.EmailVerifSvc,
 		passwordChangeSvc:  cfg.PasswordChangeSvc,
+		socialProviderSvc:  cfg.SocialProviderSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -315,6 +323,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		if s.passwordChangeSvc != nil {
 			r.Post("/password-change", s.handlePasswordChange)
+		}
+		if s.socialProviderSvc != nil {
+			r.Get("/social-providers", s.handleGetSocialProviders)
 		}
 	})
 

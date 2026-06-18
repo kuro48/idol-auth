@@ -137,6 +137,7 @@ func run() error {
 		LoginHistorySvc:    loginHistoryService,
 		EmailVerifSvc:      kratosAdmin,
 		PasswordChangeSvc:  kratosFrontend,
+		SocialProviderSvc:  kratosAdmin,
 	}, adminService, db.NewReadinessChecker(dbPool), authService)
 
 	srv := &http.Server{

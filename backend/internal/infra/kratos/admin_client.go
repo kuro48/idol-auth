@@ -699,6 +699,53 @@ func (c *AdminClient) getMetadataAdmin(ctx context.Context, identityID string) (
 	return decoded.MetadataAdmin, nil
 }
 
+// GetSocialProviders returns the list of OIDC social providers linked to identityID.
+// Returns an empty slice when none are linked or the identity has no OIDC credentials.
+func (c *AdminClient) GetSocialProviders(ctx context.Context, identityID string) ([]account.SocialProvider, error) {
+	u := c.baseURL + "/admin/identities/" + url.PathEscape(strings.TrimSpace(identityID)) + "?include_credential=oidc"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build kratos get social providers request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call kratos get social providers: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get social providers", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("kratos get social providers returned status %d", resp.StatusCode)
+	}
+
+	var decoded struct {
+		Credentials struct {
+			OIDC *struct {
+				Config struct {
+					Providers []struct {
+						Subject  string `json:"subject"`
+						Provider string `json:"provider"`
+					} `json:"providers"`
+				} `json:"config"`
+			} `json:"oidc"`
+		} `json:"credentials"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return nil, fmt.Errorf("decode kratos get social providers response: %w", err)
+	}
+
+	if decoded.Credentials.OIDC == nil {
+		return []account.SocialProvider{}, nil
+	}
+	providers := make([]account.SocialProvider, 0, len(decoded.Credentials.OIDC.Config.Providers))
+	for _, p := range decoded.Credentials.OIDC.Config.Providers {
+		providers = append(providers, account.SocialProvider{Provider: p.Provider, Subject: p.Subject})
+	}
+	return providers, nil
+}
+
 // GetEmailVerificationStatus returns the primary email address and whether it
 // has been verified for the given identity. Both values are empty/false when
 // the identity has no verifiable addresses.

@@ -239,6 +239,20 @@ func (s *server) handleGetAppUserProfile(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, p.PublicView())
 }
 
+func (s *server) handleGetSocialProviders(w http.ResponseWriter, r *http.Request) {
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	providers, err := s.socialProviderSvc.GetSocialProviders(r.Context(), session.IdentityID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to load social providers")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": providers})
+}
+
 func (s *server) handlePatchRecoveryContacts(w http.ResponseWriter, r *http.Request) {
 	if s.profileSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")

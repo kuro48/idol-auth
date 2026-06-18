@@ -5,7 +5,7 @@ export {
   createSignInWithIdoliumButton,
   mountSignInWithIdoliumButton,
 } from "./signInButton.js";
-export type { SignInWithIdoliumOptions } from "./signInButton.js";
+export type { SignInWithIdoliumOptions, SocialProvider } from "./signInButton.js";
 export type {
   IdolAuthClientOptions,
   BrowserLoginParams,
