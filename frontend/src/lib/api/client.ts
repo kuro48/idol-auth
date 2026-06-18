@@ -21,11 +21,12 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
+    const text = await res.text()
     let body: unknown
     try {
-      body = await res.json()
+      body = JSON.parse(text)
     } catch {
-      body = await res.text()
+      body = text
     }
     throw new ApiError(res.status, body, `${init?.method ?? 'GET'} ${path} → ${res.status}`)
   }

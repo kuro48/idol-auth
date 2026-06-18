@@ -237,10 +237,16 @@ func (c *FrontendClient) ChangePassword(ctx context.Context, r *http.Request, ne
 	if err != nil {
 		return fmt.Errorf("build kratos submit settings flow request: %w", err)
 	}
-	if cookie := r.Header.Get("Cookie"); cookie != "" {
-		if filtered := filterOryCookies(cookie); filtered != "" {
-			submitReq.Header.Set("Cookie", filtered)
-		}
+	// Merge original session cookies with any new cookies set by the init response.
+	cookieParts := make([]string, 0, 8)
+	if filtered := filterOryCookies(r.Header.Get("Cookie")); filtered != "" {
+		cookieParts = append(cookieParts, filtered)
+	}
+	for _, rc := range initResp.Cookies() {
+		cookieParts = append(cookieParts, rc.Name+"="+rc.Value)
+	}
+	if len(cookieParts) > 0 {
+		submitReq.Header.Set("Cookie", strings.Join(cookieParts, "; "))
 	}
 	submitReq.Header.Set("Content-Type", "application/json")
 	submitReq.Header.Set("Accept", "application/json")

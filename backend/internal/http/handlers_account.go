@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -324,7 +325,8 @@ func (s *server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.passwordChangeSvc.ChangePassword(r.Context(), r, req.NewPassword); err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		slog.WarnContext(r.Context(), "password change failed", "error", err)
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
