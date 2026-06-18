@@ -237,3 +237,20 @@ func (s *server) handleGetAppUserProfile(w http.ResponseWriter, r *http.Request)
 	}
 	writeJSON(w, http.StatusOK, p.PublicView())
 }
+
+func (s *server) handleGetEmailStatus(w http.ResponseWriter, r *http.Request) {
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	email, verified, err := s.emailVerifSvc.GetEmailVerificationStatus(r.Context(), session.IdentityID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to check email status")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"email":    email,
+		"verified": verified,
+	})
+}

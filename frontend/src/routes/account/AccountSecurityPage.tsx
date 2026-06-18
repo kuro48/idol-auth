@@ -1,9 +1,16 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { usePasskeys } from '@/lib/kratos/usePasskeys'
 import { useTotp } from '@/lib/kratos/useTotp'
+import { api } from '@/lib/api/client'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import styles from './AccountSecurityPage.module.css'
+
+interface EmailStatus {
+  email: string
+  verified: boolean
+}
 
 function isAal2Error(err: unknown): boolean {
   return (
@@ -14,6 +21,11 @@ function isAal2Error(err: unknown): boolean {
 }
 
 export function AccountSecurityPage() {
+  const { data: emailStatus } = useQuery({
+    queryKey: ['account', 'email-status'],
+    queryFn: () => api.get<EmailStatus>('/v1/account/email-status'),
+  })
+
   const { passkeys, isLoading, error, canRegister, register, remove } = usePasskeys()
   const {
     flow: totpFlow,
@@ -78,6 +90,36 @@ export function AccountSecurityPage() {
         description="パスキーや二段階認証でアカウントを保護します。"
       />
       <div className={styles.content}>
+        {emailStatus && (
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2 className={styles.sectionTitle}>
+                  メールアドレス認証{' '}
+                  {emailStatus.verified
+                    ? <Badge variant="success">認証済み</Badge>
+                    : <Badge variant="default">未認証</Badge>
+                  }
+                </h2>
+                <p className={styles.sectionDesc}>{emailStatus.email}</p>
+              </div>
+              {!emailStatus.verified && (
+                <a
+                  className={styles.addBtn}
+                  href="/settings"
+                >
+                  認証メールを送信
+                </a>
+              )}
+            </div>
+            {!emailStatus.verified && (
+              <p className={styles.sectionDesc}>
+                メールアドレスが未認証です。「認証メールを送信」をクリックして認証を完了してください。
+              </p>
+            )}
+          </section>
+        )}
+
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>

@@ -133,6 +133,7 @@ func run() error {
 		WebhookRepo:        webhookRepo,
 		SessionMgr:         kratosAdmin,
 		LoginHistorySvc:    loginHistoryService,
+		EmailVerifSvc:      kratosAdmin,
 	}, adminService, db.NewReadinessChecker(dbPool), authService)
 
 	srv := &http.Server{

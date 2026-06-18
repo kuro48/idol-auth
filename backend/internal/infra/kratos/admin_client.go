@@ -678,3 +678,46 @@ func (c *AdminClient) getMetadataAdmin(ctx context.Context, identityID string) (
 	}
 	return decoded.MetadataAdmin, nil
 }
+
+// GetEmailVerificationStatus returns the primary email address and whether it
+// has been verified for the given identity. Both values are empty/false when
+// the identity has no verifiable addresses.
+func (c *AdminClient) GetEmailVerificationStatus(ctx context.Context, identityID string) (string, bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), nil)
+	if err != nil {
+		return "", false, fmt.Errorf("build kratos get identity email status request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", false, fmt.Errorf("call kratos get identity email status: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get identity email status", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return "", false, fmt.Errorf("kratos get identity returned status %d", resp.StatusCode)
+	}
+
+	var decoded struct {
+		Traits struct {
+			Email string `json:"email"`
+		} `json:"traits"`
+		VerifiableAddresses []struct {
+			Value    string `json:"value"`
+			Verified bool   `json:"verified"`
+		} `json:"verifiable_addresses"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return "", false, fmt.Errorf("decode kratos get identity email status response: %w", err)
+	}
+
+	email := decoded.Traits.Email
+	for _, addr := range decoded.VerifiableAddresses {
+		if strings.EqualFold(addr.Value, email) {
+			return email, addr.Verified, nil
+		}
+	}
+	return email, false, nil
+}

@@ -45,6 +45,7 @@ type RouterConfig struct {
 	WebhookRepo        app.WebhookRepository  // optional; nil disables PATCH /v1/apps/self/webhook
 	SessionMgr         SessionManager         // optional; nil disables session list/revoke endpoints
 	LoginHistorySvc    LoginHistoryService    // optional; nil disables /v1/account/login-history
+	EmailVerifSvc      EmailVerifChecker      // optional; nil disables /v1/account/email-status
 }
 
 type LoginFlowResult struct {
@@ -153,6 +154,11 @@ type LoginHistoryService interface {
 	List(ctx context.Context, identityID string, limit int) ([]loginhistory.Event, error)
 }
 
+// EmailVerifChecker returns the email address and verification status for an identity.
+type EmailVerifChecker interface {
+	GetEmailVerificationStatus(ctx context.Context, identityID string) (string, bool, error)
+}
+
 type themePreferenceService interface {
 	UpdateThemePreference(ctx context.Context, r *http.Request, color string) (SessionView, error)
 }
@@ -173,6 +179,7 @@ type server struct {
 	webhookRepo        app.WebhookRepository
 	sessionMgr         SessionManager
 	loginHistorySvc    LoginHistoryService
+	emailVerifSvc      EmailVerifChecker
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -192,6 +199,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		webhookRepo:        cfg.WebhookRepo,
 		sessionMgr:         cfg.SessionMgr,
 		loginHistorySvc:    cfg.LoginHistorySvc,
+		emailVerifSvc:      cfg.EmailVerifSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -292,6 +300,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		if s.loginHistorySvc != nil {
 			r.Get("/login-history", s.handleListLoginHistory)
+		}
+		if s.emailVerifSvc != nil {
+			r.Get("/email-status", s.handleGetEmailStatus)
 		}
 	})
 
