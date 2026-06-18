@@ -51,6 +51,10 @@ selfservice:
       enabled: true
       ui_url: {{APP_BASE_URL}}/registration
       lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: show_verification_ui
     login:
       ui_url: {{APP_BASE_URL}}/login
       lifespan: 10m

@@ -87,6 +87,47 @@ else:
 PY
 }
 
+extract_mailpit_verification_code() {
+  local email="$1"
+  python3 - "$MAILPIT_URL" "$email" <<'PY'
+import json
+import re
+import sys
+import time
+import urllib.request
+
+base = sys.argv[1].rstrip("/")
+email = sys.argv[2].lower()
+
+for _ in range(30):
+    with urllib.request.urlopen(f"{base}/api/v1/messages", timeout=5) as resp:
+        listing = json.load(resp)
+    for item in listing.get("messages", []):
+        recipients = item.get("To") or item.get("to") or []
+        recipient_values = []
+        for recipient in recipients:
+            if isinstance(recipient, dict):
+                recipient_values.extend(str(v).lower() for v in recipient.values())
+            else:
+                recipient_values.append(str(recipient).lower())
+        if not any(email in value for value in recipient_values):
+            continue
+        msg_id = item.get("ID") or item.get("id")
+        if not msg_id:
+            continue
+        with urllib.request.urlopen(f"{base}/api/v1/message/{msg_id}", timeout=5) as resp:
+            message = json.load(resp)
+        haystack = "\n".join(str(message.get(key, "")) for key in ("Text", "HTML", "Subject", "Snippet"))
+        match = re.search(r"\b(\d{6})\b", haystack)
+        if match:
+            print(match.group(1))
+            raise SystemExit(0)
+    time.sleep(1)
+
+raise SystemExit(f"verification code for {email} not found in Mailpit")
+PY
+}
+
 echo "==> Registering $EMAIL"
 curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -L "$APP_URL/registration" >"$WORKDIR/registration-step1.html"
 ACTION="$(extract_form_action "$WORKDIR/registration-step1.html")"
@@ -103,11 +144,36 @@ curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$STEP2_URL" >"$WORKDIR/registration-
 ACTION="$(extract_form_action "$WORKDIR/registration-step2.html")"
 CSRF="$(extract_attr "$WORKDIR/registration-step2.html" "csrf_token")"
 
-curl -sS -o /dev/null -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$ACTION" \
+curl -sS -D "$WORKDIR/registration-complete.headers" -o "$WORKDIR/registration-complete.html" -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$ACTION" \
   --data-urlencode "csrf_token=$CSRF" \
   --data-urlencode "traits.primary_identifier_type=email" \
   --data-urlencode "traits.email=$EMAIL" \
   --data-urlencode "traits.phone=" \
+  --data-urlencode "password=$PASSWORD" \
+  --data-urlencode "method=password"
+VERIFICATION_URL="$(awk '/^Location:/ {print $2}' "$WORKDIR/registration-complete.headers" | tr -d '\r')"
+if [[ -n "$VERIFICATION_URL" ]]; then
+  curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$VERIFICATION_URL" >"$WORKDIR/verification.html"
+else
+  cp "$WORKDIR/registration-complete.html" "$WORKDIR/verification.html"
+fi
+
+echo "==> Completing email verification code"
+ACTION="$(extract_form_action "$WORKDIR/verification.html")"
+CSRF="$(extract_attr "$WORKDIR/verification.html" "csrf_token")"
+VERIFICATION_CODE="$(extract_mailpit_verification_code "$EMAIL")"
+curl -sS -L -o "$WORKDIR/verification-result.html" -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$ACTION" \
+  --data-urlencode "csrf_token=$CSRF" \
+  --data-urlencode "code=$VERIFICATION_CODE" \
+  --data-urlencode "method=code"
+
+echo "==> Logging in after email verification"
+curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -L "$APP_URL/login" >"$WORKDIR/login.html"
+ACTION="$(extract_form_action "$WORKDIR/login.html")"
+CSRF="$(extract_attr "$WORKDIR/login.html" "csrf_token")"
+curl -sS -L -o "$WORKDIR/login-result.html" -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$ACTION" \
+  --data-urlencode "csrf_token=$CSRF" \
+  --data-urlencode "identifier=$EMAIL" \
   --data-urlencode "password=$PASSWORD" \
   --data-urlencode "method=password"
 

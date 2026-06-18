@@ -65,6 +65,10 @@ selfservice:
       enabled: true
       ui_url: http://localhost:3002/registration
       lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: show_verification_ui
     login:
       ui_url: http://localhost:3002/login
       lifespan: 10m
