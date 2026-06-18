@@ -18,7 +18,7 @@ services:
 
   kratos-migrate:
     image: oryd/kratos:v26.2.0
-    command: migrate sql -e --yes -c /etc/config/kratos/kratos.yml
+    command: migrate sql up -e --yes -c /etc/config/kratos/kratos.yml
     environment:
       DSN: ${DEPLOY_KRATOS_DSN:?run scripts/deploy-production.sh to generate DEPLOY_KRATOS_DSN}
     volumes:
@@ -53,7 +53,7 @@ services:
 
   hydra-migrate:
     image: oryd/hydra:v26.2.0
-    command: migrate sql -e --yes -c /etc/config/hydra/hydra.yml
+    command: migrate sql up -e --yes -c /etc/config/hydra/hydra.yml
     environment:
       DSN: ${DEPLOY_HYDRA_DSN:?run scripts/deploy-production.sh to generate DEPLOY_HYDRA_DSN}
     volumes:

@@ -100,6 +100,9 @@ docker compose --env-file "$ENV_FILE" -f docker-compose.yml config >/dev/null
 echo "==> Pulling images"
 docker compose --env-file "$ENV_FILE" -f docker-compose.yml pull
 
+echo "==> Resetting one-shot migration containers"
+docker compose --env-file "$ENV_FILE" -f docker-compose.yml rm -f -s kratos-migrate hydra-migrate migrate
+
 echo "==> Deploying production stack"
 docker compose --env-file "$ENV_FILE" -f docker-compose.yml up -d
 
