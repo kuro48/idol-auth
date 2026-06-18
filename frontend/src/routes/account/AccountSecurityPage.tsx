@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePasskeys } from '@/lib/kratos/usePasskeys'
 import { useTotp } from '@/lib/kratos/useTotp'
 import { api } from '@/lib/api/client'
@@ -12,6 +12,11 @@ interface EmailStatus {
   verified: boolean
 }
 
+interface RecoveryContacts {
+  recovery_email: string
+  recovery_phone: string
+}
+
 function isAal2Error(err: unknown): boolean {
   return (
     err != null &&
@@ -21,10 +26,55 @@ function isAal2Error(err: unknown): boolean {
 }
 
 export function AccountSecurityPage() {
+  const qc = useQueryClient()
+
   const { data: emailStatus } = useQuery({
     queryKey: ['account', 'email-status'],
     queryFn: () => api.get<EmailStatus>('/v1/account/email-status'),
   })
+
+  const { data: recoveryContacts } = useQuery({
+    queryKey: ['account', 'recovery-contacts'],
+    queryFn: () => api.get<{ email_status?: { recovery_email?: string; recovery_phone?: string } }>('/v1/account/profile').then(p => ({
+      recovery_email: '',
+      recovery_phone: '',
+      ...p,
+    } as RecoveryContacts)),
+  })
+
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoveryPhone, setRecoveryPhone] = useState('')
+  const [recoveryError, setRecoveryError] = useState<string | null>(null)
+  const [isEditingRecovery, setIsEditingRecovery] = useState(false)
+
+  const saveRecovery = useMutation({
+    mutationFn: (payload: { recovery_email?: string; recovery_phone?: string }) =>
+      api.patch<RecoveryContacts>('/v1/account/recovery-contacts', payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['account', 'recovery-contacts'] })
+      qc.invalidateQueries({ queryKey: ['account', 'profile'] })
+      setIsEditingRecovery(false)
+      setRecoveryError(null)
+    },
+    onError: (err: unknown) => {
+      setRecoveryError(err instanceof Error ? err.message : '保存に失敗しました')
+    },
+  })
+
+  function startEditRecovery() {
+    setRecoveryEmail((recoveryContacts as { recovery_email?: string })?.recovery_email ?? '')
+    setRecoveryPhone((recoveryContacts as { recovery_phone?: string })?.recovery_phone ?? '')
+    setRecoveryError(null)
+    setIsEditingRecovery(true)
+  }
+
+  function handleSaveRecovery(e: React.FormEvent) {
+    e.preventDefault()
+    saveRecovery.mutate({
+      recovery_email: recoveryEmail.trim() || undefined,
+      recovery_phone: recoveryPhone.trim() || undefined,
+    })
+  }
 
   const { passkeys, isLoading, error, canRegister, register, remove } = usePasskeys()
   const {
@@ -119,6 +169,72 @@ export function AccountSecurityPage() {
             )}
           </section>
         )}
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <h2 className={styles.sectionTitle}>復旧用連絡先</h2>
+              <p className={styles.sectionDesc}>
+                メインのメールアドレスにアクセスできない場合の復旧用連絡先です。MFA (二段階認証) が必要です。
+              </p>
+            </div>
+            {!isEditingRecovery && (
+              <button className={styles.addBtn} onClick={startEditRecovery}>
+                編集
+              </button>
+            )}
+          </div>
+          {!isEditingRecovery ? (
+            <div>
+              <div className={styles.totpStatus}>
+                復旧用メール: {(recoveryContacts as { recovery_email?: string })?.recovery_email || '未設定'}
+              </div>
+              <div className={styles.totpStatus}>
+                復旧用電話: {(recoveryContacts as { recovery_phone?: string })?.recovery_phone || '未設定'}
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveRecovery} className={styles.totpForm}>
+              <label className={styles.totpStepLabel} htmlFor="recovery-email">復旧用メールアドレス</label>
+              <input
+                id="recovery-email"
+                className={styles.totpInput}
+                type="email"
+                value={recoveryEmail}
+                onChange={e => setRecoveryEmail(e.target.value)}
+                placeholder="backup@example.com"
+                autoComplete="email"
+              />
+              <label className={styles.totpStepLabel} htmlFor="recovery-phone">復旧用電話番号</label>
+              <input
+                id="recovery-phone"
+                className={styles.totpInput}
+                type="tel"
+                value={recoveryPhone}
+                onChange={e => setRecoveryPhone(e.target.value)}
+                placeholder="+81-90-1234-5678"
+              />
+              {recoveryError && <div className={styles.alertError}>{recoveryError}</div>}
+              {saveRecovery.isError && (
+                <div className={styles.alertError}>
+                  MFAが必要です。パスキーまたはTOTPで再認証してください。
+                </div>
+              )}
+              <div className={styles.totpActions}>
+                <button type="submit" className={styles.addBtn} disabled={saveRecovery.isPending}>
+                  {saveRecovery.isPending ? '保存中…' : '保存'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.removeBtn}
+                  onClick={() => { setIsEditingRecovery(false); setRecoveryError(null) }}
+                >
+                  キャンセル
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>

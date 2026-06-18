@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kuro48/idol-auth/internal/domain/account"
 	"github.com/kuro48/idol-auth/internal/domain/app"
+	"github.com/kuro48/idol-auth/internal/domain/profile"
 )
 
 func (s *server) handleAccountOverview(w http.ResponseWriter, r *http.Request) {
@@ -236,6 +237,51 @@ func (s *server) handleGetAppUserProfile(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, p.PublicView())
+}
+
+func (s *server) handlePatchRecoveryContacts(w http.ResponseWriter, r *http.Request) {
+	if s.profileSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	if !strings.EqualFold(strings.TrimSpace(session.AuthenticatorAssuranceLevel), "aal2") {
+		writeError(w, http.StatusForbidden, "mfa required for this action")
+		return
+	}
+
+	var req struct {
+		RecoveryEmail *string `json:"recovery_email"`
+		RecoveryPhone *string `json:"recovery_phone"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	if req.RecoveryEmail == nil && req.RecoveryPhone == nil {
+		writeError(w, http.StatusBadRequest, "recovery_email or recovery_phone is required")
+		return
+	}
+	trimStringPtr(req.RecoveryEmail)
+	trimStringPtr(req.RecoveryPhone)
+
+	input := profile.UpdateInput{
+		RecoveryEmail: req.RecoveryEmail,
+		RecoveryPhone: req.RecoveryPhone,
+	}
+	updated, err := s.profileSvc.UpdateProfile(r.Context(), session.IdentityID, input)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to update recovery contacts")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"recovery_email": updated.RecoveryEmail,
+		"recovery_phone": updated.RecoveryPhone,
+	})
 }
 
 func (s *server) handleGetEmailStatus(w http.ResponseWriter, r *http.Request) {

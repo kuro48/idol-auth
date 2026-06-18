@@ -45,8 +45,10 @@ type Profile struct {
 	Birthdate               string                  `json:"birthdate,omitempty"`
 	NotificationPreferences NotificationPreferences `json:"notification_preferences,omitempty"`
 	// PII — excluded from PublicView
-	Email string `json:"email,omitempty"`
-	Phone string `json:"phone,omitempty"`
+	Email         string `json:"email,omitempty"`
+	Phone         string `json:"phone,omitempty"`
+	RecoveryEmail string `json:"recovery_email,omitempty"`
+	RecoveryPhone string `json:"recovery_phone,omitempty"`
 }
 
 // NotificationPreferences holds per-user notification opt-in settings.
@@ -297,6 +299,8 @@ type UpdateInput struct {
 	Oshis                   *[]OshiEntry
 	Badges                  *[]Badge
 	PrimaryBadgeID          *string
+	RecoveryEmail           *string
+	RecoveryPhone           *string
 }
 
 // MetadataPublic is the structured representation of Kratos identity metadata_public.

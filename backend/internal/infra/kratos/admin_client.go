@@ -195,9 +195,11 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 	var decoded struct {
 		ID     string `json:"id"`
 		Traits struct {
-			Email       string `json:"email"`
-			Phone       string `json:"phone"`
-			DisplayName string `json:"display_name"`
+			Email         string `json:"email"`
+			Phone         string `json:"phone"`
+			DisplayName   string `json:"display_name"`
+			RecoveryEmail string `json:"recovery_email"`
+			RecoveryPhone string `json:"recovery_phone"`
 		} `json:"traits"`
 		MetadataPublic json.RawMessage `json:"metadata_public"`
 		MetadataAdmin  json.RawMessage `json:"metadata_admin"`
@@ -220,6 +222,8 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 		Email:                   decoded.Traits.Email,
 		Phone:                   decoded.Traits.Phone,
 		DisplayName:             decoded.Traits.DisplayName,
+		RecoveryEmail:           decoded.Traits.RecoveryEmail,
+		RecoveryPhone:           decoded.Traits.RecoveryPhone,
 		AvatarURL:               meta.AvatarURL,
 		Locale:                  meta.Locale,
 		Timezone:                meta.Timezone,
@@ -297,6 +301,22 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 			"op":    "add",
 			"path":  "/traits/display_name",
 			"value": *input.DisplayName,
+		})
+	}
+
+	if input.RecoveryEmail != nil {
+		ops = append(ops, map[string]any{
+			"op":    "add",
+			"path":  "/traits/recovery_email",
+			"value": *input.RecoveryEmail,
+		})
+	}
+
+	if input.RecoveryPhone != nil {
+		ops = append(ops, map[string]any{
+			"op":    "add",
+			"path":  "/traits/recovery_phone",
+			"value": *input.RecoveryPhone,
 		})
 	}
 

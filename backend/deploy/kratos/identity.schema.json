@@ -52,6 +52,20 @@
           "type": "string",
           "title": "Display Name",
           "maxLength": 50
+        },
+        "recovery_email": {
+          "type": "string",
+          "format": "email",
+          "title": "Recovery Email",
+          "ory.sh/kratos": {
+            "recovery": {
+              "via": "email"
+            }
+          }
+        },
+        "recovery_phone": {
+          "type": "string",
+          "title": "Recovery Phone Number"
         }
       },
       "additionalProperties": false
