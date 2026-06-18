@@ -14,9 +14,7 @@ fi
 eval "$("$ROOT_DIR/scripts/export-env-file.sh" "$ENV_FILE")"
 
 required_vars=(
-  DATABASE_URL
-  KRATOS_DSN
-  HYDRA_DSN
+  POSTGRES_PASSWORD
   KRATOS_SMTP_CONNECTION_URI
   KRATOS_SECRETS_DEFAULT
   KRATOS_SECRETS_COOKIE
@@ -30,6 +28,18 @@ for var_name in "${required_vars[@]}"; do
     exit 1
   fi
 done
+
+urlencode() {
+  perl -e 'my $s = shift; $s =~ s/([^A-Za-z0-9._~-])/sprintf("%%%02X", ord($1))/eg; print $s' "$1"
+}
+
+POSTGRES_PASSWORD_ENCODED="$(urlencode "$POSTGRES_PASSWORD")"
+export DEPLOY_DATABASE_URL="postgres://idol:${POSTGRES_PASSWORD_ENCODED}@postgres:5432/idol_auth?sslmode=disable"
+export DEPLOY_KRATOS_DSN="${DEPLOY_DATABASE_URL}&search_path=kratos"
+export DEPLOY_HYDRA_DSN="${DEPLOY_DATABASE_URL}&search_path=hydra"
+export DATABASE_URL="$DEPLOY_DATABASE_URL"
+export KRATOS_DSN="$DEPLOY_KRATOS_DSN"
+export HYDRA_DSN="$DEPLOY_HYDRA_DSN"
 
 validate_postgres_sslmode() {
   local var_name="$1"
@@ -74,15 +84,15 @@ validate_postgres_sslmode() {
   esac
 }
 
-validate_postgres_sslmode DATABASE_URL
-validate_postgres_sslmode KRATOS_DSN
-validate_postgres_sslmode HYDRA_DSN
+validate_postgres_sslmode DEPLOY_DATABASE_URL
+validate_postgres_sslmode DEPLOY_KRATOS_DSN
+validate_postgres_sslmode DEPLOY_HYDRA_DSN
 
 echo "==> Rendering production config"
 ./scripts/render-production-config.sh
 
 echo "==> Validating application config"
-docker run --rm --env-file "$ENV_FILE" ghcr.io/kuro48/idol-auth/configcheck:latest
+docker run --rm --env-file "$ENV_FILE" -e DATABASE_URL ghcr.io/kuro48/idol-auth/configcheck:latest
 
 echo "==> Validating production compose"
 docker compose --env-file "$ENV_FILE" -f docker-compose.yml config >/dev/null

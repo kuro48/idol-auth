@@ -20,7 +20,7 @@ services:
     image: oryd/kratos:v26.2.0
     command: migrate sql -e --yes -c /etc/config/kratos/kratos.yml
     environment:
-      DSN: ${KRATOS_DSN:?set KRATOS_DSN in .env}
+      DSN: ${DEPLOY_KRATOS_DSN:?run scripts/deploy-production.sh to generate DEPLOY_KRATOS_DSN}
     volumes:
       - ./dist/kratos:/etc/config/kratos:ro
     depends_on:
@@ -34,7 +34,7 @@ services:
     image: oryd/kratos:v26.2.0
     command: serve -c /etc/config/kratos/kratos.yml --watch-courier
     environment:
-      DSN: ${KRATOS_DSN:?set KRATOS_DSN in .env}
+      DSN: ${DEPLOY_KRATOS_DSN:?run scripts/deploy-production.sh to generate DEPLOY_KRATOS_DSN}
       COURIER_SMTP_CONNECTION_URI: ${KRATOS_SMTP_CONNECTION_URI:?set KRATOS_SMTP_CONNECTION_URI in .env}
       SECRETS_DEFAULT: ${KRATOS_SECRETS_DEFAULT:?set KRATOS_SECRETS_DEFAULT in .env}
       SECRETS_COOKIE: ${KRATOS_SECRETS_COOKIE:?set KRATOS_SECRETS_COOKIE in .env}
@@ -55,7 +55,7 @@ services:
     image: oryd/hydra:v26.2.0
     command: migrate sql -e --yes -c /etc/config/hydra/hydra.yml
     environment:
-      DSN: ${HYDRA_DSN:?set HYDRA_DSN in .env}
+      DSN: ${DEPLOY_HYDRA_DSN:?run scripts/deploy-production.sh to generate DEPLOY_HYDRA_DSN}
     volumes:
       - ./dist/hydra:/etc/config/hydra:ro
     depends_on:
@@ -69,7 +69,7 @@ services:
     image: oryd/hydra:v26.2.0
     command: serve all -c /etc/config/hydra/hydra.yml
     environment:
-      DSN: ${HYDRA_DSN:?set HYDRA_DSN in .env}
+      DSN: ${DEPLOY_HYDRA_DSN:?run scripts/deploy-production.sh to generate DEPLOY_HYDRA_DSN}
       SECRETS_SYSTEM: ${HYDRA_SYSTEM_SECRET:?set HYDRA_SYSTEM_SECRET in .env}
       SERVE_PUBLIC_CORS_ENABLED: "false"
     volumes:
@@ -93,7 +93,7 @@ services:
     image: ghcr.io/kuro48/idol-auth/migrate:latest
     pull_policy: always
     environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      DATABASE_URL: ${DEPLOY_DATABASE_URL:?run scripts/deploy-production.sh to generate DEPLOY_DATABASE_URL}
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,7 +109,7 @@ services:
       APP_PORT: 8080
       APP_BASE_URL: ${APP_BASE_URL}
       UPLOAD_DIR: /var/lib/idol-auth/uploads
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DEPLOY_DATABASE_URL:?run scripts/deploy-production.sh to generate DEPLOY_DATABASE_URL}
       KRATOS_PUBLIC_URL: http://kratos:4433
       KRATOS_ADMIN_URL: http://kratos:4434
       HYDRA_PUBLIC_URL: http://hydra:4444
