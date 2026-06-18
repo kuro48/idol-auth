@@ -5,10 +5,11 @@ interface TotpFlowNode {
   group: string
   attributes: {
     name?: string
+    id?: string
     type?: string
     value?: string
     src?: string
-    text?: { text?: string } | string
+    text?: { text?: string; context?: { secret?: string } } | string
   }
   meta?: { label?: { text: string } }
 }
@@ -42,10 +43,8 @@ async function fetchTotpFlow(): Promise<ParsedTotpFlow> {
   const nodes: TotpFlowNode[] = flow.ui?.nodes ?? []
 
   const csrfNode = nodes.find(n => n.attributes.name === 'csrf_token')
-  const qrNode = nodes.find(n => n.group === 'totp' && n.attributes.name === 'totp_qr')
-  const secretNode = nodes.find(
-    n => n.group === 'totp' && n.attributes.name === 'totp_secret_key',
-  )
+  const qrNode = nodes.find(n => n.group === 'totp' && n.type === 'img')
+  const secretNode = nodes.find(n => n.group === 'totp' && n.type === 'text')
   const unlinkNode = nodes.find(
     n => n.group === 'totp' && n.attributes.name === 'totp_unlink',
   )
