@@ -31,6 +31,47 @@ for var_name in "${required_vars[@]}"; do
   fi
 done
 
+validate_postgres_sslmode() {
+  local var_name="$1"
+  local dsn="${!var_name}"
+  local query
+  local param
+  local key
+  local value
+  local sslmode=""
+  local -a params
+
+  if [[ "$dsn" != *\?* ]]; then
+    return 0
+  fi
+
+  query="${dsn#*\?}"
+  IFS='&' read -ra params <<<"$query"
+  for param in "${params[@]}"; do
+    key="${param%%=*}"
+    value="${param#*=}"
+    if [[ "$key" == "sslmode" ]]; then
+      sslmode="$value"
+      break
+    fi
+  done
+
+  case "$sslmode" in
+    "" | disable | allow | prefer | require | verify-ca | verify-full)
+      ;;
+    *)
+      echo "$var_name has invalid sslmode: $sslmode" >&2
+      echo "valid sslmode values: disable, allow, prefer, require, verify-ca, verify-full" >&2
+      echo "for the bundled postgres service, use sslmode=disable" >&2
+      exit 1
+      ;;
+  esac
+}
+
+validate_postgres_sslmode DATABASE_URL
+validate_postgres_sslmode KRATOS_DSN
+validate_postgres_sslmode HYDRA_DSN
+
 echo "==> Rendering production config"
 ./scripts/render-production-config.sh
 
