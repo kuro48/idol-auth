@@ -3,6 +3,23 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/dist}"
+ENV_FILE="${ENV_FILE:-}"
+
+if [[ -z "$ENV_FILE" ]]; then
+  if [[ -f "$ROOT_DIR/.env" ]]; then
+    ENV_FILE="$ROOT_DIR/.env"
+  elif [[ -f "$ROOT_DIR/../.env" ]]; then
+    ENV_FILE="$ROOT_DIR/../.env"
+  fi
+fi
+
+if [[ -n "$ENV_FILE" ]]; then
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "missing env file: $ENV_FILE" >&2
+    exit 1
+  fi
+  eval "$("$ROOT_DIR/scripts/export-env-file.sh" "$ENV_FILE")"
+fi
 
 required_vars=(
   APP_BASE_URL
