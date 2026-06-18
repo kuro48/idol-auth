@@ -110,9 +110,6 @@ func (c *Config) Validate() error {
 		if err := requireHTTPSURL("HYDRA_BROWSER_URL", c.Ory.HydraBrowserURL); err != nil {
 			return err
 		}
-		if token == "" {
-			return fmt.Errorf("config: production requires ADMIN_BOOTSTRAP_TOKEN")
-		}
 		if len(c.Admin.AllowedEmails) == 0 {
 			return fmt.Errorf("config: production requires ADMIN_ALLOWED_EMAILS")
 		}
