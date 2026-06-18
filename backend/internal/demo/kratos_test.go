@@ -282,7 +282,7 @@ func TestRenderPageSettingsOnlyLinksBackToAccountCenter(t *testing.T) {
 	}
 }
 
-func TestRenderPageHidesPrimaryIdentifierTypeAndAutoInfersOnRegistration(t *testing.T) {
+func TestRenderPageUsesEmailOnlyRegistration(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	err := RenderPage(rec, PageData{
@@ -363,20 +363,29 @@ func TestRenderPageHidesPrimaryIdentifierTypeAndAutoInfersOnRegistration(t *test
 		`name="traits.primary_identifier_type"`,
 		`type="hidden"`,
 		`data-flow-type="registration"`,
-		`メールアドレスまたは電話番号とパスワードを同じ画面で入力`,
+		`メールアドレスとパスワードを入力`,
 		`8文字以上で、英大文字・英小文字・数字・記号のうち3種類以上を含めてください。`,
 		`id="password-strength-panel"`,
 		`input[name="traits.email"]`,
-		`input[name="traits.phone"]`,
 		`input[name="password"]`,
 		`button type="submit" name="method" value="password"`,
 		`hidden.value='email'`,
-		`hidden.value='phone'`,
 		`passwordField.setCustomValidity`,
 		`passwordField.minLength=8`,
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected fragment %q, got %s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{
+		`メールアドレスまたは電話番号`,
+		`id="primary_identifier_display"`,
+		`name="traits.phone"`,
+		`hidden.value='phone'`,
+		`電話番号として登録されます`,
+	} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected email-only registration not to contain fragment %q, got %s", fragment, body)
 		}
 	}
 }

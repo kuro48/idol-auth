@@ -42,6 +42,32 @@ func TestKratosIdentitySchemaMarksEmailAsVerifiable(t *testing.T) {
 	}
 }
 
+func TestKratosIdentitySchemaOnlyAllowsEmailAsRegistrationIdentifier(t *testing.T) {
+	body := readKratosDeployFile(t, "identity.schema.json")
+	var schema map[string]any
+	if err := json.Unmarshal([]byte(body), &schema); err != nil {
+		t.Fatalf("decode identity schema: %v", err)
+	}
+
+	traits := nestedMap(t, schema, "properties", "traits", "properties")
+	primaryIdentifierType := nestedMap(t, traits, "primary_identifier_type")
+	enum, ok := primaryIdentifierType["enum"].([]any)
+	if !ok {
+		t.Fatalf("expected primary_identifier_type enum, got %T", primaryIdentifierType["enum"])
+	}
+	if len(enum) != 1 || enum[0] != "email" {
+		t.Fatalf("expected primary_identifier_type enum to only allow email, got %v", enum)
+	}
+
+	phone := nestedMap(t, traits, "phone", "ory.sh/kratos")
+	if _, ok := phone["credentials"]; ok {
+		t.Fatal("phone must not be usable as a registration or login credential")
+	}
+	if _, ok := phone["verification"]; ok {
+		t.Fatal("phone verification is disabled until an SMS provider is configured")
+	}
+}
+
 func readKratosDeployFile(t *testing.T, name string) string {
 	t.Helper()
 	path := filepath.Join("..", "..", "deploy", "kratos", name)
