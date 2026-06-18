@@ -17,6 +17,7 @@ interface Profile {
   oshi_color?: string
   avatar_url?: string
   email?: string
+  phone?: string
   oshis?: OshiEntry[]
 }
 
@@ -24,6 +25,7 @@ interface ProfileFormState {
   displayName: string
   oshiColor: string
   oshis: OshiEntry[]
+  phone: string
 }
 
 function profileToForm(profile: Profile): ProfileFormState {
@@ -34,6 +36,7 @@ function profileToForm(profile: Profile): ProfileFormState {
       idol_id: o.idol_id,
       fan_since: o.fan_since ?? '',
     })),
+    phone: profile.phone ?? '',
   }
 }
 
@@ -44,6 +47,7 @@ export function AccountProfilePage() {
     displayName: '',
     oshiColor: '',
     oshis: [],
+    phone: '',
   })
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -57,6 +61,7 @@ export function AccountProfilePage() {
       display_name: string
       oshi_color: string
       oshis: OshiEntry[]
+      phone?: string
     }) => api.patch<Profile>('/v1/account/profile', payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['account', 'profile'] })
@@ -131,10 +136,17 @@ export function AccountProfilePage() {
       }
     }
 
+    const trimmedPhone = form.phone.trim()
+    if (trimmedPhone && !/^\+[1-9]\d{1,14}$/.test(trimmedPhone)) {
+      setSaveError('電話番号は E.164 形式で入力してください（例: +819012345678）')
+      return
+    }
+
     save.mutate({
       display_name: trimmedName,
       oshi_color: form.oshiColor,
       oshis: trimmedOshis,
+      phone: trimmedPhone || undefined,
     })
   }
 
@@ -160,6 +172,10 @@ export function AccountProfilePage() {
                   <span>{data.email}</span>
                 </div>
               )}
+              <div className={styles.profileField}>
+                <span className={styles.profileLabel}>電話番号</span>
+                <span>{data.phone || '—'}</span>
+              </div>
               <div className={styles.profileField}>
                 <span className={styles.profileLabel}>推しメンカラー</span>
                 {data.oshi_color ? (
@@ -202,6 +218,21 @@ export function AccountProfilePage() {
         {data && isEditing && (
           <form className={styles.profileCard} onSubmit={handleSave}>
             <div className={styles.profileInfo}>
+              <div className={styles.profileField}>
+                <label className={styles.profileLabel} htmlFor="phone">
+                  電話番号 <small style={{ color: 'var(--color-text-muted, #888)' }}>(任意・非公開)</small>
+                </label>
+                <input
+                  id="phone"
+                  className={styles.input}
+                  type="tel"
+                  value={form.phone}
+                  onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+819012345678"
+                  autoComplete="tel"
+                />
+              </div>
+
               <div className={styles.profileField}>
                 <label className={styles.profileLabel} htmlFor="display-name">
                   表示名

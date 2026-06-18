@@ -320,6 +320,14 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		})
 	}
 
+	if input.Phone != nil {
+		ops = append(ops, map[string]any{
+			"op":    "add",
+			"path":  "/traits/phone",
+			"value": *input.Phone,
+		})
+	}
+
 	if len(ops) == 0 {
 		return nil
 	}

@@ -178,6 +178,19 @@ func ValidateTimezone(s string) error {
 	return nil
 }
 
+var e164Pattern = regexp.MustCompile(`^\+[1-9]\d{1,14}$`)
+
+// ValidatePhone returns an error when s is non-empty and not a valid E.164 number.
+func ValidatePhone(s string) error {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	if !e164Pattern.MatchString(strings.TrimSpace(s)) {
+		return errors.New("phone must be a valid E.164 number (e.g. +819012345678)")
+	}
+	return nil
+}
+
 func ValidateBirthdate(s string, now time.Time) error {
 	if strings.TrimSpace(s) == "" {
 		return nil
@@ -301,6 +314,7 @@ type UpdateInput struct {
 	PrimaryBadgeID          *string
 	RecoveryEmail           *string
 	RecoveryPhone           *string
+	Phone                   *string
 }
 
 // MetadataPublic is the structured representation of Kratos identity metadata_public.
