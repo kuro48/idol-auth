@@ -17,16 +17,17 @@ interface RecoveryContacts {
   recovery_phone: string
 }
 
-interface SocialProvider {
-  provider: string
-  subject: string
-}
-
-const PROVIDER_LABELS: Record<string, string> = {
-  google: 'Google',
-  twitter: 'X (Twitter)',
-  apple: 'Apple',
-}
+// TODO: ソーシャルログイン有効化時に復元
+// interface SocialProvider {
+//   provider: string
+//   subject: string
+// }
+//
+// const PROVIDER_LABELS: Record<string, string> = {
+//   google: 'Google',
+//   twitter: 'X (Twitter)',
+//   apple: 'Apple',
+// }
 
 function isAal2Error(err: unknown): boolean {
   return (
@@ -44,11 +45,12 @@ export function AccountSecurityPage() {
     queryFn: () => api.get<EmailStatus>('/v1/account/email-status'),
   })
 
-  const { data: socialProvidersData } = useQuery({
-    queryKey: ['account', 'social-providers'],
-    queryFn: () => api.get<{ items: SocialProvider[] }>('/v1/account/social-providers'),
-  })
-  const socialProviders = socialProvidersData?.items ?? []
+  // TODO: ソーシャルログイン有効化時に復元
+  // const { data: socialProvidersData } = useQuery({
+  //   queryKey: ['account', 'social-providers'],
+  //   queryFn: () => api.get<{ items: SocialProvider[] }>('/v1/account/social-providers'),
+  // })
+  // const socialProviders = socialProvidersData?.items ?? []
 
   const { data: recoveryContacts } = useQuery({
     queryKey: ['account', 'recovery-contacts'],
@@ -275,6 +277,7 @@ export function AccountSecurityPage() {
           </section>
         )}
 
+        {/* TODO: ソーシャルログイン有効化時に復元
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>
@@ -302,6 +305,7 @@ export function AccountSecurityPage() {
             </ul>
           )}
         </section>
+        */}
 
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
