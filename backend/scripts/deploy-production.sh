@@ -13,6 +13,24 @@ fi
 
 eval "$("$ROOT_DIR/scripts/export-env-file.sh" "$ENV_FILE")"
 
+required_vars=(
+  DATABASE_URL
+  KRATOS_DSN
+  HYDRA_DSN
+  KRATOS_SMTP_CONNECTION_URI
+  KRATOS_SECRETS_DEFAULT
+  KRATOS_SECRETS_COOKIE
+  KRATOS_SECRETS_CIPHER
+  HYDRA_SYSTEM_SECRET
+)
+
+for var_name in "${required_vars[@]}"; do
+  if [[ -z "${!var_name:-}" ]]; then
+    echo "missing required env: $var_name" >&2
+    exit 1
+  fi
+done
+
 echo "==> Rendering production config"
 ./scripts/render-production-config.sh
 
@@ -39,4 +57,6 @@ for i in $(seq 1 150); do
 done
 
 echo "app readiness check timed out" >&2
+echo "==> Recent migration logs" >&2
+docker compose --env-file "$ENV_FILE" -f docker-compose.yml logs --tail=120 kratos-migrate hydra-migrate migrate >&2 || true
 exit 1

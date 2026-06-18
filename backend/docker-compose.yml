@@ -20,13 +20,13 @@ services:
     image: oryd/kratos:v26.2.0
     command: migrate sql -e --yes -c /etc/config/kratos/kratos.yml
     environment:
-      DSN: ${KRATOS_DSN}
+      DSN: ${KRATOS_DSN:?set KRATOS_DSN in .env}
     volumes:
       - ./dist/kratos:/etc/config/kratos:ro
     depends_on:
       postgres:
         condition: service_healthy
-    restart: on-failure
+    restart: "no"
     networks:
       - idolium-network
 
@@ -34,11 +34,11 @@ services:
     image: oryd/kratos:v26.2.0
     command: serve -c /etc/config/kratos/kratos.yml --watch-courier
     environment:
-      DSN: ${KRATOS_DSN}
-      COURIER_SMTP_CONNECTION_URI: ${KRATOS_SMTP_CONNECTION_URI}
-      SECRETS_DEFAULT: ${KRATOS_SECRETS_DEFAULT}
-      SECRETS_COOKIE: ${KRATOS_SECRETS_COOKIE}
-      SECRETS_CIPHER: ${KRATOS_SECRETS_CIPHER}
+      DSN: ${KRATOS_DSN:?set KRATOS_DSN in .env}
+      COURIER_SMTP_CONNECTION_URI: ${KRATOS_SMTP_CONNECTION_URI:?set KRATOS_SMTP_CONNECTION_URI in .env}
+      SECRETS_DEFAULT: ${KRATOS_SECRETS_DEFAULT:?set KRATOS_SECRETS_DEFAULT in .env}
+      SECRETS_COOKIE: ${KRATOS_SECRETS_COOKIE:?set KRATOS_SECRETS_COOKIE in .env}
+      SECRETS_CIPHER: ${KRATOS_SECRETS_CIPHER:?set KRATOS_SECRETS_CIPHER in .env}
     volumes:
       - ./dist/kratos:/etc/config/kratos:ro
     expose:
@@ -55,13 +55,13 @@ services:
     image: oryd/hydra:v26.2.0
     command: migrate sql -e --yes -c /etc/config/hydra/hydra.yml
     environment:
-      DSN: ${HYDRA_DSN}
+      DSN: ${HYDRA_DSN:?set HYDRA_DSN in .env}
     volumes:
       - ./dist/hydra:/etc/config/hydra:ro
     depends_on:
       postgres:
         condition: service_healthy
-    restart: on-failure
+    restart: "no"
     networks:
       - idolium-network
 
@@ -69,8 +69,8 @@ services:
     image: oryd/hydra:v26.2.0
     command: serve all -c /etc/config/hydra/hydra.yml
     environment:
-      DSN: ${HYDRA_DSN}
-      SECRETS_SYSTEM: ${HYDRA_SYSTEM_SECRET}
+      DSN: ${HYDRA_DSN:?set HYDRA_DSN in .env}
+      SECRETS_SYSTEM: ${HYDRA_SYSTEM_SECRET:?set HYDRA_SYSTEM_SECRET in .env}
       SERVE_PUBLIC_CORS_ENABLED: "false"
     volumes:
       - ./dist/hydra:/etc/config/hydra:ro
@@ -93,11 +93,11 @@ services:
     image: ghcr.io/kuro48/idol-auth/migrate:latest
     pull_policy: always
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
     depends_on:
       postgres:
         condition: service_healthy
-    restart: on-failure
+    restart: "no"
     networks:
       - idolium-network
 

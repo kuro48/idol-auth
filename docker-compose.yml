@@ -32,7 +32,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    restart: on-failure
+    restart: "no"
     networks:
       - idolium-network
 
@@ -62,7 +62,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    restart: on-failure
+    restart: "no"
     networks:
       - idolium-network
 
@@ -98,7 +98,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    restart: on-failure
+    restart: "no"
     networks:
       - idolium-network
 
