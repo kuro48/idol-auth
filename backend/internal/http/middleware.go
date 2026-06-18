@@ -226,14 +226,23 @@ func (s *server) appTokenAuth(next http.Handler) http.Handler {
 			writeError(w, http.StatusServiceUnavailable, "account service unavailable")
 			return
 		}
+		ip := clientIP(r, s.config.Security.TrustedProxies)
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if token == "" {
+			if !s.appTokenLimiter.Allow(ip) {
+				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
+				return
+			}
 			writeError(w, http.StatusUnauthorized, "app authorization required")
 			return
 		}
 		appActor, err := s.accountSvc.ResolveAppByToken(r.Context(), token)
 		if err != nil {
 			if errors.Is(err, app.ErrAppNotFound) {
+				if !s.appTokenLimiter.Allow(ip) {
+					writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
+					return
+				}
 				writeError(w, http.StatusUnauthorized, "app authorization required")
 				return
 			}

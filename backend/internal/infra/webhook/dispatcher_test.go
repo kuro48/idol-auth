@@ -1,7 +1,9 @@
 package webhook
 
 import (
+	"context"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +31,18 @@ func TestValidateURLRejectsInsecureAndLocalTargets(t *testing.T) {
 func TestValidateURLAllowsPublicHTTPSURL(t *testing.T) {
 	if err := ValidateURL("https://example.com/webhook"); err != nil {
 		t.Fatalf("expected public https webhook URL to be valid: %v", err)
+	}
+}
+
+func TestDispatcherSendRevalidatesStoredWebhookURL(t *testing.T) {
+	dispatcher := NewDispatcher(nil)
+
+	err := dispatcher.send(context.Background(), "http://127.0.0.1/webhook", "secret", Event{Type: "account.created"})
+	if err == nil {
+		t.Fatal("expected stored unsafe webhook URL to be rejected before delivery")
+	}
+	if !strings.Contains(err.Error(), "webhook_url must use https") {
+		t.Fatalf("expected validation error, got %v", err)
 	}
 }
 

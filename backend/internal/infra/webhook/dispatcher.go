@@ -72,6 +72,10 @@ func (d *Dispatcher) DispatchAsync(ctx context.Context, appID uuid.UUID, eventTy
 }
 
 func (d *Dispatcher) send(ctx context.Context, webhookURL, secret string, event Event) error {
+	if err := ValidateURL(webhookURL); err != nil {
+		return err
+	}
+
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("marshal event: %w", err)

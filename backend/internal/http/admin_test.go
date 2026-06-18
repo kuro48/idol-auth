@@ -608,7 +608,6 @@ func TestHandleReadyzReturnsServiceUnavailableWhenNotReady(t *testing.T) {
 	}
 }
 
-
 func TestAdminMutatingAccessAllowedForSessionAuth(t *testing.T) {
 	authn := &stubAuthService{
 		session: apphttp.SessionView{
@@ -1281,6 +1280,33 @@ func TestRegisterAppUser_RequiresAppToken(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("expected %d, got %d; body=%s", http.StatusUnauthorized, w.Code, w.Body.String())
+	}
+}
+
+func TestRegisterAppUser_RateLimitsInvalidAppTokens(t *testing.T) {
+	router := apphttp.NewRouter(func() apphttp.RouterConfig { c := testConfig(); c.AccountSvc = &stubAccountService{}; return c }(), &stubAdminService{}, nil, &stubAuthService{})
+
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"email":"u@example.com"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer invalid-token")
+		req.RemoteAddr = "203.0.113.9:1234"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("request %d: expected %d, got %d; body=%s", i+1, http.StatusUnauthorized, w.Code, w.Body.String())
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/apps/self/users", bytes.NewBufferString(`{"email":"u@example.com"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer invalid-token")
+	req.RemoteAddr = "203.0.113.9:1234"
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected %d after repeated invalid app tokens, got %d; body=%s", http.StatusTooManyRequests, w.Code, w.Body.String())
 	}
 }
 

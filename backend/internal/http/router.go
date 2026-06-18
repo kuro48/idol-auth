@@ -196,6 +196,7 @@ type server struct {
 	socialProviderSvc  SocialProviderLister
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
+	appTokenLimiter    RateLimiter // tight per-IP limiter for app management token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
 	themeLimiter       RateLimiter // moderate per-IP limiter for /v1/auth/theme
 }
@@ -218,6 +219,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		socialProviderSvc:  cfg.SocialProviderSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
+		appTokenLimiter:    NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
 		themeLimiter:       NewInMemoryRateLimiter(10, time.Minute),
 	}
@@ -412,4 +414,3 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 
 	return r
 }
-
