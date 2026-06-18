@@ -18,7 +18,7 @@ func (s *server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "failed to list sessions")
 		return
 	}
-	writeJSON(w, http.StatusOK, sessions)
+	writeJSON(w, http.StatusOK, map[string]any{"items": sessions})
 }
 
 func (s *server) handleRevokeSession(w http.ResponseWriter, r *http.Request) {

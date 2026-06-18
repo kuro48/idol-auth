@@ -170,7 +170,14 @@ func (c *FrontendClient) LogoutBrowser(ctx context.Context, r *http.Request) err
 		return nil
 	}
 
-	logoutReq, err := http.NewRequestWithContext(ctx, http.MethodGet, decoded.LogoutURL, nil)
+	// Rewrite the public logout URL to the internal Kratos API URL so the
+	// backend can reach Kratos directly without going through the public domain.
+	internalLogoutURL := decoded.LogoutURL
+	if parsed, err := url.Parse(decoded.LogoutURL); err == nil {
+		internalLogoutURL = c.apiBaseURL + parsed.RequestURI()
+	}
+
+	logoutReq, err := http.NewRequestWithContext(ctx, http.MethodGet, internalLogoutURL, nil)
 	if err != nil {
 		return fmt.Errorf("build kratos logout request: %w", err)
 	}

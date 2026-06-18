@@ -89,7 +89,18 @@ const adminAuditRoute = createRoute({ getParentRoute: () => adminRoute, path: '/
 const adminAppRequestsRoute = createRoute({ getParentRoute: () => adminRoute, path: '/app-requests', component: AdminAppRequestsPage })
 
 // Account routes
-const accountRoute = createRoute({ getParentRoute: () => shellRoute, path: '/account' })
+function AccountGuard() {
+  const { isAuthenticated, isLoading } = useSession()
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      window.location.replace('/login')
+    }
+  }, [isAuthenticated, isLoading])
+  if (isLoading || !isAuthenticated) return null
+  return createElement(Outlet, null)
+}
+
+const accountRoute = createRoute({ getParentRoute: () => shellRoute, path: '/account', component: AccountGuard })
 const accountOverviewRoute = createRoute({ getParentRoute: () => accountRoute, path: '/', component: AccountOverviewPage })
 const accountProfileRoute = createRoute({ getParentRoute: () => accountRoute, path: '/profile', component: AccountProfilePage })
 const accountSessionsRoute = createRoute({ getParentRoute: () => accountRoute, path: '/sessions', component: AccountSessionsPage })
