@@ -135,8 +135,8 @@ services:
       - "traefik.http.routers.idol-auth-app.entrypoints=web"
       - "traefik.http.routers.idol-auth-app.priority=10"
       - "traefik.http.services.idol-auth-app.loadbalancer.server.port=8080"
-      # admin サブドメイン向け: /v1/admin のみバックエンドへ
-      - "traefik.http.routers.idol-auth-admin-api.rule=Host(`${ADMIN_HOSTNAME}`) && PathPrefix(`/v1/admin`)"
+      # admin サブドメイン向け: /v1/* と /healthz /readyz をバックエンドへ
+      - "traefik.http.routers.idol-auth-admin-api.rule=Host(`${ADMIN_HOSTNAME}`) && (PathPrefix(`/v1`) || Path(`/healthz`) || Path(`/readyz`))"
       - "traefik.http.routers.idol-auth-admin-api.entrypoints=web"
       - "traefik.http.routers.idol-auth-admin-api.priority=10"
       - "traefik.http.routers.idol-auth-admin-api.service=idol-auth-app"
