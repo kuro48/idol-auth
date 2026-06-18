@@ -50,6 +50,12 @@ validate_postgres_sslmode() {
   for param in "${params[@]}"; do
     key="${param%%=*}"
     value="${param#*=}"
+    key="${key//$'\r'/}"
+    value="${value//$'\r'/}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
     if [[ "$key" == "sslmode" ]]; then
       sslmode="$value"
       break
@@ -60,7 +66,7 @@ validate_postgres_sslmode() {
     "" | disable | allow | prefer | require | verify-ca | verify-full)
       ;;
     *)
-      echo "$var_name has invalid sslmode: $sslmode" >&2
+      printf '%s has invalid sslmode: %q\n' "$var_name" "$sslmode" >&2
       echo "valid sslmode values: disable, allow, prefer, require, verify-ca, verify-full" >&2
       echo "for the bundled postgres service, use sslmode=disable" >&2
       exit 1

@@ -8,6 +8,7 @@
 /bin/
 /out/
 /dist/
+/backend/dist/
 /sdk/dist/
 /docs-site/dist/
 /docs-site/public/openapi.json
