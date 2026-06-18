@@ -86,6 +86,7 @@ type Profile struct {
 	Bio                     string                  `json:"bio,omitempty"`
 	Visibility              ProfileVisibility       `json:"visibility,omitempty"`
 	NotificationPreferences NotificationPreferences `json:"notification_preferences,omitempty"`
+	DataPreferences         DataPreferences         `json:"data_preferences,omitempty"`
 	// PII — excluded from PublicView
 	Email         string `json:"email,omitempty"`
 	Phone         string `json:"phone,omitempty"`
@@ -389,6 +390,7 @@ type UpdateInput struct {
 	Bio                     *string
 	LegalName               *string
 	Visibility              *ProfileVisibility
+	DataPreferences         *DataPreferences
 }
 
 // MetadataPublic is the structured representation of Kratos identity metadata_public.
@@ -404,10 +406,18 @@ type MetadataPublic struct {
 	Visibility     ProfileVisibility `json:"visibility,omitempty"`
 }
 
+// DataPreferences holds user's opt-in/opt-out settings for data usage.
+type DataPreferences struct {
+	AnalyticsConsent    bool `json:"analytics_consent"`
+	Personalization     bool `json:"personalization"`
+	ThirdPartySharing   bool `json:"third_party_sharing"`
+}
+
 type MetadataAdmin struct {
 	Birthdate               string                  `json:"birthdate,omitempty"`
 	LegalName               string                  `json:"legal_name,omitempty"`
 	NotificationPreferences NotificationPreferences `json:"notification_preferences,omitempty"`
+	DataPreferences         DataPreferences         `json:"data_preferences,omitempty"`
 }
 
 // Marshal serialises MetadataPublic to JSON bytes.

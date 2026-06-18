@@ -20,6 +20,7 @@ import { AccountSessionsPage } from '@/routes/account/AccountSessionsPage'
 import { AccountLoginHistoryPage } from '@/routes/account/AccountLoginHistoryPage'
 import { DeveloperRegistrationPage } from '@/routes/account/DeveloperRegistrationPage'
 import { AccountSecurityPage } from '@/routes/account/AccountSecurityPage'
+import { AccountPrivacyPage } from '@/routes/account/AccountPrivacyPage'
 import { SettingsRedirectPage } from '@/routes/SettingsRedirectPage'
 import { useSession } from '@/lib/auth/useSession'
 // Docs
@@ -81,6 +82,7 @@ const accountSessionsRoute = createRoute({ getParentRoute: () => accountRoute, p
 const accountLoginHistoryRoute = createRoute({ getParentRoute: () => accountRoute, path: '/login-history', component: AccountLoginHistoryPage })
 const accountDeveloperRoute = createRoute({ getParentRoute: () => accountRoute, path: '/developer', component: DeveloperRegistrationPage })
 const accountSecurityRoute = createRoute({ getParentRoute: () => accountRoute, path: '/security', component: AccountSecurityPage })
+const accountPrivacyRoute = createRoute({ getParentRoute: () => accountRoute, path: '/privacy', component: AccountPrivacyPage })
 
 // Settings redirect
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: SettingsRedirectPage })
@@ -102,7 +104,7 @@ export const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     devRoute.addChildren([devAppRequestsRoute, devAppRequestsNewRoute, devAppRequestDetailRoute]),
     adminRoute.addChildren([adminAppsRoute, adminUsersRoute, adminAuditRoute, adminAppRequestsRoute]),
-    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute, accountLoginHistoryRoute, accountDeveloperRoute, accountSecurityRoute]),
+    accountRoute.addChildren([accountOverviewRoute, accountProfileRoute, accountSessionsRoute, accountLoginHistoryRoute, accountDeveloperRoute, accountSecurityRoute, accountPrivacyRoute]),
   ]),
   docsRoute.addChildren([
     docsIndexRoute,

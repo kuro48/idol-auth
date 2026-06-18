@@ -236,6 +236,7 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 		Birthdate:               adminMeta.Birthdate,
 		LegalName:               adminMeta.LegalName,
 		NotificationPreferences: adminMeta.NotificationPreferences,
+		DataPreferences:         adminMeta.DataPreferences,
 	}, nil
 }
 
@@ -289,7 +290,7 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		})
 	}
 
-	if input.Birthdate != nil || input.NotificationPreferences != nil || input.LegalName != nil {
+	if input.Birthdate != nil || input.NotificationPreferences != nil || input.LegalName != nil || input.DataPreferences != nil {
 		metadata, err := c.getMetadataAdmin(ctx, identityID)
 		if err != nil {
 			return err
@@ -302,6 +303,9 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		}
 		if input.NotificationPreferences != nil {
 			metadata["notification_preferences"] = *input.NotificationPreferences
+		}
+		if input.DataPreferences != nil {
+			metadata["data_preferences"] = *input.DataPreferences
 		}
 		ops = append(ops, map[string]any{
 			"op":    "add",

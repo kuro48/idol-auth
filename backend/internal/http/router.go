@@ -309,6 +309,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		r.Patch("/profile", s.handlePatchProfile)
 		r.Post("/profile/avatar", s.handleUploadAvatar)
 		r.Patch("/profile/visibility", s.handlePatchProfileVisibility)
+		r.Get("/data-preferences", s.handleGetDataPreferences)
+		r.Patch("/data-preferences", s.handlePatchDataPreferences)
 		r.Patch("/recovery-contacts", s.handlePatchRecoveryContacts)
 		r.Get("/export", s.handleExportAccount)
 		r.Post("/developer-registration", s.handleDeveloperRegistration)

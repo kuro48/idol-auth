@@ -313,6 +313,51 @@ func (s *server) handlePatchProfileAwards(w http.ResponseWriter, r *http.Request
 
 // handleGetPublicUserProfile returns PublicView of any user's profile.
 // Requires an authenticated session; strips PII before responding.
+func (s *server) handleGetDataPreferences(w http.ResponseWriter, r *http.Request) {
+	if s.profileSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	p, err := s.profileSvc.GetProfile(r.Context(), session.IdentityID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to load data preferences")
+		return
+	}
+	writeJSON(w, http.StatusOK, p.DataPreferences)
+}
+
+func (s *server) handlePatchDataPreferences(w http.ResponseWriter, r *http.Request) {
+	if s.profileSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	var req profile.DataPreferences
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	updated, err := s.profileSvc.UpdateProfile(r.Context(), session.IdentityID, profile.UpdateInput{
+		DataPreferences: &req,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to update data preferences")
+		return
+	}
+	writeJSON(w, http.StatusOK, updated.DataPreferences)
+}
+
 func (s *server) handlePatchProfileVisibility(w http.ResponseWriter, r *http.Request) {
 	if s.profileSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")

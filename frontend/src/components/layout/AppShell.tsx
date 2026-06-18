@@ -22,6 +22,7 @@ function buildSections(isAdmin: boolean, isDeveloper: boolean): NavSection[] {
         { to: '/account/sessions', label: 'Sessions' },
         { to: '/account/login-history', label: 'Login History' },
         { to: '/account/security', label: 'Security' },
+        { to: '/account/privacy', label: 'Privacy' },
       ],
     },
   ]
