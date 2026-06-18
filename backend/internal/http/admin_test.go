@@ -608,27 +608,6 @@ func TestHandleReadyzReturnsServiceUnavailableWhenNotReady(t *testing.T) {
 	}
 }
 
-func TestAdminReadAccessRejectsSessionWithoutMFA(t *testing.T) {
-	authn := &stubAuthService{
-		session: apphttp.SessionView{
-			Authenticated:               true,
-			IdentityID:                  "identity-admin",
-			Email:                       "admin@example.com",
-			AuthenticatorAssuranceLevel: "aal1",
-		},
-	}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{AllowedEmails: []string{"admin@example.com"}},
-	}, &stubAdminService{}, nil, authn)
-	req := httptest.NewRequest(http.MethodGet, "/v1/admin/apps", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusForbidden, w.Code, w.Body.String())
-	}
-}
 
 func TestAdminMutatingAccessAllowedForSessionAuth(t *testing.T) {
 	authn := &stubAuthService{

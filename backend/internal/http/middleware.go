@@ -58,10 +58,6 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 				return
 			}
 			if session.Authenticated {
-				if !adminSessionMFASatisfied(session) {
-					writeError(w, http.StatusForbidden, "admin mfa required")
-					return
-				}
 				if emailAllowed(s.config.Admin.AllowedEmails, session.Email) || roleAllowed(s.config.Admin.AllowedRoles, session.Roles) {
 					actorID := session.Email
 					if actorID == "" {
@@ -320,11 +316,6 @@ func requestIsSecure(r *http.Request, trustedProxies []string) bool {
 	}
 	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 }
-
-func adminSessionMFASatisfied(session SessionView) bool {
-	return strings.EqualFold(strings.TrimSpace(session.AuthenticatorAssuranceLevel), "aal2")
-}
-
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
