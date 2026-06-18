@@ -232,6 +232,7 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 		Badges:                  meta.Badges,
 		PrimaryBadgeID:          meta.PrimaryBadgeID,
 		Bio:                     meta.Bio,
+		Visibility:              meta.Visibility,
 		Birthdate:               adminMeta.Birthdate,
 		LegalName:               adminMeta.LegalName,
 		NotificationPreferences: adminMeta.NotificationPreferences,
@@ -248,7 +249,8 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		input.Timezone != nil ||
 		input.Badges != nil ||
 		input.PrimaryBadgeID != nil ||
-		input.Bio != nil {
+		input.Bio != nil ||
+		input.Visibility != nil {
 		metadata, err := c.getMetadataPublic(ctx, identityID)
 		if err != nil {
 			return err
@@ -276,6 +278,9 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		}
 		if input.Bio != nil {
 			metadata["bio"] = *input.Bio
+		}
+		if input.Visibility != nil {
+			metadata["visibility"] = *input.Visibility
 		}
 		ops = append(ops, map[string]any{
 			"op":    "add",

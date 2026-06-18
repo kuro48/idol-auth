@@ -25,6 +25,45 @@ const (
 
 var localePattern = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
 
+// VisibilityLevel controls who can see a profile field.
+type VisibilityLevel string
+
+const (
+	VisibilityPublic      VisibilityLevel = "public"
+	VisibilityMembersOnly VisibilityLevel = "members_only"
+	VisibilityPrivate     VisibilityLevel = "private"
+)
+
+func (v VisibilityLevel) isValid() bool {
+	return v == VisibilityPublic || v == VisibilityMembersOnly || v == VisibilityPrivate
+}
+
+// ProfileVisibility stores per-field visibility settings.
+type ProfileVisibility struct {
+	DisplayName VisibilityLevel `json:"display_name,omitempty"`
+	AvatarURL   VisibilityLevel `json:"avatar_url,omitempty"`
+	OshiColor   VisibilityLevel `json:"oshi_color,omitempty"`
+	Oshis       VisibilityLevel `json:"oshis,omitempty"`
+	Bio         VisibilityLevel `json:"bio,omitempty"`
+}
+
+// ValidateProfileVisibility returns an error if any level value is not recognised.
+func ValidateProfileVisibility(v ProfileVisibility) error {
+	fields := map[string]VisibilityLevel{
+		"display_name": v.DisplayName,
+		"avatar_url":   v.AvatarURL,
+		"oshi_color":   v.OshiColor,
+		"oshis":        v.Oshis,
+		"bio":          v.Bio,
+	}
+	for name, level := range fields {
+		if level != "" && !level.isValid() {
+			return fmt.Errorf("visibility.%s: unknown level %q (expected public, members_only, or private)", name, level)
+		}
+	}
+	return nil
+}
+
 // OshiEntry holds an idol ID paired with the user's fan start date for that idol.
 type OshiEntry struct {
 	IdolID   string `json:"idol_id"`
@@ -45,6 +84,7 @@ type Profile struct {
 	PrimaryBadgeID          string                  `json:"primary_badge_id,omitempty"`
 	Birthdate               string                  `json:"birthdate,omitempty"`
 	Bio                     string                  `json:"bio,omitempty"`
+	Visibility              ProfileVisibility       `json:"visibility,omitempty"`
 	NotificationPreferences NotificationPreferences `json:"notification_preferences,omitempty"`
 	// PII — excluded from PublicView
 	Email         string `json:"email,omitempty"`
@@ -74,19 +114,38 @@ type Badge struct {
 
 // PublicView returns a copy of the profile without PII fields.
 // Use this when returning a profile to another user or to third-party apps.
+// visible returns true when level is public or members_only (default when unset).
+func visible(level VisibilityLevel) bool {
+	return level != VisibilityPrivate
+}
+
+// PublicView returns a copy of the profile without PII fields,
+// respecting per-field visibility settings.
 func (p Profile) PublicView() Profile {
-	return Profile{
-		IdentityID:     p.IdentityID,
-		DisplayName:    p.DisplayName,
-		AvatarURL:      p.AvatarURL,
-		Locale:         p.Locale,
-		Timezone:       p.Timezone,
-		OshiColor:      p.OshiColor,
-		Oshis:          p.Oshis,
-		Badges:         p.Badges,
+	result := Profile{
+		IdentityID: p.IdentityID,
+		Locale:     p.Locale,
+		Timezone:   p.Timezone,
+		Badges:     p.Badges,
 		PrimaryBadgeID: p.PrimaryBadgeID,
-		Bio:            p.Bio,
+		Visibility: p.Visibility,
 	}
+	if visible(p.Visibility.DisplayName) {
+		result.DisplayName = p.DisplayName
+	}
+	if visible(p.Visibility.AvatarURL) {
+		result.AvatarURL = p.AvatarURL
+	}
+	if visible(p.Visibility.OshiColor) {
+		result.OshiColor = p.OshiColor
+	}
+	if visible(p.Visibility.Oshis) {
+		result.Oshis = p.Oshis
+	}
+	if visible(p.Visibility.Bio) {
+		result.Bio = p.Bio
+	}
+	return result
 }
 
 // FanYears parses fanSince ("YYYY" or "YYYY-MM") and returns full years elapsed
@@ -329,18 +388,20 @@ type UpdateInput struct {
 	Phone                   *string
 	Bio                     *string
 	LegalName               *string
+	Visibility              *ProfileVisibility
 }
 
 // MetadataPublic is the structured representation of Kratos identity metadata_public.
 type MetadataPublic struct {
-	OshiColor      string      `json:"oshi_color,omitempty"`
-	Oshis          []OshiEntry `json:"oshis,omitempty"`
-	AvatarURL      string      `json:"avatar_url,omitempty"`
-	Locale         string      `json:"locale,omitempty"`
-	Timezone       string      `json:"timezone,omitempty"`
-	Badges         []Badge     `json:"badges,omitempty"`
-	PrimaryBadgeID string      `json:"primary_badge_id,omitempty"`
-	Bio            string      `json:"bio,omitempty"`
+	OshiColor      string            `json:"oshi_color,omitempty"`
+	Oshis          []OshiEntry       `json:"oshis,omitempty"`
+	AvatarURL      string            `json:"avatar_url,omitempty"`
+	Locale         string            `json:"locale,omitempty"`
+	Timezone       string            `json:"timezone,omitempty"`
+	Badges         []Badge           `json:"badges,omitempty"`
+	PrimaryBadgeID string            `json:"primary_badge_id,omitempty"`
+	Bio            string            `json:"bio,omitempty"`
+	Visibility     ProfileVisibility `json:"visibility,omitempty"`
 }
 
 type MetadataAdmin struct {

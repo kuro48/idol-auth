@@ -11,6 +11,16 @@ import {
 } from '@/lib/oshi'
 import styles from './AccountPage.module.css'
 
+type VisibilityLevel = 'public' | 'members_only' | 'private'
+
+interface ProfileVisibility {
+  display_name?: VisibilityLevel
+  avatar_url?: VisibilityLevel
+  oshi_color?: VisibilityLevel
+  oshis?: VisibilityLevel
+  bio?: VisibilityLevel
+}
+
 interface Profile {
   identity_id: string
   display_name?: string
@@ -22,6 +32,7 @@ interface Profile {
   bio?: string
   legal_name?: string
   oshis?: OshiEntry[]
+  visibility?: ProfileVisibility
 }
 
 interface ProfileFormState {
@@ -62,6 +73,22 @@ export function AccountProfilePage() {
     legalName: '',
   })
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [visError, setVisError] = useState<string | null>(null)
+  const [visSuccess, setVisSuccess] = useState(false)
+
+  const saveVisibility = useMutation({
+    mutationFn: (payload: ProfileVisibility) =>
+      api.patch<ProfileVisibility>('/v1/account/profile/visibility', payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['account', 'profile'] })
+      setVisSuccess(true)
+      setVisError(null)
+      setTimeout(() => setVisSuccess(false), 3000)
+    },
+    onError: (err: unknown) => {
+      setVisError(err instanceof Error ? err.message : '保存に失敗しました')
+    },
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['account', 'profile'],
@@ -416,6 +443,46 @@ export function AccountProfilePage() {
               </button>
             </div>
           </form>
+        )}
+        {data && !isEditing && (
+          <div className={styles.profileCard}>
+            <h3 className={styles.profileLabel} style={{ marginBottom: '0.5rem' }}>公開範囲設定</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted, #888)', marginBottom: '0.75rem' }}>
+              各フィールドをどの範囲に公開するかを設定します。
+            </p>
+            {(['display_name', 'avatar_url', 'oshi_color', 'oshis', 'bio'] as const).map(field => {
+              const labels: Record<string, string> = {
+                display_name: '表示名',
+                avatar_url: 'プロフィール画像',
+                oshi_color: '推しメンカラー',
+                oshis: '推し',
+                bio: '自己紹介',
+              }
+              const current: VisibilityLevel = data.visibility?.[field] ?? 'public'
+              return (
+                <div key={field} className={styles.profileField}>
+                  <span className={styles.profileLabel}>{labels[field]}</span>
+                  <select
+                    className={styles.input}
+                    value={current}
+                    onChange={e => {
+                      saveVisibility.mutate({
+                        ...data.visibility,
+                        [field]: e.target.value as VisibilityLevel,
+                      })
+                    }}
+                    aria-label={`${labels[field]}の公開範囲`}
+                  >
+                    <option value="public">全員に公開</option>
+                    <option value="members_only">ログイン済みユーザーのみ</option>
+                    <option value="private">非公開</option>
+                  </select>
+                </div>
+              )
+            })}
+            {visError && <p className={styles.formError}>{visError}</p>}
+            {visSuccess && <p className={styles.formError} style={{ color: 'green' }}>保存しました。</p>}
+          </div>
         )}
       </div>
     </div>

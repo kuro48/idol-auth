@@ -313,6 +313,37 @@ func (s *server) handlePatchProfileAwards(w http.ResponseWriter, r *http.Request
 
 // handleGetPublicUserProfile returns PublicView of any user's profile.
 // Requires an authenticated session; strips PII before responding.
+func (s *server) handlePatchProfileVisibility(w http.ResponseWriter, r *http.Request) {
+	if s.profileSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")
+		return
+	}
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	var req profile.ProfileVisibility
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	if err := profile.ValidateProfileVisibility(req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	updated, err := s.profileSvc.UpdateProfile(r.Context(), session.IdentityID, profile.UpdateInput{
+		Visibility: &req,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "failed to update visibility")
+		return
+	}
+	writeJSON(w, http.StatusOK, updated.Visibility)
+}
+
 func (s *server) handleGetPublicUserProfile(w http.ResponseWriter, r *http.Request) {
 	if s.profileSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "profile service unavailable")
