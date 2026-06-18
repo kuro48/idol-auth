@@ -152,7 +152,7 @@ func NewService(memberships MembershipRepository, deletions DeletionRequestRepos
 		now = time.Now
 	}
 	if gracePeriod <= 0 {
-		gracePeriod = 7 * 24 * time.Hour
+		gracePeriod = 30 * 24 * time.Hour
 	}
 	svc := &Service{
 		memberships: memberships,

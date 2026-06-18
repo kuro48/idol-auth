@@ -721,7 +721,7 @@ func TestRegisterIdentityForApp_NilCreatorReturnsError(t *testing.T) {
 	}
 }
 
-func TestNewService_DefaultsGracePeriodTo7Days(t *testing.T) {
+func TestNewService_DefaultsGracePeriodTo30Days(t *testing.T) {
 	var capturedScheduledFor time.Time
 	deletions := &mockDeletionRepo{
 		upsertScheduledFn: func(_ context.Context, req account.DeletionRequest) (account.DeletionRequest, error) {
@@ -729,15 +729,15 @@ func TestNewService_DefaultsGracePeriodTo7Days(t *testing.T) {
 			return req, nil
 		},
 	}
-	// gracePeriod=0 should default to 7 days
+	// gracePeriod=0 should default to 30 days
 	svc := account.NewService(&mockMembershipRepo{}, deletions, &mockAppDirectory{}, &mockIdentityLifecycle{}, nil, &mockTokenResolver{}, &mockAuditRepo{}, fixedClock, 0)
 
 	_, err := svc.ScheduleDeletion(context.Background(), "identity-1", "actor", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := fixedNow.Add(7 * 24 * time.Hour)
+	expected := fixedNow.Add(30 * 24 * time.Hour)
 	if !capturedScheduledFor.Equal(expected) {
-		t.Errorf("expected default grace period 7d, got scheduled_for %v", capturedScheduledFor)
+		t.Errorf("expected default grace period 30d, got scheduled_for %v", capturedScheduledFor)
 	}
 }

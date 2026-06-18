@@ -104,12 +104,12 @@ export function AccountOverviewPage() {
           ) : (
             <>
               <p className={styles.dangerText}>
-                アカウントを削除すると、すべての連携・データが完全に削除されます。この操作は猶予期間後に確定します。
+                アカウントを削除すると、すべての連携・データが完全に削除されます。リクエスト後30日間の猶予期間があり、その間はキャンセル可能です。猶予期間後に確定すると元に戻せません。
               </p>
               <button
                 className={styles.dangerBtn}
                 onClick={() => {
-                  if (window.confirm('本当にアカウントを削除しますか？この操作は猶予期間後に確定します。')) {
+                  if (window.confirm('本当にアカウントを削除しますか？30日後に確定します。猶予期間中はキャンセル可能です。')) {
                     scheduleDeletion.mutate()
                   }
                 }}
