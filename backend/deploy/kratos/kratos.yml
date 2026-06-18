@@ -58,37 +58,7 @@ selfservice:
       enabled: false
     code:
       enabled: true
-    oidc:
-      enabled: true
-      config:
-        providers:
-          - id: google
-            provider: google
-            # Replace with real credentials: GOOGLE_OAUTH2_CLIENT_ID / GOOGLE_OAUTH2_CLIENT_SECRET
-            client_id: placeholder-google-client-id
-            client_secret: placeholder-google-client-secret
-            mapper_url: file:///etc/config/kratos/oidc.mapper.jsonnet
-            scope:
-              - email
-              - profile
-          - id: twitter
-            provider: twitter
-            # Replace with real credentials: TWITTER_OAUTH2_CLIENT_ID / TWITTER_OAUTH2_CLIENT_SECRET
-            client_id: placeholder-twitter-client-id
-            client_secret: placeholder-twitter-client-secret
-            mapper_url: file:///etc/config/kratos/oidc.mapper.jsonnet
-            scope:
-              - users.read
-              - tweet.read
-          - id: apple
-            provider: apple
-            # Replace with real credentials: APPLE_OAUTH2_CLIENT_ID / APPLE_OAUTH2_CLIENT_SECRET
-            client_id: placeholder-apple-client-id
-            client_secret: placeholder-apple-client-secret
-            mapper_url: file:///etc/config/kratos/oidc.mapper.jsonnet
-            scope:
-              - name
-              - email
+    # oidc: disabled — enable when GOOGLE/TWITTER/APPLE OAuth credentials are configured
 
   flows:
     registration:
