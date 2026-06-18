@@ -209,8 +209,8 @@ type profileGetter interface {
 // When mailer and profiler are set, it also detects new-device logins and
 // sends a notification when security_alerts preferences are enabled.
 type loginRecorderAdapter struct {
-	svc     *loginhistory.Service
-	mailer  deviceLoginNotifier
+	svc      *loginhistory.Service
+	mailer   deviceLoginNotifier
 	profiler profileGetter
 }
 
@@ -218,7 +218,7 @@ func newLoginRecorder(svc *loginhistory.Service, mailer deviceLoginNotifier, pro
 	return &loginRecorderAdapter{svc: svc, mailer: mailer, profiler: profiler}
 }
 
-func (a *loginRecorderAdapter) RecordObservedSession(_ context.Context, session apphttp.KratosSession) {
+func (a *loginRecorderAdapter) RecordObservedSession(parent context.Context, session apphttp.KratosSession) {
 	if a == nil || a.svc == nil {
 		return
 	}
@@ -236,7 +236,7 @@ func (a *loginRecorderAdapter) RecordObservedSession(_ context.Context, session 
 		UserAgent:       session.UserAgent,
 	}
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 10*time.Second)
 		defer cancel()
 
 		// Check for new device BEFORE recording so the current session is not included.

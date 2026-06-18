@@ -374,7 +374,7 @@ func validateConsentCSRF(r *http.Request) bool {
 }
 
 func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool, domain string) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- consent CSRF cookie is HttpOnly, SameSite=Strict, and Secure in production.
 		Name:     consentCSRFCookieName,
 		Value:    token,
 		Path:     "/v1/auth/consent",
@@ -387,7 +387,7 @@ func setConsentCSRFCookie(w http.ResponseWriter, token string, secure bool, doma
 }
 
 func clearConsentCSRFCookie(w http.ResponseWriter, secure bool, domain string) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- clearing the same HttpOnly/SameSite consent CSRF cookie.
 		Name:     consentCSRFCookieName,
 		Value:    "",
 		Path:     "/v1/auth/consent",

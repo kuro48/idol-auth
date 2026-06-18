@@ -135,6 +135,33 @@ func translateLabel(text string) string {
 	return text
 }
 
+func safeImageSrc(raw string) template.URL {
+	src := strings.TrimSpace(raw)
+	if src == "" {
+		return ""
+	}
+	for _, prefix := range []string{
+		"data:image/png;base64,",
+		"data:image/jpeg;base64,",
+		"data:image/gif;base64,",
+		"data:image/webp;base64,",
+	} {
+		if strings.HasPrefix(src, prefix) {
+			return template.URL(src) // #nosec G203 -- src is restricted to image data URL prefixes.
+		}
+	}
+	u, err := url.Parse(src)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "http", "https":
+		return template.URL(u.String()) // #nosec G203 -- URL is parsed and restricted to http(s) with a host.
+	default:
+		return ""
+	}
+}
+
 type KratosFlowClient struct {
 	apiBaseURL     string
 	browserBaseURL string
@@ -159,7 +186,7 @@ func (c *KratosFlowClient) GetFlow(ctx context.Context, r *http.Request, flowTyp
 	if err != nil {
 		return KratosFlow{}, fmt.Errorf("build kratos flow request: %w", err)
 	}
-	if cookie := r.Header.Get("Cookie"); cookie != "" {
+	if cookie := FilterOryCookies(r.Header.Get("Cookie")); cookie != "" {
 		req.Header.Set("Cookie", cookie)
 	}
 	req.Header.Set("Accept", "application/json")
@@ -1023,7 +1050,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 			return node.Attributes.Name
 		},
 		"imageSrc": func(node KratosNode) template.URL {
-			return template.URL(node.Attributes.Src)
+			return safeImageSrc(node.Attributes.Src)
 		},
 		"textValue": func(node KratosNode) string {
 			if node.Attributes.Text != nil {

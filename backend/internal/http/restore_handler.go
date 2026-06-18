@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/kuro48/idol-auth/internal/domain/account"
+	"github.com/kuro48/idol-auth/internal/oshi"
 )
 
 const restoreCSRFCookieName = "idol_auth_restore_csrf"
 
 func (s *server) setRestoreCSRFCookie(w http.ResponseWriter, r *http.Request, token string) {
 	secure := s.config.Security.CookieSecure && requestIsSecure(r, s.config.Security.TrustedProxies)
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- restore CSRF cookie is HttpOnly, SameSite=Strict, and Secure in production.
 		Name:     restoreCSRFCookieName,
 		Value:    token,
 		Path:     "/account/restore",
@@ -71,8 +72,8 @@ func (s *server) handleRestoreAccount(w http.ResponseWriter, r *http.Request) {
 	s.setRestoreCSRFCookie(w, r, nonce)
 
 	oshiColor := template.CSS("#f472b6")
-	if c := session.OshiColor; c != "" {
-		oshiColor = template.CSS(c)
+	if c := oshi.NormalizeColor(session.OshiColor); c != "" {
+		oshiColor = template.CSS(c) // #nosec G203 -- NormalizeColor returns a fixed allowlist hex color.
 	}
 	daysLeft := int(time.Until(req.ScheduledFor).Hours()/24) + 1
 	if daysLeft < 0 {

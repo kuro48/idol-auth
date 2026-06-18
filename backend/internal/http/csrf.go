@@ -19,7 +19,7 @@ func (s *server) handleGetCSRFToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	secure := s.config.Security.CookieSecure && requestIsSecure(r, s.config.Security.TrustedProxies)
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- double-submit CSRF cookie must be JS-readable; Secure/SameSite are set.
 		Name:     spaCsrfCookieName,
 		Value:    token,
 		Path:     "/",

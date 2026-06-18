@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -31,6 +32,8 @@ const maxAvatarRequestBytes int64 = maxAvatarUploadBytes + 512<<10
 const avatarOutputSize = 512
 const maxAvatarDimension = 12000
 const maxAvatarPixels = 50_000_000
+
+var avatarFilenamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+-[a-f0-9]{16}\.jpg$`)
 
 func (s *server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	if s.profileSvc == nil {
@@ -213,11 +216,11 @@ func (s *server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	sum := sha256.Sum256(avatarData)
 	filename := sanitizeAvatarOwner(session.IdentityID) + "-" + hex.EncodeToString(sum[:])[:16] + ".jpg"
 	dir := filepath.Join(s.config.App.UploadDir, "avatars")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to prepare avatar storage")
 		return
 	}
-	if err := os.WriteFile(filepath.Join(dir, filename), avatarData, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, filename), avatarData, 0o600); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to store avatar file")
 		return
 	}
@@ -239,11 +242,17 @@ func (s *server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleAvatarAsset(w http.ResponseWriter, r *http.Request) {
 	filename := chi.URLParam(r, "file")
-	if filename == "" || filename != filepath.Base(filename) {
+	if filename == "" || filename != filepath.Base(filename) || !avatarFilenamePattern.MatchString(filename) {
 		http.NotFound(w, r)
 		return
 	}
-	path := filepath.Join(s.config.App.UploadDir, "avatars", filename)
+	path, ok := safeAvatarFilePath(s.config.App.UploadDir, filename)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	// #nosec G703 -- filename is constrained to generated avatar names and
+	// safeAvatarFilePath verifies the resolved path stays under UploadDir.
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() {
 		http.NotFound(w, r)
@@ -491,4 +500,20 @@ func sanitizeAvatarOwner(identityID string) string {
 		return "avatar"
 	}
 	return b.String()
+}
+
+func safeAvatarFilePath(uploadDir, filename string) (string, bool) {
+	avatarDir, err := filepath.Abs(filepath.Join(uploadDir, "avatars"))
+	if err != nil {
+		return "", false
+	}
+	candidate, err := filepath.Abs(filepath.Join(avatarDir, filename))
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(avatarDir, candidate)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." || filepath.IsAbs(rel) {
+		return "", false
+	}
+	return candidate, true
 }

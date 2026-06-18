@@ -167,7 +167,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request, cfg *demo.PortalConfig
 		http.Redirect(w, r, loginURL, http.StatusSeeOther)
 		return
 	}
-	if cookie := filterOryCookies(r.Header.Get("Cookie")); cookie != "" {
+	if cookie := demo.FilterOryCookies(r.Header.Get("Cookie")); cookie != "" {
 		req.Header.Set("Cookie", cookie)
 	}
 	req.Header.Set("Accept", "application/json")
@@ -196,15 +196,4 @@ func handleLogout(w http.ResponseWriter, r *http.Request, cfg *demo.PortalConfig
 		return
 	}
 	http.Redirect(w, r, decoded.LogoutURL, http.StatusSeeOther)
-}
-
-func filterOryCookies(cookieHeader string) string {
-	parts := strings.Split(cookieHeader, ";")
-	ory := parts[:0]
-	for _, part := range parts {
-		if strings.HasPrefix(strings.TrimSpace(part), "ory_") {
-			ory = append(ory, strings.TrimSpace(part))
-		}
-	}
-	return strings.Join(ory, "; ")
 }

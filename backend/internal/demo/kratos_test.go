@@ -18,7 +18,7 @@ func TestKratosFlowClientBrowserInitURLUsesBrowserBase(t *testing.T) {
 	}
 }
 
-func TestKratosFlowClientGetFlowUsesAPIBaseAndForwardsCookie(t *testing.T) {
+func TestKratosFlowClientGetFlowUsesAPIBaseAndForwardsOnlyOryCookies(t *testing.T) {
 	var gotCookie string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotCookie = r.Header.Get("Cookie")
@@ -35,7 +35,7 @@ func TestKratosFlowClientGetFlowUsesAPIBaseAndForwardsCookie(t *testing.T) {
 
 	client := NewKratosFlowClient(srv.URL, "http://localhost:4433")
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Cookie", "a=b")
+	req.Header.Set("Cookie", "a=b; ory_session=test; csrf=x")
 
 	flow, err := client.GetFlow(context.Background(), req, "registration", "flow-123")
 	if err != nil {
@@ -44,8 +44,32 @@ func TestKratosFlowClientGetFlowUsesAPIBaseAndForwardsCookie(t *testing.T) {
 	if flow.ID != "flow-123" {
 		t.Fatalf("unexpected flow: %+v", flow)
 	}
-	if gotCookie != "a=b" {
-		t.Fatalf("expected cookie to be forwarded, got %q", gotCookie)
+	if gotCookie != "ory_session=test" {
+		t.Fatalf("expected only Ory cookie to be forwarded, got %q", gotCookie)
+	}
+}
+
+func TestFilterOryCookies(t *testing.T) {
+	got := FilterOryCookies("foo=bar; ory_session=test; csrf=x; ory_kratos_session=y")
+	for _, want := range []string{"ory_session=test", "ory_kratos_session=y"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q to contain %q", got, want)
+		}
+	}
+	if strings.Contains(got, "foo=bar") || strings.Contains(got, "csrf=x") {
+		t.Fatalf("expected non-Ory cookies to be filtered, got %q", got)
+	}
+}
+
+func TestSafeImageSrcRejectsUnsafeURL(t *testing.T) {
+	if got := safeImageSrc("javascript:alert(1)"); got != "" {
+		t.Fatalf("expected unsafe image URL to be rejected, got %q", got)
+	}
+	if got := safeImageSrc("data:text/html;base64,PHNjcmlwdA=="); got != "" {
+		t.Fatalf("expected non-image data URL to be rejected, got %q", got)
+	}
+	if got := safeImageSrc("data:image/png;base64,abc"); got == "" {
+		t.Fatal("expected image data URL to be allowed")
 	}
 }
 

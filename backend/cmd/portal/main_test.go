@@ -109,7 +109,7 @@ func TestHandleLogoutRedirectsToLoginWhenNoActiveSession(t *testing.T) {
 }
 
 func TestFilterOryCookies(t *testing.T) {
-	got := filterOryCookies("foo=bar; ory_session=test; csrf=x; ory_kratos_session=y")
+	got := demo.FilterOryCookies("foo=bar; ory_session=test; csrf=x; ory_kratos_session=y")
 	for _, want := range []string{"ory_session=test", "ory_kratos_session=y"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q to contain %q", got, want)

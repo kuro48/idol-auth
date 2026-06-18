@@ -136,6 +136,8 @@ func (s *PublicAuthServiceImpl) Introspect(ctx context.Context, body []byte) ([]
 // GetSession calls Kratos /sessions/whoami with X-Session-Token to look up
 // the session for the provided bearer token.
 func (s *PublicAuthServiceImpl) GetSession(ctx context.Context, token string) (PublicSessionView, error) {
+	// #nosec G704 -- kratosPublicURL comes from trusted server configuration,
+	// never from the bearer token or request parameters.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.kratosPublicURL+"/sessions/whoami", nil)
 	if err != nil {
 		return PublicSessionView{}, fmt.Errorf("build kratos whoami request: %w", err)
@@ -143,7 +145,7 @@ func (s *PublicAuthServiceImpl) GetSession(ctx context.Context, token string) (P
 	req.Header.Set("X-Session-Token", token)
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.httpClient.Do(req) // #nosec G704 -- request target is the fixed Kratos public URL above.
 	if err != nil {
 		return PublicSessionView{}, fmt.Errorf("call kratos whoami: %w", err)
 	}
