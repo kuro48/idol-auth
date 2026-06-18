@@ -125,6 +125,12 @@ func registerFlow(mux *http.ServeMux, page flowPageConfig, flowType, title, desc
 			http.Redirect(w, r, page.kratosClient.BrowserInitURL(flowType), http.StatusFound)
 			return
 		}
+		for _, node := range flow.UI.Nodes {
+			if node.Type == "a" && strings.TrimSpace(node.Attributes.Href) != "" {
+				http.Redirect(w, r, node.Attributes.Href, http.StatusSeeOther)
+				return
+			}
+		}
 		if err := demo.RenderPage(w, demo.PageData{
 			Title:            title,
 			Description:      description,

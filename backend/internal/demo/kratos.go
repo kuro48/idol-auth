@@ -43,6 +43,7 @@ type KratosAttributes struct {
 	Value any    `json:"value"`
 	ID    string `json:"id"`
 	Src   string `json:"src"`
+	Href  string `json:"href"`
 	Text  *struct {
 		ID      int    `json:"id"`
 		Text    string `json:"text"`
@@ -748,6 +749,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           <button type="button" class="passkey-btn" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}" onclick="{{ .Attributes.OnClick }}"{{ if .Attributes.Disabled }} disabled{{ end }}>{{ nodeLabel . }}</button>
         {{ else if eq .Attributes.Type "submit" }}
           <button type="submit" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}"{{ if .Attributes.Disabled }} disabled{{ end }}>{{ nodeLabel . }}</button>
+        {{ else if eq .Type "a" }}
+          <a href="{{ safeHref .Attributes.Href }}" style="display:block;text-align:center;padding:14px 18px;background:var(--oshi);color:#fff;border-radius:999px;font-weight:900;font-size:14px;text-decoration:none;">{{ nodeLabel . }}</a>
         {{ else }}
           <div class="field">
             <label for="{{ .Attributes.Name }}">{{ nodeLabel . }}</label>
@@ -979,9 +982,25 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 			}
 			return node.Attributes.Name
 		},
-		"imageSrc": func(node KratosNode) template.URL {
-			return safeImageSrc(node.Attributes.Src)
-		},
+		"safeHref": func(raw string) template.URL {
+				raw = strings.TrimSpace(raw)
+				if raw == "" {
+					return ""
+				}
+				u, err := url.Parse(raw)
+				if err != nil || u.Host == "" {
+					return ""
+				}
+				switch strings.ToLower(u.Scheme) {
+				case "http", "https":
+					return template.URL(u.String()) // #nosec G203 -- URL is parsed and restricted to http(s) with a host.
+				default:
+					return ""
+				}
+			},
+			"imageSrc": func(node KratosNode) template.URL {
+				return safeImageSrc(node.Attributes.Src)
+			},
 		"textValue": func(node KratosNode) string {
 			if node.Attributes.Text != nil {
 				if node.Attributes.Text.Context.Secret != "" {
