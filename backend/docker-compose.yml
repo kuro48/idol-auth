@@ -218,6 +218,7 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=idolium-network
+      - --accesslog=true
     environment:
       # Docker Engine の最小 API バージョンに合わせて明示（ネゴシエーション失敗対策）
       DOCKER_API_VERSION: "1.40"
