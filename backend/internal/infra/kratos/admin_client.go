@@ -231,7 +231,9 @@ func (c *AdminClient) GetIdentityProfile(ctx context.Context, identityID string)
 		Oshis:                   meta.Oshis,
 		Badges:                  meta.Badges,
 		PrimaryBadgeID:          meta.PrimaryBadgeID,
+		Bio:                     meta.Bio,
 		Birthdate:               adminMeta.Birthdate,
+		LegalName:               adminMeta.LegalName,
 		NotificationPreferences: adminMeta.NotificationPreferences,
 	}, nil
 }
@@ -245,7 +247,8 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		input.Locale != nil ||
 		input.Timezone != nil ||
 		input.Badges != nil ||
-		input.PrimaryBadgeID != nil {
+		input.PrimaryBadgeID != nil ||
+		input.Bio != nil {
 		metadata, err := c.getMetadataPublic(ctx, identityID)
 		if err != nil {
 			return err
@@ -271,6 +274,9 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		if input.PrimaryBadgeID != nil {
 			metadata["primary_badge_id"] = *input.PrimaryBadgeID
 		}
+		if input.Bio != nil {
+			metadata["bio"] = *input.Bio
+		}
 		ops = append(ops, map[string]any{
 			"op":    "add",
 			"path":  "/metadata_public",
@@ -278,13 +284,16 @@ func (c *AdminClient) UpdateIdentityProfile(ctx context.Context, identityID stri
 		})
 	}
 
-	if input.Birthdate != nil || input.NotificationPreferences != nil {
+	if input.Birthdate != nil || input.NotificationPreferences != nil || input.LegalName != nil {
 		metadata, err := c.getMetadataAdmin(ctx, identityID)
 		if err != nil {
 			return err
 		}
 		if input.Birthdate != nil {
 			metadata["birthdate"] = *input.Birthdate
+		}
+		if input.LegalName != nil {
+			metadata["legal_name"] = *input.LegalName
 		}
 		if input.NotificationPreferences != nil {
 			metadata["notification_preferences"] = *input.NotificationPreferences

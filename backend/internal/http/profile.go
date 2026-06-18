@@ -71,6 +71,8 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 		OshiColor               *string                          `json:"oshi_color"`
 		Oshis                   *[]profile.OshiEntry             `json:"oshis"`
 		Phone                   *string                          `json:"phone"`
+		Bio                     *string                          `json:"bio"`
+		LegalName               *string                          `json:"legal_name"`
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json body")
@@ -83,6 +85,8 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 	trimStringPtr(req.Birthdate)
 	trimStringPtr(req.OshiColor)
 	trimStringPtr(req.Phone)
+	trimStringPtr(req.Bio)
+	trimStringPtr(req.LegalName)
 
 	if req.DisplayName != nil {
 		if err := profile.ValidateDisplayName(*req.DisplayName); err != nil {
@@ -132,6 +136,12 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if req.Bio != nil {
+		if err := profile.ValidateBio(*req.Bio); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
 
 	input := profile.UpdateInput{
 		DisplayName:             req.DisplayName,
@@ -143,6 +153,8 @@ func (s *server) handlePatchProfile(w http.ResponseWriter, r *http.Request) {
 		OshiColor:               req.OshiColor,
 		Oshis:                   req.Oshis,
 		Phone:                   req.Phone,
+		Bio:                     req.Bio,
+		LegalName:               req.LegalName,
 	}
 	updated, err := s.profileSvc.UpdateProfile(r.Context(), session.IdentityID, input)
 	if err != nil {

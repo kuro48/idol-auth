@@ -18,6 +18,9 @@ interface Profile {
   avatar_url?: string
   email?: string
   phone?: string
+  birthdate?: string
+  bio?: string
+  legal_name?: string
   oshis?: OshiEntry[]
 }
 
@@ -26,6 +29,9 @@ interface ProfileFormState {
   oshiColor: string
   oshis: OshiEntry[]
   phone: string
+  birthdate: string
+  bio: string
+  legalName: string
 }
 
 function profileToForm(profile: Profile): ProfileFormState {
@@ -37,6 +43,9 @@ function profileToForm(profile: Profile): ProfileFormState {
       fan_since: o.fan_since ?? '',
     })),
     phone: profile.phone ?? '',
+    birthdate: profile.birthdate ?? '',
+    bio: profile.bio ?? '',
+    legalName: profile.legal_name ?? '',
   }
 }
 
@@ -48,6 +57,9 @@ export function AccountProfilePage() {
     oshiColor: '',
     oshis: [],
     phone: '',
+    birthdate: '',
+    bio: '',
+    legalName: '',
   })
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -62,6 +74,9 @@ export function AccountProfilePage() {
       oshi_color: string
       oshis: OshiEntry[]
       phone?: string
+      birthdate?: string
+      bio?: string
+      legal_name?: string
     }) => api.patch<Profile>('/v1/account/profile', payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['account', 'profile'] })
@@ -147,6 +162,9 @@ export function AccountProfilePage() {
       oshi_color: form.oshiColor,
       oshis: trimmedOshis,
       phone: trimmedPhone || undefined,
+      birthdate: form.birthdate.trim() || undefined,
+      bio: form.bio.trim() || undefined,
+      legal_name: form.legalName.trim() || undefined,
     })
   }
 
@@ -173,8 +191,20 @@ export function AccountProfilePage() {
                 </div>
               )}
               <div className={styles.profileField}>
-                <span className={styles.profileLabel}>電話番号</span>
+                <span className={styles.profileLabel}>電話番号 <small style={{ color: 'var(--color-text-muted, #888)' }}>(非公開)</small></span>
                 <span>{data.phone || '—'}</span>
+              </div>
+              <div className={styles.profileField}>
+                <span className={styles.profileLabel}>本名 <small style={{ color: 'var(--color-text-muted, #888)' }}>(非公開)</small></span>
+                <span>{data.legal_name || '—'}</span>
+              </div>
+              <div className={styles.profileField}>
+                <span className={styles.profileLabel}>生年月日 <small style={{ color: 'var(--color-text-muted, #888)' }}>(非公開)</small></span>
+                <span>{data.birthdate || '—'}</span>
+              </div>
+              <div className={styles.profileField}>
+                <span className={styles.profileLabel}>自己紹介</span>
+                <span>{data.bio || '—'}</span>
               </div>
               <div className={styles.profileField}>
                 <span className={styles.profileLabel}>推しメンカラー</span>
@@ -218,6 +248,51 @@ export function AccountProfilePage() {
         {data && isEditing && (
           <form className={styles.profileCard} onSubmit={handleSave}>
             <div className={styles.profileInfo}>
+              <div className={styles.profileField}>
+                <label className={styles.profileLabel} htmlFor="legal-name">
+                  本名 <small style={{ color: 'var(--color-text-muted, #888)' }}>(非公開)</small>
+                </label>
+                <input
+                  id="legal-name"
+                  className={styles.input}
+                  type="text"
+                  value={form.legalName}
+                  onChange={e => setForm(prev => ({ ...prev, legalName: e.target.value }))}
+                  placeholder="山田 太郎"
+                  autoComplete="name"
+                  maxLength={100}
+                />
+              </div>
+
+              <div className={styles.profileField}>
+                <label className={styles.profileLabel} htmlFor="birthdate">
+                  生年月日 <small style={{ color: 'var(--color-text-muted, #888)' }}>(非公開)</small>
+                </label>
+                <input
+                  id="birthdate"
+                  className={styles.input}
+                  type="date"
+                  value={form.birthdate}
+                  onChange={e => setForm(prev => ({ ...prev, birthdate: e.target.value }))}
+                />
+              </div>
+
+              <div className={styles.profileField}>
+                <label className={styles.profileLabel} htmlFor="bio">
+                  自己紹介 <small style={{ color: 'var(--color-text-muted, #888)' }}>(500文字以内)</small>
+                </label>
+                <textarea
+                  id="bio"
+                  className={styles.input}
+                  value={form.bio}
+                  onChange={e => setForm(prev => ({ ...prev, bio: e.target.value }))}
+                  placeholder="自己紹介を入力してください"
+                  maxLength={500}
+                  rows={3}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+
               <div className={styles.profileField}>
                 <label className={styles.profileLabel} htmlFor="phone">
                   電話番号 <small style={{ color: 'var(--color-text-muted, #888)' }}>(任意・非公開)</small>

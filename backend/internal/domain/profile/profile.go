@@ -20,6 +20,7 @@ const (
 	maxBadgeCount       = 100
 	maxBadgeIDLength    = 80
 	maxBadgeLabelRunes  = 80
+	maxBioRunes         = 500
 )
 
 var localePattern = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
@@ -43,10 +44,12 @@ type Profile struct {
 	Badges                  []Badge                 `json:"badges,omitempty"`
 	PrimaryBadgeID          string                  `json:"primary_badge_id,omitempty"`
 	Birthdate               string                  `json:"birthdate,omitempty"`
+	Bio                     string                  `json:"bio,omitempty"`
 	NotificationPreferences NotificationPreferences `json:"notification_preferences,omitempty"`
 	// PII — excluded from PublicView
 	Email         string `json:"email,omitempty"`
 	Phone         string `json:"phone,omitempty"`
+	LegalName     string `json:"legal_name,omitempty"`
 	RecoveryEmail string `json:"recovery_email,omitempty"`
 	RecoveryPhone string `json:"recovery_phone,omitempty"`
 }
@@ -82,6 +85,7 @@ func (p Profile) PublicView() Profile {
 		Oshis:          p.Oshis,
 		Badges:         p.Badges,
 		PrimaryBadgeID: p.PrimaryBadgeID,
+		Bio:            p.Bio,
 	}
 }
 
@@ -174,6 +178,14 @@ func ValidateTimezone(s string) error {
 	}
 	if _, err := time.LoadLocation(s); err != nil {
 		return errors.New("timezone must be a valid IANA timezone")
+	}
+	return nil
+}
+
+// ValidateBio returns an error when s exceeds 500 runes.
+func ValidateBio(s string) error {
+	if utf8.RuneCountInString(strings.TrimSpace(s)) > maxBioRunes {
+		return fmt.Errorf("bio must be at most %d characters", maxBioRunes)
 	}
 	return nil
 }
@@ -315,6 +327,8 @@ type UpdateInput struct {
 	RecoveryEmail           *string
 	RecoveryPhone           *string
 	Phone                   *string
+	Bio                     *string
+	LegalName               *string
 }
 
 // MetadataPublic is the structured representation of Kratos identity metadata_public.
@@ -326,10 +340,12 @@ type MetadataPublic struct {
 	Timezone       string      `json:"timezone,omitempty"`
 	Badges         []Badge     `json:"badges,omitempty"`
 	PrimaryBadgeID string      `json:"primary_badge_id,omitempty"`
+	Bio            string      `json:"bio,omitempty"`
 }
 
 type MetadataAdmin struct {
 	Birthdate               string                  `json:"birthdate,omitempty"`
+	LegalName               string                  `json:"legal_name,omitempty"`
 	NotificationPreferences NotificationPreferences `json:"notification_preferences,omitempty"`
 }
 
