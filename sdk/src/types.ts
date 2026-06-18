@@ -121,7 +121,7 @@ export interface LoginRequest {
 }
 
 export interface AuthResult {
-  session_token: string;
+  session_token?: string;
   identity_id: string;
   email: string;
 }

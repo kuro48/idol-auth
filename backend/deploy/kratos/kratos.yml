@@ -65,13 +65,13 @@ selfservice:
       enabled: true
       ui_url: http://localhost:3002/registration
       lifespan: 10m
-      after:
-        password:
-          hooks:
-            - hook: session
     login:
       ui_url: http://localhost:3002/login
       lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: require_verified_address
     logout:
       after:
         default_browser_return_url: http://localhost:3002/login

@@ -27,7 +27,7 @@ type PublicSessionView struct {
 
 // AuthResult is returned by headless Register and Login.
 type AuthResult struct {
-	SessionToken string `json:"session_token"`
+	SessionToken string `json:"session_token,omitempty"`
 	IdentityID   string `json:"identity_id"`
 	Email        string `json:"email"`
 }

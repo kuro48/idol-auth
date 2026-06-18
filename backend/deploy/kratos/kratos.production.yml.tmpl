@@ -51,13 +51,13 @@ selfservice:
       enabled: true
       ui_url: {{APP_BASE_URL}}/registration
       lifespan: 10m
-      after:
-        password:
-          hooks:
-            - hook: session
     login:
       ui_url: {{APP_BASE_URL}}/login
       lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: require_verified_address
     logout:
       after:
         default_browser_return_url: {{APP_BASE_URL}}/login
