@@ -97,10 +97,11 @@ func run() error {
 		30*24*time.Hour,
 		accountOpts...,
 	)
+	kratosFrontend := kratos.NewFrontendClient(cfg.Ory.KratosPublicURL, cfg.Ory.KratosBrowserURL)
 	authService := apphttp.NewAuthServiceWithOptions(
 		cfg.App.BaseURL,
 		hydra.NewFlowClient(cfg.Ory.HydraAdminURL),
-		kratos.NewFrontendClient(cfg.Ory.KratosPublicURL, cfg.Ory.KratosBrowserURL),
+		kratosFrontend,
 		accountService,
 		kratosAdmin,
 	)
@@ -135,6 +136,7 @@ func run() error {
 		SessionMgr:         kratosAdmin,
 		LoginHistorySvc:    loginHistoryService,
 		EmailVerifSvc:      kratosAdmin,
+		PasswordChangeSvc:  kratosFrontend,
 	}, adminService, db.NewReadinessChecker(dbPool), authService)
 
 	srv := &http.Server{

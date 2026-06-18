@@ -284,6 +284,38 @@ func (s *server) handlePatchRecoveryContacts(w http.ResponseWriter, r *http.Requ
 	})
 }
 
+func (s *server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
+	session, ok := accountSessionFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	_ = session // identity bound via Kratos session cookie
+
+	var req struct {
+		NewPassword     string `json:"new_password"`
+		ConfirmPassword string `json:"confirm_password"`
+	}
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	if strings.TrimSpace(req.NewPassword) == "" {
+		writeError(w, http.StatusBadRequest, "new_password is required")
+		return
+	}
+	if req.NewPassword != req.ConfirmPassword {
+		writeError(w, http.StatusBadRequest, "passwords do not match")
+		return
+	}
+
+	if err := s.passwordChangeSvc.ChangePassword(r.Context(), r, req.NewPassword); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *server) handleGetEmailStatus(w http.ResponseWriter, r *http.Request) {
 	session, ok := accountSessionFromContext(r.Context())
 	if !ok {

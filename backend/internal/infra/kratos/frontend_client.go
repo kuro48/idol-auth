@@ -1,6 +1,7 @@
 package kratos
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -180,6 +181,101 @@ func (c *FrontendClient) LogoutBrowser(ctx context.Context, r *http.Request) err
 		return fmt.Errorf("call kratos logout: %w", err)
 	}
 	defer logoutResp.Body.Close()
+	return nil
+}
+
+// ChangePassword initializes an API settings flow and submits a password update.
+// It forwards the caller's Ory session cookies to Kratos so the session is bound
+// to the new flow. Returns nil on success; error details from Kratos are surfaced.
+func (c *FrontendClient) ChangePassword(ctx context.Context, r *http.Request, newPassword string) error {
+	initReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiBaseURL+"/self-service/settings/api", nil)
+	if err != nil {
+		return fmt.Errorf("build kratos init settings flow request: %w", err)
+	}
+	if cookie := r.Header.Get("Cookie"); cookie != "" {
+		if filtered := filterOryCookies(cookie); filtered != "" {
+			initReq.Header.Set("Cookie", filtered)
+		}
+	}
+	initReq.Header.Set("Accept", "application/json")
+	initResp, err := c.httpClient.Do(initReq)
+	if err != nil {
+		return fmt.Errorf("call kratos init settings flow: %w", err)
+	}
+	defer initResp.Body.Close()
+	if initResp.StatusCode == http.StatusUnauthorized || initResp.StatusCode == http.StatusForbidden {
+		return apphttp.ErrNoActiveSession
+	}
+	if initResp.StatusCode < 200 || initResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(initResp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "init_settings_flow", "status", initResp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos init settings flow returned status %d", initResp.StatusCode)
+	}
+
+	var flow struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(initResp.Body).Decode(&flow); err != nil {
+		return fmt.Errorf("decode kratos init settings flow response: %w", err)
+	}
+	if flow.ID == "" {
+		return fmt.Errorf("kratos init settings flow returned empty id")
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"method":   "password",
+		"password": newPassword,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal kratos password change request: %w", err)
+	}
+	submitReq, err := http.NewRequestWithContext(
+		ctx, http.MethodPost,
+		c.apiBaseURL+"/self-service/settings?flow="+url.QueryEscape(flow.ID),
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return fmt.Errorf("build kratos submit settings flow request: %w", err)
+	}
+	if cookie := r.Header.Get("Cookie"); cookie != "" {
+		if filtered := filterOryCookies(cookie); filtered != "" {
+			submitReq.Header.Set("Cookie", filtered)
+		}
+	}
+	submitReq.Header.Set("Content-Type", "application/json")
+	submitReq.Header.Set("Accept", "application/json")
+
+	submitResp, err := c.httpClient.Do(submitReq)
+	if err != nil {
+		return fmt.Errorf("call kratos submit settings flow: %w", err)
+	}
+	defer submitResp.Body.Close()
+
+	body, _ := io.ReadAll(io.LimitReader(submitResp.Body, 1<<20))
+	if submitResp.StatusCode == http.StatusUnauthorized || submitResp.StatusCode == http.StatusForbidden {
+		return apphttp.ErrNoActiveSession
+	}
+	if submitResp.StatusCode == http.StatusUnprocessableEntity {
+		var kratosErr struct {
+			UI struct {
+				Messages []struct {
+					Text string `json:"text"`
+				} `json:"messages"`
+			} `json:"ui"`
+		}
+		if jerr := json.Unmarshal(body, &kratosErr); jerr == nil {
+			for _, m := range kratosErr.UI.Messages {
+				if m.Text != "" {
+					return fmt.Errorf("password change rejected: %s", m.Text)
+				}
+			}
+		}
+		return fmt.Errorf("password change rejected by kratos")
+	}
+	if submitResp.StatusCode < 200 || submitResp.StatusCode >= 300 {
+		slog.WarnContext(ctx, "kratos upstream error", "op", "submit_settings_flow", "status", submitResp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos submit settings flow returned status %d", submitResp.StatusCode)
+	}
 	return nil
 }
 

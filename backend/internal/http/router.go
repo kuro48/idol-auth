@@ -46,6 +46,7 @@ type RouterConfig struct {
 	SessionMgr         SessionManager         // optional; nil disables session list/revoke endpoints
 	LoginHistorySvc    LoginHistoryService    // optional; nil disables /v1/account/login-history
 	EmailVerifSvc      EmailVerifChecker      // optional; nil disables /v1/account/email-status
+	PasswordChangeSvc  PasswordChanger        // optional; nil disables /v1/account/password-change
 }
 
 type LoginFlowResult struct {
@@ -159,6 +160,11 @@ type EmailVerifChecker interface {
 	GetEmailVerificationStatus(ctx context.Context, identityID string) (string, bool, error)
 }
 
+// PasswordChanger changes the Kratos password for the current session's identity.
+type PasswordChanger interface {
+	ChangePassword(ctx context.Context, r *http.Request, newPassword string) error
+}
+
 type themePreferenceService interface {
 	UpdateThemePreference(ctx context.Context, r *http.Request, color string) (SessionView, error)
 }
@@ -180,6 +186,7 @@ type server struct {
 	sessionMgr         SessionManager
 	loginHistorySvc    LoginHistoryService
 	emailVerifSvc      EmailVerifChecker
+	passwordChangeSvc  PasswordChanger
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	credentialLimiter  RateLimiter // strict per-IP limiter for /login and /register
@@ -200,6 +207,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		sessionMgr:         cfg.SessionMgr,
 		loginHistorySvc:    cfg.LoginHistorySvc,
 		emailVerifSvc:      cfg.EmailVerifSvc,
+		passwordChangeSvc:  cfg.PasswordChangeSvc,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		credentialLimiter:  NewInMemoryRateLimiter(5, time.Minute),
@@ -304,6 +312,9 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		}
 		if s.emailVerifSvc != nil {
 			r.Get("/email-status", s.handleGetEmailStatus)
+		}
+		if s.passwordChangeSvc != nil {
+			r.Post("/password-change", s.handlePasswordChange)
 		}
 	})
 

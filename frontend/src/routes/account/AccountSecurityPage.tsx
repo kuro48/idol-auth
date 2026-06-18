@@ -47,6 +47,39 @@ export function AccountSecurityPage() {
   const [recoveryError, setRecoveryError] = useState<string | null>(null)
   const [isEditingRecovery, setIsEditingRecovery] = useState(false)
 
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [isEditingPassword, setIsEditingPassword] = useState(false)
+
+  const savePassword = useMutation({
+    mutationFn: (payload: { new_password: string; confirm_password: string }) =>
+      api.post('/v1/account/password-change', payload),
+    onSuccess: () => {
+      setNewPassword('')
+      setConfirmPassword('')
+      setIsEditingPassword(false)
+      setPasswordError(null)
+    },
+    onError: (err: unknown) => {
+      setPasswordError(err instanceof Error ? err.message : 'パスワード変更に失敗しました')
+    },
+  })
+
+  function handleSavePassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      setPasswordError('パスワードが一致しません')
+      return
+    }
+    if (newPassword.length < 8) {
+      setPasswordError('パスワードは8文字以上で入力してください')
+      return
+    }
+    setPasswordError(null)
+    savePassword.mutate({ new_password: newPassword, confirm_password: confirmPassword })
+  }
+
   const saveRecovery = useMutation({
     mutationFn: (payload: { recovery_email?: string; recovery_phone?: string }) =>
       api.patch<RecoveryContacts>('/v1/account/recovery-contacts', payload),
@@ -140,6 +173,61 @@ export function AccountSecurityPage() {
         description="パスキーや二段階認証でアカウントを保護します。"
       />
       <div className={styles.content}>
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <div>
+              <h2 className={styles.sectionTitle}>パスワード変更</h2>
+              <p className={styles.sectionDesc}>アカウントのパスワードを変更します。</p>
+            </div>
+            {!isEditingPassword && (
+              <button className={styles.addBtn} onClick={() => { setIsEditingPassword(true); setPasswordError(null) }}>
+                変更する
+              </button>
+            )}
+          </div>
+          {isEditingPassword && (
+            <form onSubmit={handleSavePassword} className={styles.totpForm}>
+              <label className={styles.totpStepLabel} htmlFor="new-password">新しいパスワード</label>
+              <input
+                id="new-password"
+                className={styles.totpInput}
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="8文字以上"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+              <label className={styles.totpStepLabel} htmlFor="confirm-password">確認（再入力）</label>
+              <input
+                id="confirm-password"
+                className={styles.totpInput}
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="同じパスワードを入力"
+                autoComplete="new-password"
+                required
+              />
+              {passwordError && <div className={styles.alertError}>{passwordError}</div>}
+              {savePassword.isSuccess && <div className={styles.alertSuccess}>パスワードを変更しました。</div>}
+              <div className={styles.totpActions}>
+                <button type="submit" className={styles.addBtn} disabled={savePassword.isPending}>
+                  {savePassword.isPending ? '変更中…' : '変更する'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.removeBtn}
+                  onClick={() => { setIsEditingPassword(false); setPasswordError(null) }}
+                >
+                  キャンセル
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+
         {emailStatus && (
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
