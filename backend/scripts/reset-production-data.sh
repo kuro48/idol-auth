@@ -27,8 +27,6 @@ for var_name in "${required_vars[@]}"; do
   fi
 done
 
-expected_confirmation="reset ${APP_HOSTNAME} production data"
-provided_confirmation="${RESET_PRODUCTION_DATA_CONFIRM:-}"
 redeploy_after_reset=true
 
 case "$SKIP_REDEPLOY_AFTER_RESET" in
@@ -43,41 +41,6 @@ case "$SKIP_REDEPLOY_AFTER_RESET" in
     exit 1
     ;;
 esac
-
-if [[ -z "$provided_confirmation" && -t 0 ]]; then
-  cat >&2 <<EOF
-This deletes all Postgres data and uploaded files managed by docker compose:
-  - postgres_data
-  - uploads_data
-
-Target host: ${APP_HOSTNAME}
-
-Type this exact confirmation to continue:
-  ${expected_confirmation}
-
-EOF
-  read -r -p "Confirmation: " provided_confirmation
-fi
-
-if [[ "$provided_confirmation" != "$expected_confirmation" ]]; then
-  printf -v confirm_arg "%q" "$expected_confirmation"
-  printf -v env_file_arg "%q" "$ENV_FILE"
-  cat >&2 <<EOF
-refusing to reset production data
-
-This deletes all Postgres data and uploaded files managed by docker compose:
-  - postgres_data
-  - uploads_data
-
-Target host: ${APP_HOSTNAME}
-
-Run again with this exact confirmation:
-  RESET_PRODUCTION_DATA_CONFIRM=${confirm_arg} ENV_FILE=${env_file_arg} bash scripts/reset-production-data.sh
-
-Set SKIP_REDEPLOY_AFTER_RESET=true to leave the stack stopped after deleting volumes.
-EOF
-  exit 1
-fi
 
 urlencode() {
   perl -e 'my $s = shift; $s =~ s/([^A-Za-z0-9._~-])/sprintf("%%%02X", ord($1))/eg; print $s' "$1"
