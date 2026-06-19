@@ -133,10 +133,15 @@ func filterOryCookies(cookieHeader string) string {
 	return strings.Join(ory, "; ")
 }
 
-func (c *FrontendClient) LogoutBrowser(ctx context.Context, r *http.Request) error {
+// LogoutBrowser initiates a Kratos browser logout for the session in r and
+// returns the one-time logout URL that the browser must follow to complete the
+// flow. Kratos only clears the session cookie when the browser itself GETs
+// that URL; the handler must redirect the browser there rather than following
+// it server-side.
+func (c *FrontendClient) LogoutBrowser(ctx context.Context, r *http.Request) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiBaseURL+"/self-service/logout/browser", nil)
 	if err != nil {
-		return fmt.Errorf("build kratos logout browser request: %w", err)
+		return "", fmt.Errorf("build kratos logout browser request: %w", err)
 	}
 	if cookie := r.Header.Get("Cookie"); cookie != "" {
 		if filtered := filterOryCookies(cookie); filtered != "" {
@@ -147,48 +152,26 @@ func (c *FrontendClient) LogoutBrowser(ctx context.Context, r *http.Request) err
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("call kratos logout browser: %w", err)
+		return "", fmt.Errorf("call kratos logout browser: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return nil
+		return "", nil
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		slog.WarnContext(ctx, "kratos upstream error", "op", "logout_browser", "status", resp.StatusCode, "body", strings.TrimSpace(string(body)))
-		return fmt.Errorf("kratos logout browser returned status %d", resp.StatusCode)
+		return "", fmt.Errorf("kratos logout browser returned status %d", resp.StatusCode)
 	}
 
 	var decoded struct {
 		LogoutURL string `json:"logout_url"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return fmt.Errorf("decode kratos logout browser response: %w", err)
+		return "", fmt.Errorf("decode kratos logout browser response: %w", err)
 	}
-	if decoded.LogoutURL == "" {
-		return nil
-	}
-
-	// Rewrite the public logout URL to the internal Kratos API URL so the
-	// backend can reach Kratos directly without going through the public domain.
-	internalLogoutURL := decoded.LogoutURL
-	if parsed, err := url.Parse(decoded.LogoutURL); err == nil {
-		internalLogoutURL = c.apiBaseURL + parsed.RequestURI()
-	}
-
-	logoutReq, err := http.NewRequestWithContext(ctx, http.MethodGet, internalLogoutURL, nil)
-	if err != nil {
-		return fmt.Errorf("build kratos logout request: %w", err)
-	}
-	noRedirect := *c.httpClient
-	noRedirect.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	logoutResp, err := noRedirect.Do(logoutReq)
-	if err != nil {
-		return fmt.Errorf("call kratos logout: %w", err)
-	}
-	defer logoutResp.Body.Close()
-	return nil
+	return decoded.LogoutURL, nil
 }
 
 // ChangePassword initializes an API settings flow and submits a password update.

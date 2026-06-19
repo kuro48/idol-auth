@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -86,16 +87,19 @@ func (s *server) handleThemePreference(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
 	baseURL := strings.TrimRight(s.config.App.BaseURL, "/") + "/"
+	logoutURL := baseURL
 	if s.authSvc != nil {
-		// Best-effort: invalidate the Kratos session server-side so the browser
-		// never navigates to the Kratos domain.
-		_ = s.authSvc.LogoutSession(r.Context(), r)
+		if u, err := s.authSvc.LogoutSession(r.Context(), r); err != nil {
+			slog.WarnContext(r.Context(), "kratos logout failed", "err", err)
+		} else if u != "" {
+			logoutURL = u
+		}
 	}
 	if wantsJSON(r) {
-		writeJSON(w, http.StatusOK, map[string]string{"logout_url": baseURL})
+		writeJSON(w, http.StatusOK, map[string]string{"logout_url": logoutURL})
 		return
 	}
-	http.Redirect(w, r, baseURL, http.StatusSeeOther)
+	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {

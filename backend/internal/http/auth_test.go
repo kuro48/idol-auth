@@ -441,8 +441,8 @@ func (s *stubAuthService) HandleLogout(_ context.Context, _ string) (apphttp.Aut
 	return s.logoutResult, s.logoutErr
 }
 
-func (s *stubAuthService) LogoutSession(_ context.Context, _ *http.Request) error {
-	return nil
+func (s *stubAuthService) LogoutSession(_ context.Context, _ *http.Request) (string, error) {
+	return "", nil
 }
 
 func (s *stubAuthService) CurrentSession(_ context.Context, _ *http.Request) (apphttp.SessionView, error) {
