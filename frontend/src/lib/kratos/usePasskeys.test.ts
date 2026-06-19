@@ -64,6 +64,49 @@ describe('parsePasskeyFlow', () => {
     expect(parsed.registerOnClick).toBe('window.__oryPasskeySettingsRegistration()')
   })
 
+  it('reads current Ory passkey settings nodes', () => {
+    const flow = makeFlow([
+      {
+        type: 'script',
+        group: 'passkey',
+        attributes: {
+          src: '/.well-known/ory/webauthn.js',
+        },
+      },
+      {
+        type: 'input',
+        group: 'passkey',
+        attributes: {
+          name: 'passkey_register_trigger',
+          type: 'button',
+          onclick: 'window.oryPasskeySettingsRegistration()',
+        },
+      },
+      {
+        type: 'input',
+        group: 'passkey',
+        attributes: {
+          name: 'passkey_settings_register',
+          type: 'hidden',
+        },
+      },
+      {
+        type: 'input',
+        group: 'passkey',
+        attributes: {
+          name: 'passkey_create_data',
+          type: 'hidden',
+          value: 'current-registration-options',
+        },
+      },
+    ])
+
+    const parsed = parsePasskeyFlow(flow)
+
+    expect(parsed.registrationOptionsBase64).toBe('current-registration-options')
+    expect(parsed.registerOnClick).toBe('window.oryPasskeySettingsRegistration()')
+  })
+
   it('uses the default registration callback when the flow has no register button node', () => {
     const flow = makeFlow([])
 
