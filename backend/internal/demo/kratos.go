@@ -750,6 +750,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         {{ else if eq .Attributes.Name "traits.primary_identifier_type" }}
           <input type="hidden" name="{{ .Attributes.Name }}" value="email">
         {{ else if and (eq $.FlowType "registration") (eq .Attributes.Name "traits.phone") }}
+        {{ else if and (eq $.FlowType "registration") (eq .Attributes.Name "traits.recovery_email") }}
+        {{ else if and (eq $.FlowType "registration") (eq .Attributes.Name "traits.recovery_phone") }}
         {{ else if eq .Attributes.Type "hidden" }}
           <input type="hidden" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}">
         {{ else if and (eq $.FlowType "registration") (eq .Attributes.Name "method") (eq .Attributes.Value "profile") }}
@@ -757,6 +759,10 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             <div class="field">
               <label for="password">Password</label>
               <input id="password" name="password" type="password" required autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label for="password_confirm">パスワード（確認）</label>
+              <input id="password_confirm" type="password" required autocomplete="new-password" data-password-confirm>
             </div>
           {{ end }}
           <button type="submit" name="{{ .Attributes.Name }}" value="password">{{ nodeLabel . }}</button>
@@ -773,6 +779,12 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             <label for="{{ .Attributes.Name }}">{{ nodeLabel . }}</label>
             <input id="{{ .Attributes.Name }}" name="{{ .Attributes.Name }}" type="{{ inputType .Attributes.Name .Attributes.Type }}" value="{{ .Attributes.Value }}" {{ if .Attributes.Required }}required{{ end }} {{ if .Attributes.Disabled }}disabled{{ end }}>
           </div>
+          {{ if and (eq $.FlowType "registration") (eq .Attributes.Name "password") }}
+            <div class="field">
+              <label for="password_confirm">パスワード（確認）</label>
+              <input id="password_confirm" type="password" required autocomplete="new-password" data-password-confirm>
+            </div>
+          {{ end }}
         {{ end }}
       {{ end }}
       {{ if and (eq .FlowType "registration") .TurnstileSiteKey }}
@@ -814,6 +826,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         }
         var email=form.querySelector('input[name="traits.email"]');
         var passwordField=form.querySelector('input[name="password"]');
+        var passwordConfirmField=form.querySelector('[data-password-confirm]');
         var passwordStrengthPanel=document.getElementById('password-strength-panel');
         function passwordState(value){
           var hasUpper=/[A-Z]/.test(value);
@@ -887,6 +900,16 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           passwordField.setCustomValidity(state.valid||passwordField.value.length===0?'':'パスワードは8文字以上で、英大文字・英小文字・数字・記号のうち3種類以上を含めてください。');
           return state.valid||passwordField.value.length===0;
         }
+        function syncPasswordConfirmation(){
+          if(!passwordField||!passwordConfirmField){
+            return true;
+          }
+          var hasConfirmation=passwordConfirmField.value.length>0;
+          var matches=passwordField.value===passwordConfirmField.value;
+          passwordConfirmField.classList.toggle('is-invalid',hasConfirmation&&!matches);
+          passwordConfirmField.setCustomValidity(!hasConfirmation||matches?'':'パスワードが一致しません。');
+          return !hasConfirmation||matches;
+        }
         if(email){
           email.autocomplete='email';
           email.inputMode='email';
@@ -900,8 +923,16 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
             passwordField.parentNode.insertAdjacentElement('afterend',passwordStrengthPanel);
           }
           passwordField.addEventListener('input',syncPasswordStrength);
+          passwordField.addEventListener('input',syncPasswordConfirmation);
           passwordField.addEventListener('blur',syncPasswordStrength);
+          passwordField.addEventListener('blur',syncPasswordConfirmation);
           syncPasswordStrength();
+        }
+        if(passwordConfirmField){
+          passwordConfirmField.placeholder='もう一度入力';
+          passwordConfirmField.addEventListener('input',syncPasswordConfirmation);
+          passwordConfirmField.addEventListener('blur',syncPasswordConfirmation);
+          syncPasswordConfirmation();
         }
         if(email){
           email.addEventListener('input',syncPrimaryIdentifierType);
@@ -909,6 +940,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
         form.addEventListener('submit',function(){
           syncPrimaryIdentifierType();
           syncPasswordStrength();
+          syncPasswordConfirmation();
         });
         syncPrimaryIdentifierType();
       }
