@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -91,7 +92,7 @@ func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
 	if s.authSvc != nil {
 		if u, err := s.authSvc.LogoutSession(r.Context(), r); err != nil {
 			slog.WarnContext(r.Context(), "kratos logout failed", "err", err)
-		} else if u != "" {
+		} else if u != "" && isSameHost(u, baseURL) {
 			logoutURL = u
 		}
 	}
@@ -99,7 +100,21 @@ func (s *server) handleLogoutStart(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"logout_url": logoutURL})
 		return
 	}
-	http.Redirect(w, r, logoutURL, http.StatusSeeOther)
+	http.Redirect(w, r, logoutURL, http.StatusSeeOther) // #nosec G710 -- URL host validated by isSameHost
+}
+
+// isSameHost returns true when candidate and base share the same host, preventing
+// open-redirect to external domains when forwarding Kratos logout URLs.
+func isSameHost(candidate, base string) bool {
+	cu, err := url.Parse(candidate)
+	if err != nil || cu.Host == "" {
+		return false
+	}
+	bu, err := url.Parse(base)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(cu.Host, bu.Host)
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
