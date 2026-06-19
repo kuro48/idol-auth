@@ -44,6 +44,21 @@ case "$SKIP_REDEPLOY_AFTER_RESET" in
     ;;
 esac
 
+if [[ -z "$provided_confirmation" && -t 0 ]]; then
+  cat >&2 <<EOF
+This deletes all Postgres data and uploaded files managed by docker compose:
+  - postgres_data
+  - uploads_data
+
+Target host: ${APP_HOSTNAME}
+
+Type this exact confirmation to continue:
+  ${expected_confirmation}
+
+EOF
+  read -r -p "Confirmation: " provided_confirmation
+fi
+
 if [[ "$provided_confirmation" != "$expected_confirmation" ]]; then
   printf -v confirm_arg "%q" "$expected_confirmation"
   printf -v env_file_arg "%q" "$ENV_FILE"
