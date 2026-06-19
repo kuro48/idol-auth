@@ -157,12 +157,13 @@ func assertFlowInitRedirect(t *testing.T, w *httptest.ResponseRecorder, wantPath
 	if err != nil {
 		t.Fatalf("parse redirect location %q: %v", location, err)
 	}
+	gotReturnTo := parsed.Query().Get("return_to")
 	parsed.RawQuery = ""
 	if got := parsed.String(); got != wantPath {
 		t.Fatalf("expected redirect path %q, got %q", wantPath, got)
 	}
-	if got := parsed.Query().Get("return_to"); got != wantReturnTo {
-		t.Fatalf("expected return_to %q, got %q in %q", wantReturnTo, got, location)
+	if gotReturnTo != wantReturnTo {
+		t.Fatalf("expected return_to %q, got %q in %q", wantReturnTo, gotReturnTo, location)
 	}
 }
 

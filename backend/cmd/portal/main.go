@@ -116,13 +116,13 @@ func registerFlow(mux *http.ServeMux, page flowPageConfig, flowType, title, desc
 	mux.HandleFunc("/"+flowType, func(w http.ResponseWriter, r *http.Request) {
 		flowID := r.URL.Query().Get("flow")
 		if flowID == "" {
-			http.Redirect(w, r, page.kratosClient.BrowserInitURL(flowType), http.StatusFound)
+			http.Redirect(w, r, flowBrowserInitURL(page, flowType), http.StatusFound)
 			return
 		}
 		flow, err := page.kratosClient.GetFlow(r.Context(), r, flowType, flowID)
 		if err != nil {
 			slog.Warn("flow fetch failed, restarting flow", "flow_type", flowType, "flow_id", flowID, "error", err)
-			http.Redirect(w, r, page.kratosClient.BrowserInitURL(flowType), http.StatusFound)
+			http.Redirect(w, r, flowBrowserInitURL(page, flowType), http.StatusFound)
 			return
 		}
 		for _, node := range flow.UI.Nodes {
@@ -144,6 +144,15 @@ func registerFlow(mux *http.ServeMux, page flowPageConfig, flowType, title, desc
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+}
+
+func flowBrowserInitURL(page flowPageConfig, flowType string) string {
+	switch flowType {
+	case "registration", "verification":
+		return page.kratosClient.BrowserInitURLWithReturnTo(flowType, page.accountCenterURL)
+	default:
+		return page.kratosClient.BrowserInitURL(flowType)
+	}
 }
 
 func legalBaseURL(cfg *demo.PortalConfig) string {

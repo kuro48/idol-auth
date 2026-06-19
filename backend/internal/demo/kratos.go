@@ -182,6 +182,21 @@ func (c *KratosFlowClient) BrowserInitURL(flowType string) string {
 	return c.browserBaseURL + "/self-service/" + flowType + "/browser"
 }
 
+func (c *KratosFlowClient) BrowserInitURLWithReturnTo(flowType, returnTo string) string {
+	target := c.BrowserInitURL(flowType)
+	if strings.TrimSpace(returnTo) == "" {
+		return target
+	}
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return target
+	}
+	q := parsed.Query()
+	q.Set("return_to", returnTo)
+	parsed.RawQuery = q.Encode()
+	return parsed.String()
+}
+
 func (c *KratosFlowClient) GetFlow(ctx context.Context, r *http.Request, flowType, flowID string) (KratosFlow, error) {
 	endpoint := c.apiBaseURL + "/self-service/" + flowType + "/flows?" + url.Values{"id": []string{flowID}}.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
