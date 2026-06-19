@@ -4,8 +4,8 @@ export function NotFoundPage() {
   return (
     <main className={styles.page}>
       <span className={styles.code}>404</span>
-      <h1 className={styles.heading}>Page not found</h1>
-      <a href="/" className={styles.link}>Go home</a>
+      <h1 className={styles.heading}>ページが見つかりません</h1>
+      <a href="/" className={styles.link}>ホームへ戻る</a>
     </main>
   )
 }
