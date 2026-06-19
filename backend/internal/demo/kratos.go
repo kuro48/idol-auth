@@ -52,13 +52,14 @@ type KratosAttributes struct {
 			Secret string `json:"secret"`
 		} `json:"context"`
 	} `json:"text"`
-	Required    bool   `json:"required"`
-	Disabled    bool   `json:"disabled"`
-	OnClick     string `json:"onclick"`
-	Async       bool   `json:"async"`
-	CrossOrigin string `json:"crossorigin"`
-	Integrity   string `json:"integrity"`
-	Nonce       string `json:"nonce"`
+	Required       bool   `json:"required"`
+	Disabled       bool   `json:"disabled"`
+	OnClick        string `json:"onclick"`
+	OnClickTrigger string `json:"onclickTrigger"`
+	Async          bool   `json:"async"`
+	CrossOrigin    string `json:"crossorigin"`
+	Integrity      string `json:"integrity"`
+	Nonce          string `json:"nonce"`
 }
 
 type KratosMessage struct {
@@ -713,6 +714,7 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
     {{ end }}
     <form id="kratos-flow-form" action="{{ .Flow.UI.Action }}" method="{{ .Flow.UI.Method }}" data-flow-type="{{ .FlowType }}">
       {{ range .Flow.UI.Nodes }}
+        {{ $passkeyOnClick := passkeyOnClick . }}
         {{ range .Messages }}<div class="alert alert-error">{{ translateMessage . }}</div>{{ end }}
         {{ if eq .Type "img" }}
           <details class="totp-reveal">
@@ -745,8 +747,8 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
           <button type="submit" name="{{ .Attributes.Name }}" value="password">{{ nodeLabel . }}</button>
         {{ else if eq .Type "script" }}
           <script src="{{ .Attributes.Src }}" async{{ if .Attributes.CrossOrigin }} crossorigin="{{ .Attributes.CrossOrigin }}"{{ end }}{{ if .Attributes.Integrity }} integrity="{{ .Attributes.Integrity }}"{{ end }}{{ if .Attributes.Nonce }} nonce="{{ .Attributes.Nonce }}"{{ end }}></script>
-        {{ else if and (eq .Attributes.Type "button") (ne .Attributes.OnClick "") }}
-          <button type="button" class="passkey-btn" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}" onclick="{{ .Attributes.OnClick }}"{{ if .Attributes.Disabled }} disabled{{ end }}>{{ nodeLabel . }}</button>
+        {{ else if and (eq .Attributes.Type "button") (ne $passkeyOnClick "") }}
+          <button type="button" class="passkey-btn" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}" onclick="{{ $passkeyOnClick }}"{{ if .Attributes.Disabled }} disabled{{ end }}>{{ nodeLabel . }}</button>
         {{ else if eq .Attributes.Type "submit" }}
           <button type="submit" name="{{ .Attributes.Name }}" value="{{ .Attributes.Value }}"{{ if .Attributes.Disabled }} disabled{{ end }}>{{ nodeLabel . }}</button>
         {{ else if eq .Type "a" }}
@@ -970,6 +972,27 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 			}
 			return target
 		},
+		"passkeyOnClick": func(node KratosNode) template.JS {
+			allowedTriggers := map[string]bool{
+				"oryPasskeyLogin":                true,
+				"oryPasskeyRegistration":         true,
+				"oryPasskeySettingsRegistration": true,
+				"oryWebAuthnLogin":               true,
+				"oryWebAuthnRegistration":        true,
+				"oryWebAuthnSettings":            true,
+			}
+			trigger := strings.TrimSpace(node.Attributes.OnClickTrigger)
+			if trigger != "" && allowedTriggers[trigger] {
+				return template.JS("window." + trigger + "()") // #nosec G203 -- trigger is restricted by allowlist above.
+			}
+			onClick := strings.TrimSpace(node.Attributes.OnClick)
+			for allowed := range allowedTriggers {
+				if onClick == "window."+allowed+"()" {
+					return template.JS(onClick) // #nosec G203 -- onclick is matched exactly against allowlisted function calls.
+				}
+			}
+			return ""
+		},
 		"nodeLabel": func(node KratosNode) string {
 			if node.Meta.Label != nil && node.Meta.Label.Text != "" {
 				return translateLabel(node.Meta.Label.Text)
@@ -983,24 +1006,24 @@ func RenderPage(w http.ResponseWriter, data PageData) error {
 			return node.Attributes.Name
 		},
 		"safeHref": func(raw string) template.URL {
-				raw = strings.TrimSpace(raw)
-				if raw == "" {
-					return ""
-				}
-				u, err := url.Parse(raw)
-				if err != nil || u.Host == "" {
-					return ""
-				}
-				switch strings.ToLower(u.Scheme) {
-				case "http", "https":
-					return template.URL(u.String()) // #nosec G203 -- URL is parsed and restricted to http(s) with a host.
-				default:
-					return ""
-				}
-			},
-			"imageSrc": func(node KratosNode) template.URL {
-				return safeImageSrc(node.Attributes.Src)
-			},
+			raw = strings.TrimSpace(raw)
+			if raw == "" {
+				return ""
+			}
+			u, err := url.Parse(raw)
+			if err != nil || u.Host == "" {
+				return ""
+			}
+			switch strings.ToLower(u.Scheme) {
+			case "http", "https":
+				return template.URL(u.String()) // #nosec G203 -- URL is parsed and restricted to http(s) with a host.
+			default:
+				return ""
+			}
+		},
+		"imageSrc": func(node KratosNode) template.URL {
+			return safeImageSrc(node.Attributes.Src)
+		},
 		"textValue": func(node KratosNode) string {
 			if node.Attributes.Text != nil {
 				if node.Attributes.Text.Context.Secret != "" {
