@@ -15,6 +15,7 @@ include_paths=(
   scripts/deploy-production.sh
   scripts/export-env-file.sh
   scripts/render-production-config.sh
+  scripts/reset-production-data.sh
 )
 
 rm -rf "$OUT_DIR"
