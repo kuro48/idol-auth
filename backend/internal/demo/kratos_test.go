@@ -2,6 +2,7 @@ package demo
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -190,6 +191,68 @@ func TestRenderPageUsesAccountCenterDesignSystem(t *testing.T) {
 	for _, fragment := range []string{`href="/settings"`, "セキュリティ設定"} {
 		if strings.Contains(body, fragment) {
 			t.Fatalf("expected login page not to link to settings, got %s", body)
+		}
+	}
+}
+
+func TestRenderPageRendersPasskeyLoginTriggerButton(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	var flow KratosFlow
+	if err := json.Unmarshal([]byte(`{
+		"id": "flow-123",
+		"ui": {
+			"action": "http://kratos/login",
+			"method": "POST",
+			"nodes": [
+				{
+					"type": "script",
+					"group": "passkey",
+					"attributes": {
+						"src": "/.well-known/ory/webauthn.js"
+					}
+				},
+				{
+					"type": "input",
+					"group": "passkey",
+					"attributes": {
+						"name": "passkey_login_trigger",
+						"type": "button",
+						"value": "",
+						"disabled": false,
+						"onclickTrigger": "oryPasskeyLogin",
+						"node_type": "input"
+					},
+					"meta": {
+						"label": {
+							"text": "Sign in with passkey"
+						}
+					}
+				}
+			]
+		}
+	}`), &flow); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	err := RenderPage(rec, PageData{
+		Title:       "Login",
+		Description: "Sign in",
+		FlowType:    "login",
+		Flow:        flow,
+	})
+	if err != nil {
+		t.Fatalf("RenderPage() error = %v", err)
+	}
+
+	body := rec.Body.String()
+	for _, fragment := range []string{
+		`<button type="button" class="passkey-btn" name="passkey_login_trigger"`,
+		`onclick="window.oryPasskeyLogin()"`,
+		`>パスキーでログイン</button>`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected passkey login button fragment %q, got %s", fragment, body)
 		}
 	}
 }
