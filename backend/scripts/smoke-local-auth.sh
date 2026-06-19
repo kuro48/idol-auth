@@ -166,17 +166,7 @@ curl -sS -L -o "$WORKDIR/verification-result.html" -c "$COOKIE_JAR" -b "$COOKIE_
   --data-urlencode "code=$VERIFICATION_CODE" \
   --data-urlencode "method=code"
 
-echo "==> Logging in after email verification"
-curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" -L "$APP_URL/login" >"$WORKDIR/login.html"
-ACTION="$(extract_form_action "$WORKDIR/login.html")"
-CSRF="$(extract_attr "$WORKDIR/login.html" "csrf_token")"
-curl -sS -L -o "$WORKDIR/login-result.html" -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$ACTION" \
-  --data-urlencode "csrf_token=$CSRF" \
-  --data-urlencode "identifier=$EMAIL" \
-  --data-urlencode "password=$PASSWORD" \
-  --data-urlencode "method=password"
-
-echo "==> Checking password-only session"
+echo "==> Checking verified registration session"
 SESSION_JSON="$(curl -sS -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$AUTH_URL/v1/auth/session")"
 printf '%s\n' "$SESSION_JSON"
 printf '%s' "$SESSION_JSON" | grep -q '"authenticated":true'

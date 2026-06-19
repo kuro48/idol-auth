@@ -54,6 +54,7 @@ selfservice:
       after:
         password:
           hooks:
+            - hook: session
             - hook: show_verification_ui
     login:
       ui_url: {{APP_BASE_URL}}/login
