@@ -91,7 +91,7 @@ export function AppShell() {
         {session && (
           <div className={styles.footer}>
             <span className={styles.userEmail}>{session.email}</span>
-            <a href="/logout" className={styles.logoutLink}>Sign out</a>
+            <a href="/v1/auth/logout" className={styles.logoutLink}>Sign out</a>
           </div>
         )}
       </aside>
