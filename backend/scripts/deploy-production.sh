@@ -92,7 +92,7 @@ echo "==> Rendering production config"
 ./scripts/render-production-config.sh
 
 echo "==> Validating application config"
-docker run --rm --env-file "$ENV_FILE" -e DATABASE_URL ghcr.io/kuro48/idol-auth/configcheck:latest
+docker run --rm --pull always --env-file "$ENV_FILE" -e DATABASE_URL ghcr.io/kuro48/idol-auth/configcheck:latest
 
 echo "==> Validating production compose"
 docker compose --env-file "$ENV_FILE" -f docker-compose.yml config >/dev/null
