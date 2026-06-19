@@ -725,6 +725,71 @@ func (c *AdminClient) getMetadataAdmin(ctx context.Context, identityID string) (
 	return decoded.MetadataAdmin, nil
 }
 
+// ChangePassword updates the password for identityID using the Kratos admin API.
+// It retrieves the current identity state and re-applies all fields so that
+// traits, metadata, and other credentials are preserved.
+func (c *AdminClient) ChangePassword(ctx context.Context, identityID, newPassword string) error {
+	getReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), nil)
+	if err != nil {
+		return fmt.Errorf("build kratos get identity request: %w", err)
+	}
+	getResp, err := c.httpClient.Do(getReq)
+	if err != nil {
+		return fmt.Errorf("call kratos get identity: %w", err)
+	}
+	defer getResp.Body.Close()
+	if getResp.StatusCode < 200 || getResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(getResp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "get identity for pw change", "status", getResp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos get identity returned status %d", getResp.StatusCode)
+	}
+
+	var current struct {
+		SchemaID       string          `json:"schema_id"`
+		State          string          `json:"state"`
+		Traits         json.RawMessage `json:"traits"`
+		MetadataPublic json.RawMessage `json:"metadata_public"`
+		MetadataAdmin  json.RawMessage `json:"metadata_admin"`
+	}
+	if err := json.NewDecoder(getResp.Body).Decode(&current); err != nil {
+		return fmt.Errorf("decode kratos identity for pw change: %w", err)
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"schema_id":       current.SchemaID,
+		"state":           current.State,
+		"traits":          current.Traits,
+		"metadata_public": current.MetadataPublic,
+		"metadata_admin":  current.MetadataAdmin,
+		"credentials": map[string]any{
+			"password": map[string]any{
+				"config": map[string]string{"password": newPassword},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("marshal kratos update identity request: %w", err)
+	}
+
+	putReq, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+"/admin/identities/"+url.PathEscape(strings.TrimSpace(identityID)), bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("build kratos update identity request: %w", err)
+	}
+	putReq.Header.Set("Content-Type", "application/json")
+
+	putResp, err := c.httpClient.Do(putReq)
+	if err != nil {
+		return fmt.Errorf("call kratos update identity: %w", err)
+	}
+	defer putResp.Body.Close()
+	if putResp.StatusCode < 200 || putResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(putResp.Body, 4096))
+		slog.WarnContext(ctx, "kratos upstream error", "op", "update identity password", "status", putResp.StatusCode, "body", strings.TrimSpace(string(body)))
+		return fmt.Errorf("kratos update identity returned status %d", putResp.StatusCode)
+	}
+	return nil
+}
+
 // GetSocialProviders returns the list of OIDC social providers linked to identityID.
 // Returns an empty slice when none are linked or the identity has no OIDC credentials.
 func (c *AdminClient) GetSocialProviders(ctx context.Context, identityID string) ([]account.SocialProvider, error) {

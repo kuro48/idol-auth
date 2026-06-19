@@ -161,9 +161,9 @@ type EmailVerifChecker interface {
 	GetEmailVerificationStatus(ctx context.Context, identityID string) (string, bool, error)
 }
 
-// PasswordChanger changes the Kratos password for the current session's identity.
+// PasswordChanger changes the Kratos password for the given identity.
 type PasswordChanger interface {
-	ChangePassword(ctx context.Context, r *http.Request, newPassword string) error
+	ChangePassword(ctx context.Context, identityID, newPassword string) error
 }
 
 // SocialProviderLister lists the OIDC social providers linked to an identity.

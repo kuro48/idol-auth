@@ -136,7 +136,7 @@ func run() error {
 		SessionMgr:         kratosAdmin,
 		LoginHistorySvc:    loginHistoryService,
 		EmailVerifSvc:      kratosAdmin,
-		PasswordChangeSvc:  kratosFrontend,
+		PasswordChangeSvc:  kratosAdmin,
 		SocialProviderSvc:  kratosAdmin,
 	}, adminService, db.NewReadinessChecker(dbPool), authService)
 

@@ -305,8 +305,6 @@ func (s *server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
-	_ = session // identity bound via Kratos session cookie
-
 	var req struct {
 		NewPassword     string `json:"new_password"`
 		ConfirmPassword string `json:"confirm_password"`
@@ -324,7 +322,7 @@ func (s *server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.passwordChangeSvc.ChangePassword(r.Context(), r, req.NewPassword); err != nil {
+	if err := s.passwordChangeSvc.ChangePassword(r.Context(), session.IdentityID, req.NewPassword); err != nil {
 		slog.WarnContext(r.Context(), "password change failed", "error", err)
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
