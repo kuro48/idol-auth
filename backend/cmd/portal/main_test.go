@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -41,6 +42,44 @@ func TestPortalRootRedirectFallbackUsesAppURL(t *testing.T) {
 	if got != "https://auth.example.com/account/" {
 		t.Fatalf("expected fallback account center URL, got %q", got)
 	}
+}
+
+func TestPortalRegistrationStartsFlowReturningToAccountCenter(t *testing.T) {
+	handler, err := newPortalHandler(&demo.PortalConfig{
+		AppURL:           "https://accounts.example.com",
+		AccountCenterURL: "https://auth.example.com/account/",
+		KratosPublicURL:  "http://kratos:4433",
+		KratosAdminURL:   "http://kratos:4434",
+		KratosBrowserURL: "https://accounts.example.com",
+	}, http.DefaultClient)
+	if err != nil {
+		t.Fatalf("newPortalHandler() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/registration", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertFlowInitRedirect(t, w, "https://accounts.example.com/self-service/registration/browser", "https://auth.example.com/account/")
+}
+
+func TestPortalVerificationStartsFlowReturningToAccountCenter(t *testing.T) {
+	handler, err := newPortalHandler(&demo.PortalConfig{
+		AppURL:           "https://accounts.example.com",
+		AccountCenterURL: "https://auth.example.com/account/",
+		KratosPublicURL:  "http://kratos:4433",
+		KratosAdminURL:   "http://kratos:4434",
+		KratosBrowserURL: "https://accounts.example.com",
+	}, http.DefaultClient)
+	if err != nil {
+		t.Fatalf("newPortalHandler() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/verification", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertFlowInitRedirect(t, w, "https://accounts.example.com/self-service/verification/browser", "https://auth.example.com/account/")
 }
 
 func TestLegalBaseURLUsesAccountCenterOrigin(t *testing.T) {
@@ -105,6 +144,25 @@ func TestHandleLogoutRedirectsToLoginWhenNoActiveSession(t *testing.T) {
 	}
 	if got := w.Header().Get("Location"); got != "https://accounts.example.com/login" {
 		t.Fatalf("expected login redirect, got %q", got)
+	}
+}
+
+func assertFlowInitRedirect(t *testing.T, w *httptest.ResponseRecorder, wantPath, wantReturnTo string) {
+	t.Helper()
+	if w.Code != http.StatusFound {
+		t.Fatalf("expected status %d, got %d", http.StatusFound, w.Code)
+	}
+	location := w.Header().Get("Location")
+	parsed, err := url.Parse(location)
+	if err != nil {
+		t.Fatalf("parse redirect location %q: %v", location, err)
+	}
+	parsed.RawQuery = ""
+	if got := parsed.String(); got != wantPath {
+		t.Fatalf("expected redirect path %q, got %q", wantPath, got)
+	}
+	if got := parsed.Query().Get("return_to"); got != wantReturnTo {
+		t.Fatalf("expected return_to %q, got %q in %q", wantReturnTo, got, location)
 	}
 }
 
