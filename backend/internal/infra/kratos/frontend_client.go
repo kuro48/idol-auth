@@ -204,6 +204,14 @@ func (c *FrontendClient) ChangePassword(ctx context.Context, r *http.Request, ne
 
 	var flow struct {
 		ID string `json:"id"`
+		UI struct {
+			Nodes []struct {
+				Attributes struct {
+					Name  string `json:"name"`
+					Value string `json:"value"`
+				} `json:"attributes"`
+			} `json:"nodes"`
+		} `json:"ui"`
 	}
 	if err := json.NewDecoder(initResp.Body).Decode(&flow); err != nil {
 		return fmt.Errorf("decode kratos init settings flow response: %w", err)
@@ -212,9 +220,18 @@ func (c *FrontendClient) ChangePassword(ctx context.Context, r *http.Request, ne
 		return fmt.Errorf("kratos init settings flow returned empty id")
 	}
 
+	var csrfToken string
+	for _, node := range flow.UI.Nodes {
+		if node.Attributes.Name == "csrf_token" {
+			csrfToken = node.Attributes.Value
+			break
+		}
+	}
+
 	payload, err := json.Marshal(map[string]any{
-		"method":   "password",
-		"password": newPassword,
+		"method":     "password",
+		"password":   newPassword,
+		"csrf_token": csrfToken,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal kratos password change request: %w", err)
