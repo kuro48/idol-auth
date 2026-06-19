@@ -26,10 +26,54 @@ interface ParsedPasskeyFlow {
   action: string
   csrfToken: string
   passkeys: KratosPasskey[]
+  canRegister: boolean
   registrationOptionsBase64: string
   registerOnClick: string
   scriptSrc: string
   scriptIntegrity?: string
+}
+
+interface KratosSettingsFlow {
+  id?: string
+  ui?: {
+    action?: string
+    nodes?: PasskeyFlowNode[]
+  }
+}
+
+export function parsePasskeyFlow(flow: KratosSettingsFlow): ParsedPasskeyFlow {
+  const nodes: PasskeyFlowNode[] = flow.ui?.nodes ?? []
+
+  const scriptNode = nodes.find(n => n.type === 'script' && n.group === 'passkey')
+  const removeNodes = nodes.filter(
+    n => n.group === 'passkey' && n.attributes.name === 'passkey_remove',
+  )
+  const hiddenPasskeyNode = nodes.find(
+    n =>
+      n.group === 'passkey' &&
+      n.attributes.name === 'passkey' &&
+      n.attributes.type === 'hidden',
+  )
+  const registerBtnNode = nodes.find(
+    n => n.group === 'passkey' && n.attributes.name === 'passkey_settings_register',
+  )
+  const csrfNode = nodes.find(n => n.attributes.name === 'csrf_token')
+
+  return {
+    flowId: flow.id ?? '',
+    action: flow.ui?.action ?? '',
+    csrfToken: csrfNode?.attributes.value ?? '',
+    passkeys: removeNodes.map(n => ({
+      id: n.attributes.value ?? '',
+      displayName: n.meta?.label?.text ?? n.attributes.value ?? 'Passkey',
+    })),
+    canRegister: Boolean(registerBtnNode && !registerBtnNode.attributes.disabled),
+    registrationOptionsBase64: hiddenPasskeyNode?.attributes.value ?? '',
+    registerOnClick:
+      registerBtnNode?.attributes.onclick ?? 'window.__oryPasskeySettingsRegistration()',
+    scriptSrc: scriptNode?.attributes.src ?? '/.well-known/ory/webauthn.js',
+    scriptIntegrity: scriptNode?.attributes.integrity,
+  }
 }
 
 async function fetchPasskeyFlow(): Promise<ParsedPasskeyFlow> {
@@ -49,37 +93,7 @@ async function fetchPasskeyFlow(): Promise<ParsedPasskeyFlow> {
   }
 
   const flow = await res.json()
-  const nodes: PasskeyFlowNode[] = flow.ui?.nodes ?? []
-
-  const scriptNode = nodes.find(n => n.type === 'script' && n.group === 'passkey')
-  const removeNodes = nodes.filter(
-    n => n.group === 'passkey' && n.attributes.name === 'passkey_remove',
-  )
-  const hiddenPasskeyNode = nodes.find(
-    n =>
-      n.group === 'passkey' &&
-      n.attributes.name === 'passkey' &&
-      n.attributes.type === 'hidden',
-  )
-  const registerBtnNode = nodes.find(
-    n => n.group === 'passkey' && n.attributes.name === 'passkey_settings_register',
-  )
-  const csrfNode = nodes.find(n => n.attributes.name === 'csrf_token')
-
-  return {
-    flowId: flow.id,
-    action: flow.ui.action,
-    csrfToken: csrfNode?.attributes.value ?? '',
-    passkeys: removeNodes.map(n => ({
-      id: n.attributes.value ?? '',
-      displayName: n.meta?.label?.text ?? n.attributes.value ?? 'Passkey',
-    })),
-    registrationOptionsBase64: hiddenPasskeyNode?.attributes.value ?? '',
-    registerOnClick:
-      registerBtnNode?.attributes.onclick ?? 'window.__oryPasskeySettingsRegistration()',
-    scriptSrc: scriptNode?.attributes.src ?? '/.well-known/ory/webauthn.js',
-    scriptIntegrity: scriptNode?.attributes.integrity,
-  }
+  return parsePasskeyFlow(flow)
 }
 
 async function loadPasskeyScript(src: string, integrity?: string): Promise<void> {
@@ -252,7 +266,7 @@ export function usePasskeys() {
     passkeys: data?.passkeys ?? [],
     isLoading,
     error,
-    canRegister: Boolean(data?.registrationOptionsBase64),
+    canRegister: Boolean(data?.canRegister),
     register,
     remove,
     refetch,

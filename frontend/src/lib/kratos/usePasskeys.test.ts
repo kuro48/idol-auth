@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { parsePasskeyFlow } from './usePasskeys'
 
-function makeFlow(nodes: unknown[]) {
+type PasskeyFlow = Parameters<typeof parsePasskeyFlow>[0]
+type PasskeyFlowNodes = NonNullable<NonNullable<PasskeyFlow['ui']>['nodes']>
+
+function makeFlow(nodes: PasskeyFlowNodes): PasskeyFlow {
   return {
     id: 'flow-123',
     ui: {
