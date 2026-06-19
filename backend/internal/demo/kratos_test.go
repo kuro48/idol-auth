@@ -393,6 +393,24 @@ func TestRenderPageUsesEmailOnlyRegistration(t *testing.T) {
 					{
 						Meta: KratosNodeMeta{Label: &struct {
 							Text string `json:"text"`
+						}{Text: "Recovery Email"}},
+						Attributes: KratosAttributes{
+							Name: "traits.recovery_email",
+							Type: "email",
+						},
+					},
+					{
+						Meta: KratosNodeMeta{Label: &struct {
+							Text string `json:"text"`
+						}{Text: "Recovery Phone Number"}},
+						Attributes: KratosAttributes{
+							Name: "traits.recovery_phone",
+							Type: "tel",
+						},
+					},
+					{
+						Meta: KratosNodeMeta{Label: &struct {
+							Text string `json:"text"`
 						}{Text: "Password"}},
 						Attributes: KratosAttributes{
 							Name:     "password",
@@ -431,9 +449,14 @@ func TestRenderPageUsesEmailOnlyRegistration(t *testing.T) {
 		`id="password-strength-panel"`,
 		`input[name="traits.email"]`,
 		`input[name="password"]`,
+		`id="password_confirm"`,
+		`data-password-confirm`,
+		`パスワード（確認）`,
 		`button type="submit" name="method" value="password"`,
 		`hidden.value='email'`,
 		`passwordField.setCustomValidity`,
+		`passwordConfirmField.setCustomValidity`,
+		`パスワードが一致しません。`,
 		`passwordField.minLength=8`,
 	} {
 		if !strings.Contains(body, fragment) {
@@ -444,6 +467,10 @@ func TestRenderPageUsesEmailOnlyRegistration(t *testing.T) {
 		`メールアドレスまたは電話番号`,
 		`id="primary_identifier_display"`,
 		`name="traits.phone"`,
+		`name="traits.recovery_email"`,
+		`name="traits.recovery_phone"`,
+		`Recovery Email`,
+		`Recovery Phone Number`,
 		`hidden.value='phone'`,
 		`電話番号として登録されます`,
 	} {
