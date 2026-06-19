@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -194,6 +195,7 @@ type server struct {
 	emailVerifSvc      EmailVerifChecker
 	passwordChangeSvc  PasswordChanger
 	socialProviderSvc  SocialProviderLister
+	cfAccessVerifier   *cfAccessVerifier
 	readiness          readinessChecker
 	authFailureLimiter RateLimiter // tight per-IP limiter for bootstrap token failures
 	appTokenLimiter    RateLimiter // tight per-IP limiter for app management token failures
@@ -202,6 +204,11 @@ type server struct {
 }
 
 func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessChecker, authSvc AuthService) http.Handler {
+	var cfv *cfAccessVerifier
+	if strings.TrimSpace(cfg.Admin.CFAccessTeamDomain) != "" && strings.TrimSpace(cfg.Admin.CFAccessAudience) != "" {
+		cfv = newCFAccessVerifier(cfg.Admin.CFAccessTeamDomain, cfg.Admin.CFAccessAudience)
+	}
+
 	s := &server{
 		config:             cfg,
 		adminSvc:           adminSvc,
@@ -217,6 +224,7 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 		emailVerifSvc:      cfg.EmailVerifSvc,
 		passwordChangeSvc:  cfg.PasswordChangeSvc,
 		socialProviderSvc:  cfg.SocialProviderSvc,
+		cfAccessVerifier:   cfv,
 		readiness:          readiness,
 		authFailureLimiter: NewInMemoryRateLimiter(5, 5*time.Minute),
 		appTokenLimiter:    NewInMemoryRateLimiter(5, 5*time.Minute),
@@ -273,7 +281,8 @@ func NewRouter(cfg RouterConfig, adminSvc AdminService, readiness readinessCheck
 			r.Use(rateLimitMiddleware(s.config.Limiter, s.config.Security.TrustedProxies))
 		}
 		r.Use(s.adminAuth)
-		r.Use(s.adminSessionCSRFMiddleware)
+		r.Use(s.adminCSRFMiddleware)
+		r.Get("/me", s.handleAdminMe)
 		r.Get("/apps", s.handleListApps)
 		r.Post("/apps", s.handleCreateApp)
 		r.Post("/apps/{appID}/management-token", s.handleIssueManagementToken)

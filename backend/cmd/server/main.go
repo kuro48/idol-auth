@@ -117,7 +117,7 @@ func run() error {
 	)
 	appRegService := appreg.NewService(
 		db.NewAppRegistrationRepository(dbPool),
-		mail.NewSMTPNotifier(cfg.Mail, cfg.Admin.AllowedEmails),
+		mail.NewSMTPNotifier(cfg.Mail, cfg.Mail.NotifyEmails),
 		time.Now,
 	)
 	limiter := apphttp.NewInMemoryRateLimiter(60, time.Minute)

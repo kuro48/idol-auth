@@ -19,11 +19,12 @@ type Config struct {
 }
 
 type MailConfig struct {
-	Enabled bool   `env:"MAIL_ENABLED"  envDefault:"false"`
-	From    string `env:"MAIL_FROM"`
-	SMTPURL string `env:"MAIL_SMTP_URL"` // smtp://user:pass@host:port
-	AppName string `env:"MAIL_APP_NAME" envDefault:"idol-auth"`
-	BaseURL string `env:"MAIL_BASE_URL"` // dashboard link base; falls back to APP_BASE_URL
+	Enabled      bool     `env:"MAIL_ENABLED"      envDefault:"false"`
+	From         string   `env:"MAIL_FROM"`
+	SMTPURL      string   `env:"MAIL_SMTP_URL"`    // smtp://user:pass@host:port
+	AppName      string   `env:"MAIL_APP_NAME"     envDefault:"idol-auth"`
+	BaseURL      string   `env:"MAIL_BASE_URL"`    // dashboard link base; falls back to APP_BASE_URL
+	NotifyEmails []string `env:"MAIL_NOTIFY_EMAILS" envSeparator:","` // recipients for admin notifications
 }
 
 type AppConfig struct {
@@ -48,9 +49,9 @@ type OryConfig struct {
 }
 
 type AdminConfig struct {
-	BootstrapToken string   `env:"ADMIN_BOOTSTRAP_TOKEN"`
-	AllowedEmails  []string `env:"ADMIN_ALLOWED_EMAILS" envSeparator:","`
-	AllowedRoles   []string `env:"ADMIN_ALLOWED_ROLES" envSeparator:","`
+	BootstrapToken     string `env:"ADMIN_BOOTSTRAP_TOKEN"`
+	CFAccessTeamDomain string `env:"CF_ACCESS_TEAM_DOMAIN"`
+	CFAccessAudience   string `env:"CF_ACCESS_AUDIENCE"`
 }
 
 type SecurityConfig struct {
@@ -110,8 +111,8 @@ func (c *Config) Validate() error {
 		if err := requireHTTPSURL("HYDRA_BROWSER_URL", c.Ory.HydraBrowserURL); err != nil {
 			return err
 		}
-		if len(c.Admin.AllowedEmails) == 0 {
-			return fmt.Errorf("config: production requires ADMIN_ALLOWED_EMAILS")
+		if strings.TrimSpace(c.Admin.CFAccessTeamDomain) == "" || strings.TrimSpace(c.Admin.CFAccessAudience) == "" {
+			return fmt.Errorf("config: production requires CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUDIENCE")
 		}
 		secret := strings.TrimSpace(c.Ory.HydraSystemSecret)
 		if secret == "" {

@@ -13,6 +13,22 @@ import (
 	"github.com/kuro48/idol-auth/internal/domain/app"
 )
 
+func (s *server) handleAdminMe(w http.ResponseWriter, r *http.Request) {
+	actorID := adminActorIDFromContext(r.Context())
+	method, _ := r.Context().Value(adminAuthMethodKey).(adminAuthMethod)
+
+	logoutURL := ""
+	if method == adminAuthMethodCloudflare && strings.TrimSpace(s.config.Admin.CFAccessTeamDomain) != "" {
+		logoutURL = "https://" + s.config.Admin.CFAccessTeamDomain + "/cdn-cgi/access/logout"
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"email":       actorID,
+		"auth_method": string(method),
+		"logout_url":  logoutURL,
+	})
+}
+
 func (s *server) handleCreateApp(w http.ResponseWriter, r *http.Request) {
 	if s.adminSvc == nil {
 		writeError(w, http.StatusServiceUnavailable, "admin service unavailable")

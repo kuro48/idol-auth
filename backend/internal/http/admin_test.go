@@ -60,19 +60,12 @@ func TestAdminCreateAppReturnsCreated(t *testing.T) {
 	}
 }
 
-func TestAdminListAppsAllowsKratosAdminSession(t *testing.T) {
-	authn := &stubAuthService{
-		session: apphttp.SessionView{
-			Authenticated:               true,
-			IdentityID:                  "identity-admin",
-			Email:                       "admin@example.com",
-			AuthenticatorAssuranceLevel: "aal2",
-		},
-	}
+func TestAdminMeReturnsEmailWithBootstrapToken(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{AllowedEmails: []string{"admin@example.com"}},
-	}, &stubAdminService{}, nil, authn)
-	req := httptest.NewRequest(http.MethodGet, "/v1/admin/apps", nil)
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodGet, "/v1/admin/me", nil)
+	req.Header.Set("Authorization", "Bearer secret")
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -80,51 +73,25 @@ func TestAdminListAppsAllowsKratosAdminSession(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
 	}
+	if !strings.Contains(w.Body.String(), `"bootstrap-admin"`) {
+		t.Fatalf("expected bootstrap-admin email in response, got %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"bootstrap"`) {
+		t.Fatalf("expected auth_method bootstrap in response, got %s", w.Body.String())
+	}
 }
 
-func TestAdminListAppsAllowsKratosAdminRole(t *testing.T) {
-	authn := &stubAuthService{
-		session: apphttp.SessionView{
-			Authenticated:               true,
-			IdentityID:                  "identity-admin",
-			Email:                       "user@example.com",
-			Roles:                       []string{"admin"},
-			AuthenticatorAssuranceLevel: "aal2",
-		},
-	}
+func TestAdminMeReturnsUnauthorizedWithoutToken(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{AllowedRoles: []string{"admin"}},
-	}, &stubAdminService{}, nil, authn)
-	req := httptest.NewRequest(http.MethodGet, "/v1/admin/apps", nil)
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
+	req := httptest.NewRequest(http.MethodGet, "/v1/admin/me", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, w.Code, w.Body.String())
-	}
-}
-
-func TestAdminCreateAppRejectsNonAdminSession(t *testing.T) {
-	authn := &stubAuthService{
-		session: apphttp.SessionView{
-			Authenticated:               true,
-			IdentityID:                  "identity-user",
-			Email:                       "user@example.com",
-			AuthenticatorAssuranceLevel: "aal2",
-		},
-	}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{AllowedEmails: []string{"admin@example.com"}},
-	}, &stubAdminService{}, nil, authn)
-	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{}`))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d", http.StatusForbidden, w.Code)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, w.Code)
 	}
 }
 
@@ -608,18 +575,10 @@ func TestHandleReadyzReturnsServiceUnavailableWhenNotReady(t *testing.T) {
 	}
 }
 
-func TestAdminMutatingAccessAllowedForSessionAuth(t *testing.T) {
-	authn := &stubAuthService{
-		session: apphttp.SessionView{
-			Authenticated:               true,
-			IdentityID:                  "identity-admin",
-			Email:                       "admin@example.com",
-			AuthenticatorAssuranceLevel: "aal2",
-		},
-	}
+func TestAdminMutatingBootstrapSkipsCSRF(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{AllowedEmails: []string{"admin@example.com"}},
-	}, &stubAdminService{}, nil, authn)
+		Admin: config.AdminConfig{BootstrapToken: "secret"},
+	}, &stubAdminService{}, nil, &stubAuthService{})
 	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{
 		"name":"Idol Web",
 		"slug":"idol-web",
@@ -628,36 +587,13 @@ func TestAdminMutatingAccessAllowedForSessionAuth(t *testing.T) {
 		"description":"main app"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", "http://example.com")
+	req.Header.Set("Authorization", "Bearer secret")
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d; body=%s", http.StatusCreated, w.Code, w.Body.String())
-	}
-}
-
-func TestAdminMutatingSessionAuthRequiresSameOrigin(t *testing.T) {
-	authn := &stubAuthService{
-		session: apphttp.SessionView{
-			Authenticated:               true,
-			IdentityID:                  "identity-admin",
-			Email:                       "admin@example.com",
-			AuthenticatorAssuranceLevel: "aal2",
-		},
-	}
-	router := apphttp.NewRouter(apphttp.RouterConfig{
-		Admin: config.AdminConfig{AllowedEmails: []string{"admin@example.com"}},
-	}, &stubAdminService{}, nil, authn)
-	req := httptest.NewRequest(http.MethodPost, "/v1/admin/apps", bytes.NewBufferString(`{}`))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d; body=%s", http.StatusForbidden, w.Code, w.Body.String())
 	}
 }
 

@@ -50,11 +50,11 @@ func TestLoad_DefaultValues(t *testing.T) {
 	if cfg.Admin.BootstrapToken != "dev-bootstrap-token-for-testing-env" {
 		t.Errorf("expected admin bootstrap token to be loaded")
 	}
-	if len(cfg.Admin.AllowedEmails) != 0 {
-		t.Errorf("expected no admin allowed emails by default, got %v", cfg.Admin.AllowedEmails)
+	if cfg.Admin.CFAccessTeamDomain != "" {
+		t.Errorf("expected no CF_ACCESS_TEAM_DOMAIN by default, got %q", cfg.Admin.CFAccessTeamDomain)
 	}
-	if len(cfg.Admin.AllowedRoles) != 0 {
-		t.Errorf("expected no admin allowed roles by default, got %v", cfg.Admin.AllowedRoles)
+	if cfg.Admin.CFAccessAudience != "" {
+		t.Errorf("expected no CF_ACCESS_AUDIENCE by default, got %q", cfg.Admin.CFAccessAudience)
 	}
 	if cfg.Ory.KratosBrowserURL != "http://localhost:4433" {
 		t.Errorf("expected default Kratos browser URL, got %q", cfg.Ory.KratosBrowserURL)
@@ -77,8 +77,8 @@ func TestLoad_CustomValues(t *testing.T) {
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.1,10.0.0.2")
 	t.Setenv("KRATOS_BROWSER_URL", "http://browser-kratos:4433")
 	t.Setenv("HYDRA_BROWSER_URL", "http://browser-hydra:4444")
-	t.Setenv("ADMIN_ALLOWED_EMAILS", "admin@example.com,ops@example.com")
-	t.Setenv("ADMIN_ALLOWED_ROLES", "admin,platform-operator")
+	t.Setenv("CF_ACCESS_TEAM_DOMAIN", "myteam.cloudflareaccess.com")
+	t.Setenv("CF_ACCESS_AUDIENCE", "test-audience-id")
 
 	// Act
 	cfg, err := config.Load()
@@ -117,11 +117,11 @@ func TestLoad_CustomValues(t *testing.T) {
 	if cfg.Ory.HydraBrowserURL != "http://browser-hydra:4444" {
 		t.Errorf("unexpected HydraBrowserURL: %q", cfg.Ory.HydraBrowserURL)
 	}
-	if len(cfg.Admin.AllowedEmails) != 2 || cfg.Admin.AllowedEmails[0] != "admin@example.com" || cfg.Admin.AllowedEmails[1] != "ops@example.com" {
-		t.Errorf("unexpected admin allowed emails: %v", cfg.Admin.AllowedEmails)
+	if cfg.Admin.CFAccessTeamDomain != "myteam.cloudflareaccess.com" {
+		t.Errorf("unexpected CFAccessTeamDomain: %q", cfg.Admin.CFAccessTeamDomain)
 	}
-	if len(cfg.Admin.AllowedRoles) != 2 || cfg.Admin.AllowedRoles[0] != "admin" || cfg.Admin.AllowedRoles[1] != "platform-operator" {
-		t.Errorf("unexpected admin allowed roles: %v", cfg.Admin.AllowedRoles)
+	if cfg.Admin.CFAccessAudience != "test-audience-id" {
+		t.Errorf("unexpected CFAccessAudience: %q", cfg.Admin.CFAccessAudience)
 	}
 }
 
@@ -211,7 +211,8 @@ func TestLoad_ProductionAllowsHardenedSettings(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "info")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
 	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
-	t.Setenv("ADMIN_ALLOWED_EMAILS", "admin@example.com")
+	t.Setenv("CF_ACCESS_TEAM_DOMAIN", "myteam.cloudflareaccess.com")
+	t.Setenv("CF_ACCESS_AUDIENCE", "test-audience-id")
 
 	cfg, err := config.Load()
 
@@ -234,7 +235,8 @@ func TestLoad_ProductionAllowsInternalComposePostgresWithoutSSL(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "info")
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
 	t.Setenv("HYDRA_SYSTEM_SECRET", "a-very-strong-hydra-system-secret-for-tests")
-	t.Setenv("ADMIN_ALLOWED_EMAILS", "admin@example.com")
+	t.Setenv("CF_ACCESS_TEAM_DOMAIN", "myteam.cloudflareaccess.com")
+	t.Setenv("CF_ACCESS_AUDIENCE", "test-audience-id")
 
 	if _, err := config.Load(); err != nil {
 		t.Fatalf("expected internal compose postgres to load, got %v", err)

@@ -50,13 +50,13 @@ function RootRedirect() {
 }
 
 function AdminGuard() {
-  const { isAdmin, isLoading } = useSession()
+  const isAdminHost = window.location.hostname.startsWith('admin.')
   useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    if (!isAdminHost) {
       window.location.replace('/login')
     }
-  }, [isAdmin, isLoading])
-  if (isLoading || !isAdmin) return null
+  }, [isAdminHost])
+  if (!isAdminHost) return null
   return createElement(Outlet, null)
 }
 

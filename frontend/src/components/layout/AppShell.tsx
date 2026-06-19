@@ -1,5 +1,6 @@
 import { Outlet, Link, useRouterState } from '@tanstack/react-router'
 import { useSession } from '@/lib/auth/useSession'
+import { useAdminIdentity } from '@/lib/auth/useAdminIdentity'
 import styles from './AppShell.module.css'
 
 interface NavItem {
@@ -19,7 +20,7 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   { to: '/admin/audit-logs', label: 'Audit Logs' },
 ]
 
-function buildSections(isAdmin: boolean, isDeveloper: boolean, isAdminHost: boolean): NavSection[] {
+function buildSections(isDeveloper: boolean, isAdminHost: boolean): NavSection[] {
   if (isAdminHost) {
     return [{ title: 'Admin', items: ADMIN_NAV_ITEMS }]
   }
@@ -47,13 +48,6 @@ function buildSections(isAdmin: boolean, isDeveloper: boolean, isAdminHost: bool
     })
   }
 
-  if (isAdmin) {
-    sections.unshift({
-      title: 'Admin',
-      items: ADMIN_NAV_ITEMS,
-    })
-  }
-
   return sections
 }
 
@@ -68,9 +62,15 @@ function NavLink({ to, label }: NavItem) {
 }
 
 export function AppShell() {
-  const { session, isAdmin, isDeveloper } = useSession()
+  const { session, isDeveloper } = useSession()
+  const { data: adminIdentity } = useAdminIdentity()
   const isAdminHost = window.location.hostname.startsWith('admin.')
-  const sections = buildSections(isAdmin, isDeveloper, isAdminHost)
+  const sections = buildSections(isDeveloper, isAdminHost)
+
+  const footerEmail = isAdminHost ? (adminIdentity?.email ?? '') : (session?.email ?? '')
+  const logoutHref = isAdminHost
+    ? (adminIdentity?.logout_url || '/v1/auth/logout')
+    : '/v1/auth/logout'
 
   return (
     <div className={styles.shell}>
@@ -88,10 +88,10 @@ export function AppShell() {
             </div>
           ))}
         </nav>
-        {session && (
+        {(isAdminHost ? footerEmail : session) && (
           <div className={styles.footer}>
-            <span className={styles.userEmail}>{session.email}</span>
-            <a href="/v1/auth/logout" className={styles.logoutLink}>Sign out</a>
+            <span className={styles.userEmail}>{footerEmail}</span>
+            <a href={logoutHref} className={styles.logoutLink}>Sign out</a>
           </div>
         )}
       </aside>

@@ -23,17 +23,17 @@ const accountIdentityIDKey contextKey = "account_identity_id"
 type adminAuthMethod string
 
 const (
-	adminAuthMethodBootstrap adminAuthMethod = "bootstrap"
-	adminAuthMethodSession   adminAuthMethod = "session"
+	adminAuthMethodBootstrap  adminAuthMethod = "bootstrap"
+	adminAuthMethodCloudflare adminAuthMethod = "cloudflare"
 )
 
 func (s *server) adminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		ip := clientIP(r, s.config.Security.TrustedProxies)
-		if token != "" {
+
+		// 1. Bootstrap token (emergency / local dev access).
+		if token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")); token != "" {
 			if s.config.Admin.BootstrapToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.config.Admin.BootstrapToken)) == 1 {
-				// Valid bootstrap token — do not consume the failure rate-limit budget.
 				ctx := context.WithValue(r.Context(), adminActorIDKey, "bootstrap-admin")
 				ctx = context.WithValue(ctx, adminAuthMethodKey, adminAuthMethodBootstrap)
 				ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
@@ -44,60 +44,53 @@ func (s *server) adminAuth(next http.Handler) http.Handler {
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-			// Wrong token — consume from the per-IP failure budget to prevent brute-force.
 			if !s.authFailureLimiter.Allow(ip) {
 				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
 				return
 			}
 		}
 
-		if s.authSvc != nil {
-			session, err := s.authSvc.CurrentSession(r.Context(), r)
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "failed to resolve admin session")
-				return
-			}
-			if session.Authenticated {
-				if emailAllowed(s.config.Admin.AllowedEmails, session.Email) || roleAllowed(s.config.Admin.AllowedRoles, session.Roles) {
-					actorID := session.Email
-					if actorID == "" {
-						actorID = session.IdentityID
+		// 2. Cloudflare Access JWT — added by CF proxy for all requests through the access policy.
+		if s.cfAccessVerifier != nil {
+			if cfToken := strings.TrimSpace(r.Header.Get("Cf-Access-Jwt-Assertion")); cfToken != "" {
+				email, err := s.cfAccessVerifier.Verify(cfToken)
+				if err != nil {
+					if !s.authFailureLimiter.Allow(ip) {
+						writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
+						return
 					}
-					ctx := context.WithValue(r.Context(), adminActorIDKey, actorID)
-					ctx = context.WithValue(ctx, adminAuthMethodKey, adminAuthMethodSession)
-					ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
-						IPAddress: ip,
-						UserAgent: r.UserAgent(),
-						RequestID: middleware.GetReqID(r.Context()),
-					})
-					next.ServeHTTP(w, r.WithContext(ctx))
+					writeError(w, http.StatusUnauthorized, "admin authorization required")
 					return
 				}
-				writeError(w, http.StatusForbidden, "admin access denied")
+				ctx := context.WithValue(r.Context(), adminActorIDKey, email)
+				ctx = context.WithValue(ctx, adminAuthMethodKey, adminAuthMethodCloudflare)
+				ctx = admindomain.WithRequestMetadata(ctx, admindomain.RequestMetadata{
+					IPAddress: ip,
+					UserAgent: r.UserAgent(),
+					RequestID: middleware.GetReqID(r.Context()),
+				})
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 		}
 
-		// No valid credential provided at all — consume failure budget to prevent
-		// unauthenticated request flooding (no-token requests were previously exempt).
-		if token == "" {
-			if !s.authFailureLimiter.Allow(ip) {
-				writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
-				return
-			}
+		if !s.authFailureLimiter.Allow(ip) {
+			writeError(w, http.StatusTooManyRequests, "too many authentication attempts")
+			return
 		}
 		writeError(w, http.StatusUnauthorized, "admin authorization required")
 	})
 }
 
-func (s *server) adminSessionCSRFMiddleware(next http.Handler) http.Handler {
+func (s *server) adminCSRFMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !unsafeHTTPMethod(r.Method) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		method, _ := r.Context().Value(adminAuthMethodKey).(adminAuthMethod)
-		if method != adminAuthMethodSession {
+		if method == adminAuthMethodBootstrap {
+			// Bootstrap token requests are not browser-originated; CSRF does not apply.
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -269,19 +262,6 @@ func accountSessionFromContext(ctx context.Context) (SessionView, bool) {
 func appActorFromContext(ctx context.Context) (app.App, bool) {
 	appActor, ok := ctx.Value(appActorKey).(app.App)
 	return appActor, ok
-}
-
-func emailAllowed(allowed []string, email string) bool {
-	normalizedEmail := strings.TrimSpace(strings.ToLower(email))
-	if normalizedEmail == "" {
-		return false
-	}
-	for _, candidate := range allowed {
-		if normalizedEmail == strings.TrimSpace(strings.ToLower(candidate)) {
-			return true
-		}
-	}
-	return false
 }
 
 func roleAllowed(allowed []string, roles []string) bool {

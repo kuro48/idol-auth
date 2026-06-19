@@ -44,8 +44,7 @@ export function useSession() {
     session: data ?? null,
     isLoading,
     isAuthenticated: data != null,
-    isAdmin: roles.includes('admin'),
-    isDeveloper: roles.includes('developer') || roles.includes('admin'),
+    isDeveloper: roles.includes('developer'),
     error,
   }
 }

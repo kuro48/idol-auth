@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest'
 //     { authenticated: bool, identity_id?: string, email?: string,
 //       roles?: string[], oshi_color?: string, ... }
 //   - Unauthenticated: { authenticated: false }
-//   - Authenticated:   { authenticated: true, identity_id: "...", email: "...", roles: ["admin"] }
+//   - Authenticated:   { authenticated: true, identity_id: "...", email: "...", roles: ["developer"] }
 
 import type { SessionView } from '@/lib/api/types'
 
@@ -22,12 +22,6 @@ function parseSessionFromView(view: SessionView) {
     roles: view.roles ?? [],
     oshiColor: view.oshi_color ?? '',
   }
-}
-
-function isAdminFromView(view: SessionView): boolean {
-  const parsed = parseSessionFromView(view)
-  if (!parsed) return false
-  return parsed.roles.includes('admin')
 }
 
 describe('SessionView contract alignment', () => {
@@ -62,28 +56,4 @@ describe('SessionView contract alignment', () => {
     expect(result?.roles).toEqual([])
   })
 
-  it('admin role is detected correctly', () => {
-    const admin: SessionView = {
-      authenticated: true,
-      identity_id: 'admin-1',
-      email: 'admin@example.com',
-      roles: ['admin'],
-    }
-    expect(isAdminFromView(admin)).toBe(true)
-  })
-
-  it('non-admin user is not detected as admin', () => {
-    const user: SessionView = {
-      authenticated: true,
-      identity_id: 'user-1',
-      email: 'user@example.com',
-      roles: ['user'],
-    }
-    expect(isAdminFromView(user)).toBe(false)
-  })
-
-  it('unauthenticated is not admin', () => {
-    const unauth: SessionView = { authenticated: false }
-    expect(isAdminFromView(unauth)).toBe(false)
-  })
 })
