@@ -21,6 +21,13 @@ interface PasskeyFlowNode {
   meta?: { label?: { text: string } }
 }
 
+const PASSKEY_SETTINGS_REGISTER = 'passkey_settings_register'
+const PASSKEY_CREATE_DATA = 'passkey_create_data'
+const LEGACY_PASSKEY_CREATE_DATA = 'passkey'
+const PASSKEY_REGISTER_TRIGGER = 'passkey_register_trigger'
+const DEFAULT_PASSKEY_SETTINGS_REGISTRATION = 'window.oryPasskeySettingsRegistration()'
+const LEGACY_PASSKEY_SETTINGS_REGISTRATION = 'window.__oryPasskeySettingsRegistration()'
+
 interface ParsedPasskeyFlow {
   flowId: string
   action: string
@@ -50,11 +57,15 @@ export function parsePasskeyFlow(flow: KratosSettingsFlow): ParsedPasskeyFlow {
   const hiddenPasskeyNode = nodes.find(
     n =>
       n.group === 'passkey' &&
-      n.attributes.name === 'passkey' &&
+      (n.attributes.name === PASSKEY_CREATE_DATA ||
+        n.attributes.name === LEGACY_PASSKEY_CREATE_DATA) &&
       n.attributes.type === 'hidden',
   )
   const registerBtnNode = nodes.find(
-    n => n.group === 'passkey' && n.attributes.name === 'passkey_settings_register',
+    n =>
+      n.group === 'passkey' &&
+      (n.attributes.name === PASSKEY_REGISTER_TRIGGER ||
+        n.attributes.name === PASSKEY_SETTINGS_REGISTER),
   )
   const csrfNode = nodes.find(n => n.attributes.name === 'csrf_token')
 
@@ -68,7 +79,7 @@ export function parsePasskeyFlow(flow: KratosSettingsFlow): ParsedPasskeyFlow {
     })),
     registrationOptionsBase64: hiddenPasskeyNode?.attributes.value ?? '',
     registerOnClick:
-      registerBtnNode?.attributes.onclick ?? 'window.__oryPasskeySettingsRegistration()',
+      registerBtnNode?.attributes.onclick ?? DEFAULT_PASSKEY_SETTINGS_REGISTRATION,
     scriptSrc: scriptNode?.attributes.src ?? '/.well-known/ory/webauthn.js',
     scriptIntegrity: scriptNode?.attributes.integrity,
   }
@@ -136,7 +147,9 @@ async function runRegistrationCeremony(flow: ParsedPasskeyFlow): Promise<void> {
 
   addHidden('csrf_token', flow.csrfToken)
   addHidden('flow', flow.flowId)
-  const passkeyInput = addHidden('passkey', flow.registrationOptionsBase64)
+  addHidden('method', 'passkey')
+  addHidden(PASSKEY_CREATE_DATA, flow.registrationOptionsBase64)
+  const passkeyInput = addHidden(PASSKEY_SETTINGS_REGISTER, '')
 
   container.appendChild(form)
   document.body.appendChild(container)
@@ -161,7 +174,8 @@ async function runRegistrationCeremony(flow: ParsedPasskeyFlow): Promise<void> {
           body: new URLSearchParams({
             csrf_token: flow.csrfToken,
             flow: flow.flowId,
-            passkey: credentialResult,
+            method: 'passkey',
+            [PASSKEY_SETTINGS_REGISTER]: credentialResult,
           }).toString(),
         })
 
@@ -190,7 +204,11 @@ async function runRegistrationCeremony(flow: ParsedPasskeyFlow): Promise<void> {
     const fnName = flow.registerOnClick
       .replace(/^window\./, '')
       .replace(/\(\s*\)$/, '')
-    const fn = (window as unknown as Record<string, unknown>)[fnName]
+    const windowRecord = window as unknown as Record<string, unknown>
+    const fn =
+      windowRecord[fnName] ??
+      windowRecord[DEFAULT_PASSKEY_SETTINGS_REGISTRATION.replace(/^window\./, '').replace(/\(\s*\)$/, '')] ??
+      windowRecord[LEGACY_PASSKEY_SETTINGS_REGISTRATION.replace(/^window\./, '').replace(/\(\s*\)$/, '')]
 
     if (typeof fn !== 'function') {
       cleanup()

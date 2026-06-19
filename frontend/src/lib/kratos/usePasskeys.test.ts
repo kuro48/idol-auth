@@ -111,7 +111,7 @@ describe('parsePasskeyFlow', () => {
     const flow = makeFlow([])
 
     expect(parsePasskeyFlow(flow).registerOnClick).toBe(
-      'window.__oryPasskeySettingsRegistration()',
+      'window.oryPasskeySettingsRegistration()',
     )
   })
 })
