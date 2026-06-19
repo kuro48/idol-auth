@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${1:-$ROOT_DIR/dist/production-bundle}"
 
 include_paths=(
+  .github/workflows/deploy.yml
   docker-compose.yml
   deploy/hydra/hydra.production.yml.tmpl
   deploy/kratos/identity.schema.json
