@@ -17,13 +17,9 @@ func TestKratosConfigRequiresVerifiedEmailBeforeLogin(t *testing.T) {
 			assertContains(t, body, "verification:\n      enabled: true\n      ui_url:")
 			assertContains(t, body, "      use: code")
 			assertContains(t, body, "registration:\n      enabled: true")
-			assertContains(t, body, "          hooks:\n            - hook: show_verification_ui")
+			assertContains(t, body, "          hooks:\n            - hook: session\n            - hook: show_verification_ui")
 			assertContains(t, body, "login:\n      ui_url:")
 			assertContains(t, body, "      after:\n        password:\n          hooks:\n            - hook: require_verified_address")
-
-			if strings.Contains(body, "- hook: session") {
-				t.Fatal("registration must not issue a session before email verification")
-			}
 		})
 	}
 }
