@@ -16,7 +16,6 @@ vi.mock('@/lib/kratos/usePasskeys', () => ({
     passkeys: [],
     isLoading: false,
     error: null,
-    canRegister: false,
     register: {
       isPending: false,
       isSuccess: false,

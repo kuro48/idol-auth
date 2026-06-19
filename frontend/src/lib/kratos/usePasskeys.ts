@@ -26,7 +26,6 @@ interface ParsedPasskeyFlow {
   action: string
   csrfToken: string
   passkeys: KratosPasskey[]
-  canRegister: boolean
   registrationOptionsBase64: string
   registerOnClick: string
   scriptSrc: string
@@ -67,7 +66,6 @@ export function parsePasskeyFlow(flow: KratosSettingsFlow): ParsedPasskeyFlow {
       id: n.attributes.value ?? '',
       displayName: n.meta?.label?.text ?? n.attributes.value ?? 'Passkey',
     })),
-    canRegister: Boolean(registerBtnNode && !registerBtnNode.attributes.disabled),
     registrationOptionsBase64: hiddenPasskeyNode?.attributes.value ?? '',
     registerOnClick:
       registerBtnNode?.attributes.onclick ?? 'window.__oryPasskeySettingsRegistration()',
@@ -266,7 +264,6 @@ export function usePasskeys() {
     passkeys: data?.passkeys ?? [],
     isLoading,
     error,
-    canRegister: Boolean(data?.canRegister),
     register,
     remove,
     refetch,

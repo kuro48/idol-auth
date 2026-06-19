@@ -15,7 +15,7 @@ function makeFlow(nodes: PasskeyFlowNodes): PasskeyFlow {
 }
 
 describe('parsePasskeyFlow', () => {
-  it('allows registration when Kratos exposes a passkey register button', () => {
+  it('reads passkey registration data from the Kratos flow', () => {
     const flow = makeFlow([
       {
         type: 'input',
@@ -24,6 +24,15 @@ describe('parsePasskeyFlow', () => {
           name: 'csrf_token',
           type: 'hidden',
           value: 'csrf-123',
+        },
+      },
+      {
+        type: 'input',
+        group: 'passkey',
+        attributes: {
+          name: 'passkey',
+          type: 'hidden',
+          value: 'registration-options',
         },
       },
       {
@@ -49,23 +58,17 @@ describe('parsePasskeyFlow', () => {
       },
     ])
 
-    expect(parsePasskeyFlow(flow).canRegister).toBe(true)
+    const parsed = parsePasskeyFlow(flow)
+
+    expect(parsed.registrationOptionsBase64).toBe('registration-options')
+    expect(parsed.registerOnClick).toBe('window.__oryPasskeySettingsRegistration()')
   })
 
-  it('does not allow registration when the register button is disabled', () => {
-    const flow = makeFlow([
-      {
-        type: 'input',
-        group: 'passkey',
-        attributes: {
-          name: 'passkey_settings_register',
-          type: 'button',
-          onclick: 'window.__oryPasskeySettingsRegistration()',
-          disabled: true,
-        },
-      },
-    ])
+  it('uses the default registration callback when the flow has no register button node', () => {
+    const flow = makeFlow([])
 
-    expect(parsePasskeyFlow(flow).canRegister).toBe(false)
+    expect(parsePasskeyFlow(flow).registerOnClick).toBe(
+      'window.__oryPasskeySettingsRegistration()',
+    )
   })
 })

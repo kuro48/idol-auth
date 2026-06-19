@@ -128,7 +128,7 @@ export function AccountSecurityPage() {
     })
   }
 
-  const { passkeys, isLoading, error, canRegister, register, remove } = usePasskeys()
+  const { passkeys, isLoading, error, register, remove } = usePasskeys()
   const {
     flow: totpFlow,
     isLoading: totpLoading,
@@ -381,16 +381,14 @@ export function AccountSecurityPage() {
                 顔認証・指紋・デバイスPINを使って、パスワード不要でログインできます。
               </p>
             </div>
-            {canRegister && (
-              <button
-                className={styles.addBtn}
-                onClick={handleRegister}
-                disabled={register.isPending}
-                aria-busy={register.isPending}
-              >
-                {register.isPending ? '登録中…' : 'パスキーを追加'}
-              </button>
-            )}
+            <button
+              className={styles.addBtn}
+              onClick={handleRegister}
+              disabled={register.isPending}
+              aria-busy={register.isPending}
+            >
+              {register.isPending ? '登録中…' : 'パスキーを追加'}
+            </button>
           </div>
 
           {passkeyAalError && (
