@@ -82,6 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
 
     steps:
       - uses: actions/checkout@v4
@@ -103,3 +104,8 @@ jobs:
           git commit -q -m "chore: publish deploy bundle $STAMP"
           git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push --force origin deploy
+
+      - name: Trigger deploy workflow
+        run: gh workflow run deploy.yml --repo ${{ github.repository }} --ref deploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
