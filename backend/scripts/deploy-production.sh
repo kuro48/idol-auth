@@ -106,6 +106,9 @@ docker compose --env-file "$ENV_FILE" -f docker-compose.yml rm -f -s kratos-migr
 echo "==> Deploying production stack"
 docker compose --env-file "$ENV_FILE" -f docker-compose.yml up -d
 
+echo "==> Restarting Kratos to pick up fresh config"
+docker compose --env-file "$ENV_FILE" -f docker-compose.yml restart kratos
+
 echo "==> Waiting for app readiness"
 for i in $(seq 1 150); do
   if docker compose --env-file "$ENV_FILE" -f docker-compose.yml exec -T app wget -qO- http://localhost:8080/readyz >/dev/null 2>&1; then
