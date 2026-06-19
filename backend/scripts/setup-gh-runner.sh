@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Sets up a GitHub Actions self-hosted runner on this machine as a launchd service.
-# Run this script ONCE on the production Mac Mini.
+# Sets up a GitHub Actions self-hosted runner on a Linux server as a systemd service.
+# Run this script ONCE on the production server (as a non-root user with sudo access).
 #
 # Usage:
 #   ./setup-gh-runner.sh <github_repo_url> <registration_token>
@@ -10,7 +10,7 @@
 #   registration_token = token from GitHub → Settings → Actions → Runners → New self-hosted runner
 #
 # Example:
-#   ./setup-gh-runner.sh https://github.com/kuro48/idol-auth ghp_XXXXXXXXXXXX
+#   ./setup-gh-runner.sh https://github.com/kuro48/idol-auth AXXXXXXXXXXXXXXXXXX
 set -euo pipefail
 
 REPO_URL="${1:?Usage: $0 <github_repo_url> <registration_token>}"
@@ -18,13 +18,24 @@ REG_TOKEN="${2:?Usage: $0 <github_repo_url> <registration_token>}"
 
 RUNNER_DIR="$HOME/actions-runner"
 RUNNER_VERSION="2.323.0"
-RUNNER_ARCH="osx-arm64"
+SERVICE_NAME="github-actions-runner"
+
+# Detect CPU architecture
+ARCH="$(uname -m)"
+case "$ARCH" in
+  x86_64)  RUNNER_ARCH="linux-x64" ;;
+  aarch64) RUNNER_ARCH="linux-arm64" ;;
+  armv7l)  RUNNER_ARCH="linux-arm" ;;
+  *)
+    echo "Unsupported architecture: $ARCH" >&2
+    exit 1
+    ;;
+esac
+
 RUNNER_TAR="actions-runner-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz"
 RUNNER_URL="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${RUNNER_TAR}"
 
-LAUNCHD_LABEL="com.github.actions.runner"
-LAUNCHD_PLIST="$HOME/Library/LaunchAgents/${LAUNCHD_LABEL}.plist"
-
+echo "==> Architecture: $ARCH → runner package: $RUNNER_ARCH"
 echo "==> Creating runner directory: $RUNNER_DIR"
 mkdir -p "$RUNNER_DIR"
 
@@ -39,47 +50,45 @@ echo "==> Configuring runner"
 "$RUNNER_DIR/config.sh" \
   --url "$REPO_URL" \
   --token "$REG_TOKEN" \
-  --name "mac-mini" \
-  --labels "self-hosted,macOS,ARM64" \
+  --name "linux-server" \
+  --labels "self-hosted,Linux,${ARCH}" \
   --work "$RUNNER_DIR/_work" \
   --unattended \
   --replace
 
-echo "==> Installing launchd service"
-cat > "$LAUNCHD_PLIST" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>${LAUNCHD_LABEL}</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>${RUNNER_DIR}/run.sh</string>
-  </array>
-  <key>WorkingDirectory</key>
-  <string>${RUNNER_DIR}</string>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>KeepAlive</key>
-  <true/>
-  <key>StandardOutPath</key>
-  <string>${RUNNER_DIR}/runner.log</string>
-  <key>StandardErrorPath</key>
-  <string>${RUNNER_DIR}/runner.log</string>
-</dict>
-</plist>
-PLIST
+echo "==> Installing systemd service"
+RUNNER_USER="$(whoami)"
+sudo tee "/etc/systemd/system/${SERVICE_NAME}.service" > /dev/null <<SERVICE
+[Unit]
+Description=GitHub Actions self-hosted runner
+After=network.target docker.service
+Wants=docker.service
 
-launchctl unload "$LAUNCHD_PLIST" 2>/dev/null || true
-launchctl load "$LAUNCHD_PLIST"
+[Service]
+Type=simple
+User=${RUNNER_USER}
+WorkingDirectory=${RUNNER_DIR}
+ExecStart=${RUNNER_DIR}/run.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=${SERVICE_NAME}
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+sudo systemctl daemon-reload
+sudo systemctl enable "${SERVICE_NAME}"
+sudo systemctl restart "${SERVICE_NAME}"
 
 echo ""
 echo "Self-hosted runner installed and started."
-echo "Logs: tail -f $RUNNER_DIR/runner.log"
+echo "Status:  sudo systemctl status ${SERVICE_NAME}"
+echo "Logs:    sudo journalctl -u ${SERVICE_NAME} -f"
 echo ""
 echo "Next: set DEPLOY_ENV_FILE variable in GitHub repo settings:"
 echo "  GitHub → Settings → Variables (not Secrets) → Actions → New repository variable"
 echo "  Name:  DEPLOY_ENV_FILE"
-echo "  Value: /path/to/.env  (full path to the .env file on this machine)"
+echo "  Value: /path/to/.env  (full path to the .env file on this server)"
