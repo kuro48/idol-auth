@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appRequestFormSchema } from './NewAppRequestPage'
+import { appRequestFormSchema } from './appRequestSchema'
 
 describe('appRequestFormSchema', () => {
   it('allows a 50 character purpose', () => {
