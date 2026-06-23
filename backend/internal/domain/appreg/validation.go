@@ -11,13 +11,15 @@ var (
 	ErrInvalidName         = errors.New("name must be 1-100 characters")
 	ErrInvalidType         = errors.New("type must be one of: web, spa, native, m2m")
 	ErrInvalidDescription  = errors.New("description must be 1-1000 characters")
-	ErrInvalidPurpose      = errors.New("purpose must be 200-2000 characters")
+	ErrInvalidPurpose      = errors.New("purpose must be 50-2000 characters")
 	ErrScopeNotAllowed     = errors.New("scope is not allowed for self-service registration")
 	ErrInvalidEmail        = errors.New("contact_email is not a valid email address")
 	ErrInvalidRedirectURI  = errors.New("redirect_uri is not a valid absolute https or http://localhost URI")
 	ErrInvalidURL          = errors.New("url is not a valid absolute https URI")
 	ErrRedirectURIRequired = errors.New("redirect_uris is required for this app type")
 )
+
+const purposeMinLength = 50
 
 var validTypes = map[string]bool{
 	"web": true, "spa": true, "native": true, "m2m": true,
@@ -65,7 +67,7 @@ func (in *SubmitInput) Validate() error {
 	}
 
 	in.Purpose = strings.TrimSpace(in.Purpose)
-	purposeMin := 200
+	purposeMin := purposeMinLength
 	if in.SelfService {
 		purposeMin = 0
 	}

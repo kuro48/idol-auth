@@ -13,7 +13,7 @@ const httpsUrl = z.string().refine(
   { message: 'https:// で始まる有効な URL を入力してください' }
 )
 
-const schema = z.object({
+export const appRequestFormSchema = z.object({
   name: z.string().min(1, 'アプリ名は必須です').max(100, 'アプリ名は100文字以内で入力してください'),
   type: z.enum(['web', 'spa', 'native', 'm2m']),
   description: z.string().min(1, '説明は必須です').max(1000, '説明は1000文字以内で入力してください'),
@@ -22,18 +22,18 @@ const schema = z.object({
   terms_url: httpsUrl.optional().or(z.literal('')),
   contact_email: z.string().email('有効なメールアドレスを入力してください').optional().or(z.literal('')),
   organization: z.string().optional(),
-  purpose: z.string().min(200, '利用目的は200文字以上で入力してください').max(2000, '利用目的は2000文字以内で入力してください'),
+  purpose: z.string().min(50, '利用目的は50文字以上で入力してください').max(2000, '利用目的は2000文字以内で入力してください'),
   redirect_uris: z.string().min(1, 'リダイレクト URI を1つ以上入力してください'),
   scopes: z.string().optional(),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<typeof appRequestFormSchema>
 
 export function NewAppRequestPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(appRequestFormSchema),
     defaultValues: { type: 'web' },
   })
 
@@ -78,7 +78,7 @@ export function NewAppRequestPage() {
         <Field label="説明" error={errors.description?.message}>
           <textarea {...register('description')} className={styles.textarea} rows={3} />
         </Field>
-        <Field label="利用目的" description="200文字以上" error={errors.purpose?.message}>
+        <Field label="利用目的" description="50文字以上" error={errors.purpose?.message}>
           <textarea {...register('purpose')} className={styles.textarea} rows={5} />
         </Field>
         <Field label="ホームページ URL" error={errors.homepage_url?.message}>
