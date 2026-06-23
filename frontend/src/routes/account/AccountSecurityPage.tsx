@@ -481,24 +481,24 @@ export function AccountSecurityPage() {
             {!totpLoading && !totpAalError && totpFlow && !totpFlow.hasTotp && (
               <div className={styles.totpEnrollGrid}>
                 {totpFlow.qrSrc ? (
-                  <img className={styles.totpQr} src={totpFlow.qrSrc} alt="TOTP QR Code" />
+                  <img className={styles.totpQr} src={totpFlow.qrSrc} alt="TOTP QRコード" />
                 ) : (
                   <div className={styles.empty}>QRコードが利用できません</div>
                 )}
                 <div className={styles.totpDetails}>
                   <div>
-                    <div className={styles.totpStepLabel}>Step 1</div>
+                    <div className={styles.totpStepLabel}>手順 1</div>
                     <p className={styles.sectionDesc}>
                       認証アプリでQRコードを読み取るか、下記キーを手動入力してください。
                     </p>
                     {totpFlow.secretKey && (
-                      <div className={styles.totpSecret} aria-label="TOTP secret key">
+                      <div className={styles.totpSecret} aria-label="TOTP シークレットキー">
                         {totpFlow.secretKey}
                       </div>
                     )}
                   </div>
                   <form className={styles.totpForm} onSubmit={handleTotpEnroll}>
-                    <div className={styles.totpStepLabel}>Step 2 — 確認コード</div>
+                    <div className={styles.totpStepLabel}>手順 2 — 確認コード</div>
                     <input
                       className={styles.totpInput}
                       value={totpCode}

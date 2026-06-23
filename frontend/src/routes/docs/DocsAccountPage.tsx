@@ -3,7 +3,7 @@ import styles from '../docs/DocsLayout.module.css'
 export function DocsAccountPage() {
   return (
     <div className={styles.prose}>
-      <h1>Account Center — ユーザー本人の管理画面</h1>
+      <h1>アカウントセンター — ユーザー本人の管理画面</h1>
       <p>
         アカウントセンターは、ユーザー本人が共有アカウントと連携アプリを管理する場所です。
         第三者アプリは、ユーザーがこの画面で連携解除や認証設定変更を行えることを前提に設計します。

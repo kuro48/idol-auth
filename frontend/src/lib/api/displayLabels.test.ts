@@ -3,6 +3,7 @@ import {
   auditResultLabel,
   appPartyTypeLabel,
   appRequestTypeLabel,
+  roleLabel,
   statusLabel,
 } from './displayLabels'
 
@@ -31,5 +32,11 @@ describe('display label helpers', () => {
   it('translates audit results', () => {
     expect(auditResultLabel('success')).toBe('成功')
     expect(auditResultLabel('failure')).toBe('失敗')
+  })
+
+  it('translates roles', () => {
+    expect(roleLabel('admin')).toBe('管理者')
+    expect(roleLabel('developer')).toBe('開発者')
+    expect(roleLabel('user')).toBe('ユーザー')
   })
 })

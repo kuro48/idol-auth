@@ -5,6 +5,7 @@ import type { AppRequest } from '@/lib/api/types'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { statusVariant } from '@/lib/api/statusVariant'
+import { appRequestTypeLabel, statusLabel } from '@/lib/api/displayLabels'
 import styles from './AppRequestDetailPage.module.css'
 
 export function AppRequestDetailPage() {
@@ -25,27 +26,27 @@ export function AppRequestDetailPage() {
     },
   })
 
-  if (isLoading) return <div className={styles.loading}>Loading…</div>
-  if (!req) return <div className={styles.loading}>Not found</div>
+  if (isLoading) return <div className={styles.loading}>読み込み中…</div>
+  if (!req) return <div className={styles.loading}>見つかりません</div>
 
   return (
     <div>
       <PageHeader
         title={req.name}
         description={req.description}
-        action={<Badge variant={statusVariant(req.status)}>{req.status.replace('_', ' ')}</Badge>}
+        action={<Badge variant={statusVariant(req.status)}>{statusLabel(req.status)}</Badge>}
       />
       <div className={styles.content}>
         <dl className={styles.grid}>
-          <Field label="Type" value={req.type} />
-          <Field label="Slug" value={req.slug} mono />
-          <Field label="Contact" value={req.contact_email} />
-          <Field label="Organization" value={req.organization} />
-          <Field label="Homepage" value={req.homepage_url} />
-          <Field label="Purpose" value={req.purpose} />
-          <Field label="Redirect URIs" value={req.redirect_uris?.join('\n')} mono />
-          <Field label="Scopes" value={req.scopes?.join(', ')} mono />
-          {req.reviewer_note && <Field label="Reviewer Note" value={req.reviewer_note} />}
+          <Field label="種別" value={appRequestTypeLabel(req.type)} />
+          <Field label="スラッグ" value={req.slug} mono />
+          <Field label="連絡先" value={req.contact_email} />
+          <Field label="組織名" value={req.organization} />
+          <Field label="ホームページ" value={req.homepage_url} />
+          <Field label="利用目的" value={req.purpose} />
+          <Field label="リダイレクト URI" value={req.redirect_uris?.join('\n')} mono />
+          <Field label="スコープ" value={req.scopes?.join(', ')} mono />
+          {req.reviewer_note && <Field label="審査コメント" value={req.reviewer_note} />}
         </dl>
         {(req.status === 'pending' || req.status === 'changes_requested') && (
           <div className={styles.actions}>
@@ -54,7 +55,7 @@ export function AppRequestDetailPage() {
               onClick={() => withdraw.mutate()}
               disabled={withdraw.isPending}
             >
-              {withdraw.isPending ? 'Withdrawing…' : 'Withdraw Request'}
+              {withdraw.isPending ? '取り下げ中…' : '申請を取り下げる'}
             </button>
           </div>
         )}

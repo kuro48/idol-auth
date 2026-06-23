@@ -14,36 +14,36 @@ interface NavSection {
 }
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
-  { to: '/admin/apps', label: 'Apps' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/app-requests', label: 'App Requests' },
-  { to: '/admin/audit-logs', label: 'Audit Logs' },
+  { to: '/admin/apps', label: 'アプリ' },
+  { to: '/admin/users', label: 'ユーザー' },
+  { to: '/admin/app-requests', label: 'アプリ申請' },
+  { to: '/admin/audit-logs', label: '監査ログ' },
 ]
 
 function buildSections(isDeveloper: boolean, isAdminHost: boolean): NavSection[] {
   if (isAdminHost) {
-    return [{ title: 'Admin', items: ADMIN_NAV_ITEMS }]
+    return [{ title: '管理', items: ADMIN_NAV_ITEMS }]
   }
 
   const sections: NavSection[] = [
     {
-      title: 'Account',
+      title: 'アカウント',
       items: [
-        { to: '/account', label: 'Overview' },
-        { to: '/account/profile', label: 'Profile' },
-        { to: '/account/sessions', label: 'Sessions' },
-        { to: '/account/login-history', label: 'Login History' },
-        { to: '/account/security', label: 'Security' },
-        { to: '/account/privacy', label: 'Privacy' },
+        { to: '/account', label: '概要' },
+        { to: '/account/profile', label: 'プロフィール' },
+        { to: '/account/sessions', label: 'デバイス管理' },
+        { to: '/account/login-history', label: 'ログイン履歴' },
+        { to: '/account/security', label: 'セキュリティ' },
+        { to: '/account/privacy', label: 'プライバシー' },
       ],
     },
   ]
 
   if (isDeveloper) {
     sections.unshift({
-      title: 'Developer',
+      title: '開発者',
       items: [
-        { to: '/developer/app-requests', label: 'App Requests' },
+        { to: '/developer/app-requests', label: 'アプリ申請' },
       ],
     })
   }
@@ -91,7 +91,7 @@ export function AppShell() {
         {(isAdminHost ? footerEmail : session) && (
           <div className={styles.footer}>
             <span className={styles.userEmail}>{footerEmail}</span>
-            <a href={logoutHref} className={styles.logoutLink}>Sign out</a>
+            <a href={logoutHref} className={styles.logoutLink}>ログアウト</a>
           </div>
         )}
       </aside>

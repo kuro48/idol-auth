@@ -18,5 +18,5 @@ export function SettingsRedirectPage() {
     }
   }, [data])
 
-  return <p style={{ padding: '2rem' }}>Redirecting to settings…</p>
+  return <p style={{ padding: '2rem' }}>設定画面へ移動しています…</p>
 }

@@ -10,20 +10,20 @@ import styles from './NewAppRequestPage.module.css'
 
 const httpsUrl = z.string().refine(
   v => { try { const u = new URL(v); return u.protocol === 'https:' } catch { return false } },
-  { message: 'Must be a valid https:// URL' }
+  { message: 'https:// で始まる有効な URL を入力してください' }
 )
 
 const schema = z.object({
-  name: z.string().min(1, 'Name is required').max(100, 'Name must be at most 100 characters'),
+  name: z.string().min(1, 'アプリ名は必須です').max(100, 'アプリ名は100文字以内で入力してください'),
   type: z.enum(['web', 'spa', 'native', 'm2m']),
-  description: z.string().min(1, 'Description is required').max(1000, 'Description must be at most 1000 characters'),
+  description: z.string().min(1, '説明は必須です').max(1000, '説明は1000文字以内で入力してください'),
   homepage_url: httpsUrl,
   privacy_policy_url: httpsUrl,
   terms_url: httpsUrl.optional().or(z.literal('')),
-  contact_email: z.string().email('Must be a valid email').optional().or(z.literal('')),
+  contact_email: z.string().email('有効なメールアドレスを入力してください').optional().or(z.literal('')),
   organization: z.string().optional(),
-  purpose: z.string().min(200, 'Purpose must be at least 200 characters').max(2000, 'Purpose must be at most 2000 characters'),
-  redirect_uris: z.string().min(1, 'At least one redirect URI is required'),
+  purpose: z.string().min(200, '利用目的は200文字以上で入力してください').max(2000, '利用目的は2000文字以内で入力してください'),
+  redirect_uris: z.string().min(1, 'リダイレクト URI を1つ以上入力してください'),
   scopes: z.string().optional(),
 })
 
@@ -61,50 +61,50 @@ export function NewAppRequestPage() {
 
   return (
     <div>
-      <PageHeader title="New App Request" description="Submit a registration request for your application." />
+      <PageHeader title="アプリ申請" description="アプリの登録申請を送信します。" />
       <form className={styles.form} onSubmit={handleSubmit(v => submit.mutate(v))}>
         {serverError && <p className={styles.serverError}>{serverError}</p>}
-        <Field label="App Name" error={errors.name?.message}>
-          <input {...register('name')} className={styles.input} placeholder="My App" />
+        <Field label="アプリ名" error={errors.name?.message}>
+          <input {...register('name')} className={styles.input} placeholder="マイアプリ" />
         </Field>
-        <Field label="Type" error={errors.type?.message}>
+        <Field label="種別" error={errors.type?.message}>
           <select {...register('type')} className={styles.input}>
             <option value="web">Web</option>
             <option value="spa">SPA</option>
-            <option value="native">Native</option>
+            <option value="native">ネイティブアプリ</option>
             <option value="m2m">M2M</option>
           </select>
         </Field>
-        <Field label="Description" error={errors.description?.message}>
+        <Field label="説明" error={errors.description?.message}>
           <textarea {...register('description')} className={styles.textarea} rows={3} />
         </Field>
-        <Field label="Purpose" error={errors.purpose?.message}>
-          <textarea {...register('purpose')} className={styles.textarea} rows={3} />
+        <Field label="利用目的" description="200文字以上" error={errors.purpose?.message}>
+          <textarea {...register('purpose')} className={styles.textarea} rows={5} />
         </Field>
-        <Field label="Homepage URL" error={errors.homepage_url?.message}>
+        <Field label="ホームページ URL" error={errors.homepage_url?.message}>
           <input {...register('homepage_url')} className={styles.input} placeholder="https://example.com" />
         </Field>
-        <Field label="Privacy Policy URL" error={errors.privacy_policy_url?.message}>
+        <Field label="プライバシーポリシー URL" error={errors.privacy_policy_url?.message}>
           <input {...register('privacy_policy_url')} className={styles.input} placeholder="https://example.com/privacy" />
         </Field>
-        <Field label="Terms URL" error={errors.terms_url?.message}>
-          <input {...register('terms_url')} className={styles.input} placeholder="https://example.com/terms (optional)" />
+        <Field label="利用規約 URL" error={errors.terms_url?.message}>
+          <input {...register('terms_url')} className={styles.input} placeholder="https://example.com/terms（任意）" />
         </Field>
-        <Field label="Contact Email" error={errors.contact_email?.message}>
-          <input {...register('contact_email')} className={styles.input} placeholder="contact@example.com (optional)" />
+        <Field label="連絡先メール" error={errors.contact_email?.message}>
+          <input {...register('contact_email')} className={styles.input} placeholder="contact@example.com（任意）" />
         </Field>
-        <Field label="Organization" error={errors.organization?.message}>
-          <input {...register('organization')} className={styles.input} placeholder="Acme Corp (optional)" />
+        <Field label="組織名" error={errors.organization?.message}>
+          <input {...register('organization')} className={styles.input} placeholder="株式会社〇〇（任意）" />
         </Field>
-        <Field label="Redirect URIs" description="One URI per line" error={errors.redirect_uris?.message}>
+        <Field label="リダイレクト URI" description="1行に1つ入力" error={errors.redirect_uris?.message}>
           <textarea {...register('redirect_uris')} className={styles.textarea} rows={3} placeholder="https://example.com/callback" />
         </Field>
-        <Field label="Scopes" description="Comma-separated (e.g. openid, profile, email)" error={errors.scopes?.message}>
+        <Field label="スコープ" description="カンマ区切り（例: openid, profile, email）" error={errors.scopes?.message}>
           <input {...register('scopes')} className={styles.input} placeholder="openid, profile, email" />
         </Field>
         <div className={styles.footer}>
           <button type="submit" className={styles.submitBtn} disabled={submit.isPending}>
-            {submit.isPending ? 'Submitting…' : 'Submit Request'}
+            {submit.isPending ? '送信中…' : '申請する'}
           </button>
         </div>
       </form>

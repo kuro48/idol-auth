@@ -4,6 +4,7 @@ import type { ListResponse, AppRequest } from '@/lib/api/types'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { statusVariant } from '@/lib/api/statusVariant'
+import { appRequestTypeLabel, statusLabel } from '@/lib/api/displayLabels'
 import styles from './AdminListPage.module.css'
 
 export function AdminAppRequestsPage() {
@@ -26,16 +27,16 @@ export function AdminAppRequestsPage() {
 
   return (
     <div>
-      <PageHeader title="App Requests" description="Review developer application registration requests." />
+      <PageHeader title="アプリ申請" description="開発者からのアプリ登録申請を審査します。" />
       <div className={styles.content}>
-        {isLoading && <p className={styles.empty}>Loading…</p>}
+        {isLoading && <p className={styles.empty}>読み込み中…</p>}
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Submitted</th>
+              <th>名前</th>
+              <th>種別</th>
+              <th>ステータス</th>
+              <th>申請日</th>
               <th></th>
             </tr>
           </thead>
@@ -43,14 +44,14 @@ export function AdminAppRequestsPage() {
             {data?.items.map(req => (
               <tr key={req.id}>
                 <td className={styles.bold}>{req.name}</td>
-                <td>{req.type}</td>
-                <td><Badge variant={statusVariant(req.status)}>{req.status.replace('_', ' ')}</Badge></td>
-                <td className={styles.muted}>{new Date(req.created_at).toLocaleDateString()}</td>
+                <td>{appRequestTypeLabel(req.type)}</td>
+                <td><Badge variant={statusVariant(req.status)}>{statusLabel(req.status)}</Badge></td>
+                <td className={styles.muted}>{new Date(req.created_at).toLocaleDateString('ja-JP')}</td>
                 <td className={styles.actions}>
                   {req.status === 'pending' && (
                     <>
-                      <button className={styles.approveBtn} onClick={() => approve.mutate(req.id)} disabled={approve.isPending}>Approve</button>
-                      <button className={styles.rejectBtn} onClick={() => reject.mutate(req.id)} disabled={reject.isPending}>Reject</button>
+                      <button className={styles.approveBtn} onClick={() => approve.mutate(req.id)} disabled={approve.isPending}>承認</button>
+                      <button className={styles.rejectBtn} onClick={() => reject.mutate(req.id)} disabled={reject.isPending}>却下</button>
                     </>
                   )}
                 </td>

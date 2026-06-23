@@ -20,7 +20,7 @@ export function DocsOverviewPage() {
       <ul>
         <li><a href="/docs/start">最初の連携を作る</a> — アプリ登録からコールバック処理まで</li>
         <li><a href="/docs/sdk">TypeScript SDK</a> — ブラウザ向け OAuth2 フロー実装</li>
-        <li><a href="/docs/api">API Reference</a> — 全エンドポイントの詳細仕様</li>
+        <li><a href="/docs/api">API リファレンス</a> — 全エンドポイントの詳細仕様</li>
         <li><a href="/docs/security">セキュリティチェックリスト</a> — 本番前に確認すべき実装ポイント</li>
       </ul>
     </div>

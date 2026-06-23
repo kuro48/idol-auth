@@ -2,14 +2,14 @@ import { Outlet, useRouterState } from '@tanstack/react-router'
 import styles from './DocsLayout.module.css'
 
 const NAV = [
-  { to: '/docs', label: 'Overview' },
-  { to: '/docs/start', label: 'Getting Started' },
-  { to: '/docs/concepts', label: 'Core Concepts' },
+  { to: '/docs', label: '概要' },
+  { to: '/docs/start', label: 'はじめに' },
+  { to: '/docs/concepts', label: '基本概念' },
   { to: '/docs/sdk', label: 'SDK' },
-  { to: '/docs/management', label: 'User Management' },
-  { to: '/docs/account', label: 'Account Center' },
-  { to: '/docs/security', label: 'Security' },
-  { to: '/docs/api', label: 'API Reference' },
+  { to: '/docs/management', label: 'ユーザー管理' },
+  { to: '/docs/account', label: 'アカウントセンター' },
+  { to: '/docs/security', label: 'セキュリティ' },
+  { to: '/docs/api', label: 'API リファレンス' },
 ]
 
 function DocNavLink({ to, label }: { to: string; label: string }) {
@@ -24,7 +24,7 @@ export function DocsLayout() {
   return (
     <div className={styles.layout}>
       <nav className={styles.sidebar}>
-        <span className={styles.sidebarTitle}>Documentation</span>
+        <span className={styles.sidebarTitle}>ドキュメント</span>
         <div className={styles.links}>
           {NAV.map(item => <DocNavLink key={item.to} {...item} />)}
         </div>

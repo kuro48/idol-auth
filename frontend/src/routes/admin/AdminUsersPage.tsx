@@ -5,6 +5,7 @@ import type { ListResponse, Identity } from '@/lib/api/types'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { statusVariant } from '@/lib/api/statusVariant'
+import { roleLabel, statusLabel } from '@/lib/api/displayLabels'
 import styles from './AdminListPage.module.css'
 
 export function AdminUsersPage() {
@@ -24,23 +25,23 @@ export function AdminUsersPage() {
 
   return (
     <div>
-      <PageHeader title="Users" description="Search and manage user identities." />
+      <PageHeader title="ユーザー" description="ユーザー ID を検索・管理します。" />
       <div className={styles.content}>
         <div className={styles.searchRow}>
           <input
             className={styles.searchInput}
-            placeholder="Search by email or identifier…"
+            placeholder="メールアドレスまたは ID で検索…"
             value={identifier}
             onChange={e => setIdentifier(e.target.value)}
           />
         </div>
-        {isLoading && <p className={styles.empty}>Loading…</p>}
+        {isLoading && <p className={styles.empty}>読み込み中…</p>}
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Email</th>
-              <th>State</th>
-              <th>Roles</th>
+              <th>メール</th>
+              <th>状態</th>
+              <th>ロール</th>
               <th></th>
             </tr>
           </thead>
@@ -48,15 +49,15 @@ export function AdminUsersPage() {
             {data?.items.map(user => (
               <tr key={user.id}>
                 <td className={styles.bold}>{user.email || user.id}</td>
-                <td><Badge variant={statusVariant(user.state)}>{user.state}</Badge></td>
-                <td className={styles.muted}>{user.roles?.join(', ') || '—'}</td>
+                <td><Badge variant={statusVariant(user.state)}>{statusLabel(user.state)}</Badge></td>
+                <td className={styles.muted}>{user.roles?.map(roleLabel).join(', ') || '—'}</td>
                 <td>
                   <button
                     className={styles.actionBtn}
                     onClick={() => revokeSessions.mutate(user.id)}
                     disabled={revokeSessions.isPending}
                   >
-                    Revoke Sessions
+                    セッションを取り消す
                   </button>
                 </td>
               </tr>

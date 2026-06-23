@@ -5,6 +5,7 @@ import type { AppMembership, DeletionRequest } from '@/lib/api/types'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
 import { statusVariant } from '@/lib/api/statusVariant'
+import { statusLabel } from '@/lib/api/displayLabels'
 import { useSession } from '@/lib/auth/useSession'
 import styles from './AccountPage.module.css'
 
@@ -47,7 +48,7 @@ export function AccountOverviewPage() {
         {isDeveloper ? (
           <div className={styles.devBanner}>
             <span className={styles.devBannerText}>開発者として登録済みです。</span>
-            <Link to="/developer/app-requests" className={styles.devBannerLink}>Developer Portal →</Link>
+            <Link to="/developer/app-requests" className={styles.devBannerLink}>開発者ポータル →</Link>
           </div>
         ) : (
           <div className={styles.devBanner}>
@@ -68,7 +69,7 @@ export function AccountOverviewPage() {
                 <span className={styles.appSlug}>{m.app_slug}</span>
               </div>
               <div className={styles.appMeta}>
-                <Badge variant={statusVariant(m.status)}>{m.status}</Badge>
+                <Badge variant={statusVariant(m.status)}>{statusLabel(m.status)}</Badge>
                 <button
                   className={styles.disconnectBtn}
                   onClick={() => disconnect.mutate(m.app_id)}
