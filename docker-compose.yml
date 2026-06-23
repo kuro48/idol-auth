@@ -1,0 +1,252 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: idol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: idol_auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idol -d idol_auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - idolium-network
+
+  kratos-migrate:
+    image: oryd/kratos:v26.2.0
+    command: migrate sql up -e --yes -c /etc/config/kratos/kratos.yml
+    environment:
+      DSN: ${KRATOS_DSN:?set KRATOS_DSN in .env}
+    volumes:
+      - ./dist/kratos:/etc/config/kratos:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - idolium-network
+
+  kratos:
+    image: oryd/kratos:v26.2.0
+    command: serve -c /etc/config/kratos/kratos.yml --watch-courier
+    environment:
+      DSN: ${KRATOS_DSN:?set KRATOS_DSN in .env}
+      COURIER_SMTP_CONNECTION_URI: ${KRATOS_SMTP_CONNECTION_URI:?set KRATOS_SMTP_CONNECTION_URI in .env}
+      SECRETS_DEFAULT: ${KRATOS_SECRETS_DEFAULT:?set KRATOS_SECRETS_DEFAULT in .env}
+      SECRETS_COOKIE: ${KRATOS_SECRETS_COOKIE:?set KRATOS_SECRETS_COOKIE in .env}
+      SECRETS_CIPHER: ${KRATOS_SECRETS_CIPHER:?set KRATOS_SECRETS_CIPHER in .env}
+    volumes:
+      - ./dist/kratos:/etc/config/kratos:ro
+    expose:
+      - "4433"
+      - "4434"
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+  hydra-migrate:
+    image: oryd/hydra:v26.2.0
+    command: migrate sql up -e --yes -c /etc/config/hydra/hydra.yml
+    environment:
+      DSN: ${HYDRA_DSN:?set HYDRA_DSN in .env}
+    volumes:
+      - ./dist/hydra:/etc/config/hydra:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - idolium-network
+
+  hydra:
+    image: oryd/hydra:v26.2.0
+    command: serve all -c /etc/config/hydra/hydra.yml
+    environment:
+      DSN: ${HYDRA_DSN:?set HYDRA_DSN in .env}
+      SECRETS_SYSTEM: ${HYDRA_SYSTEM_SECRET:?set HYDRA_SYSTEM_SECRET in .env}
+      SERVE_PUBLIC_CORS_ENABLED: "false"
+    volumes:
+      - ./dist/hydra:/etc/config/hydra:ro
+    expose:
+      - "4444"
+      - "4445"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.idol-auth-hydra.rule=Host(`${HYDRA_HOSTNAME}`)"
+      - "traefik.http.routers.idol-auth-hydra.entrypoints=web"
+      - "traefik.http.services.idol-auth-hydra.loadbalancer.server.port=4444"
+    depends_on:
+      hydra-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+  migrate:
+    image: ghcr.io/kuro48/idol-auth/migrate:latest
+    pull_policy: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - idolium-network
+
+  app:
+    image: ghcr.io/kuro48/idol-auth/app:latest
+    pull_policy: always
+    environment:
+      APP_ENV: production
+      APP_PORT: 8080
+      APP_BASE_URL: ${APP_BASE_URL}
+      UPLOAD_DIR: /var/lib/idol-auth/uploads
+      DATABASE_URL: ${DATABASE_URL}
+      KRATOS_PUBLIC_URL: http://kratos:4433
+      KRATOS_ADMIN_URL: http://kratos:4434
+      HYDRA_PUBLIC_URL: http://hydra:4444
+      HYDRA_ADMIN_URL: http://hydra:4445
+      KRATOS_BROWSER_URL: ${APP_BASE_URL}
+      HYDRA_BROWSER_URL: https://${HYDRA_HOSTNAME}
+      HYDRA_SYSTEM_SECRET: ${HYDRA_SYSTEM_SECRET}
+      CF_ACCESS_TEAM_DOMAIN: ${CF_ACCESS_TEAM_DOMAIN}
+      CF_ACCESS_AUDIENCE: ${CF_ACCESS_AUDIENCE}
+      MAIL_NOTIFY_EMAILS: ${MAIL_NOTIFY_EMAILS:-}
+      SESSION_COOKIE_SECURE: "true"
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+    expose:
+      - "8080"
+    labels:
+      - "traefik.enable=true"
+      # バックエンド専用パスのみを高優先度でルーティング
+      # SPA (/) は frontend サービス (priority=1) が受け持つ
+      - "traefik.http.routers.idol-auth-app.rule=Host(`${APP_HOSTNAME}`) && (PathPrefix(`/v1`) || PathPrefix(`/login`) || PathPrefix(`/register`) || PathPrefix(`/uploads`) || PathPrefix(`/legal`) || Path(`/account/restore`) || Path(`/healthz`) || Path(`/readyz`))"
+      - "traefik.http.routers.idol-auth-app.entrypoints=web"
+      - "traefik.http.routers.idol-auth-app.priority=10"
+      - "traefik.http.services.idol-auth-app.loadbalancer.server.port=8080"
+      # admin サブドメイン向け: /v1/* と /healthz /readyz をバックエンドへ
+      - "traefik.http.routers.idol-auth-admin-api.rule=Host(`${ADMIN_HOSTNAME}`) && (PathPrefix(`/v1`) || Path(`/healthz`) || Path(`/readyz`))"
+      - "traefik.http.routers.idol-auth-admin-api.entrypoints=web"
+      - "traefik.http.routers.idol-auth-admin-api.priority=10"
+      - "traefik.http.routers.idol-auth-admin-api.service=idol-auth-app"
+    volumes:
+      - uploads_data:/var/lib/idol-auth/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/readyz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      kratos:
+        condition: service_started
+      hydra:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+  frontend:
+    image: ghcr.io/kuro48/idol-auth/frontend:latest
+    pull_policy: always
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      # APP_HOSTNAME の全パスを低優先度でキャッチ (SPA フォールバック)
+      # /v1, /login 等は priority=10 の app ルーターが先に処理する
+      - "traefik.http.routers.idol-auth-frontend.rule=Host(`${APP_HOSTNAME}`)"
+      - "traefik.http.routers.idol-auth-frontend.entrypoints=web"
+      - "traefik.http.routers.idol-auth-frontend.priority=1"
+      - "traefik.http.services.idol-auth-frontend.loadbalancer.server.port=80"
+      # admin サブドメイン向け SPA フォールバック (/v1/admin は priority=10 の admin-api ルーターが優先)
+      - "traefik.http.routers.idol-auth-admin-frontend.rule=Host(`${ADMIN_HOSTNAME}`)"
+      - "traefik.http.routers.idol-auth-admin-frontend.entrypoints=web"
+      - "traefik.http.routers.idol-auth-admin-frontend.priority=1"
+      - "traefik.http.routers.idol-auth-admin-frontend.service=idol-auth-frontend"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+  portal:
+    image: ghcr.io/kuro48/idol-auth/portal:latest
+    pull_policy: always
+    environment:
+      PORTAL_PORT: 3003
+      PORTAL_APP_URL: ${APP_BASE_URL}
+      PORTAL_ACCOUNT_CENTER_URL: ${APP_BASE_URL}/account/
+      PORTAL_KRATOS_PUBLIC_URL: http://kratos:4433
+      PORTAL_KRATOS_ADMIN_URL: ${PORTAL_KRATOS_ADMIN_URL:-http://kratos:4434}
+      PORTAL_KRATOS_BROWSER_URL: ${APP_BASE_URL}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+    expose:
+      - "3003"
+    labels:
+      - "traefik.enable=true"
+      # Portal が担うパス: Kratos self-service プロキシ + 各フロー UI + .well-known
+      - "traefik.http.routers.idol-auth-portal.rule=Host(`${APP_HOSTNAME}`) && (PathPrefix(`/self-service`) || PathPrefix(`/.well-known`) || PathPrefix(`/login`) || PathPrefix(`/registration`) || PathPrefix(`/settings`) || PathPrefix(`/recovery`) || PathPrefix(`/verification`) || Path(`/logout`) || PathPrefix(`/ui`) || Path(`/error`))"
+      - "traefik.http.routers.idol-auth-portal.entrypoints=web"
+      - "traefik.http.routers.idol-auth-portal.priority=20"
+      - "traefik.http.services.idol-auth-portal.loadbalancer.server.port=3003"
+    depends_on:
+      kratos:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+  traefik:
+    image: traefik:v3.6
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=idolium-network
+      - --accesslog=true
+    environment:
+      # Docker Engine の最小 API バージョンに合わせて明示（ネゴシエーション失敗対策）
+      DOCKER_API_VERSION: "1.40"
+    expose:
+      - "80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      traefik:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - idolium-network
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  idolium-network:
+    external: true

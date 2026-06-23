@@ -1,0 +1,104 @@
+version: v0.13.0
+
+dsn: memory
+
+serve:
+  public:
+    base_url: {{APP_BASE_URL}}/
+    cors:
+      enabled: false
+  admin:
+    base_url: http://kratos:4434/
+
+selfservice:
+  default_browser_return_url: {{APP_BASE_URL}}/account/
+
+  allowed_return_urls:
+    - {{APP_BASE_URL}}
+    - {{APP_BASE_URL}}
+
+  methods:
+    password:
+      enabled: true
+      config:
+        haveibeenpwned_enabled: true
+        min_password_length: 8
+        identifier_similarity_check_enabled: true
+    totp:
+      enabled: true
+      config:
+        issuer: {{KRATOS_TOTP_ISSUER}}
+    passkey:
+      enabled: true
+      config:
+        rp:
+          display_name: {{WEBAUTHN_RP_DISPLAY_NAME}}
+          id: {{WEBAUTHN_RP_ID}}
+          origins:
+            - {{APP_BASE_URL}}
+    lookup_secret:
+      enabled: false
+    link:
+      enabled: false
+    code:
+      enabled: true
+    # oidc: disabled — enable when GOOGLE/TWITTER/APPLE OAuth credentials are configured
+
+  flows:
+    error:
+      ui_url: {{APP_BASE_URL}}/error
+    registration:
+      enabled: true
+      ui_url: {{APP_BASE_URL}}/registration
+      lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: session
+            - hook: show_verification_ui
+    login:
+      ui_url: {{APP_BASE_URL}}/login
+      lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: require_verified_address
+    logout:
+      after:
+        default_browser_return_url: {{APP_BASE_URL}}/login
+    settings:
+      ui_url: {{APP_BASE_URL}}/settings
+      required_aal: highest_available
+    recovery:
+      enabled: true
+      ui_url: {{APP_BASE_URL}}/recovery
+      use: code
+    verification:
+      enabled: true
+      ui_url: {{APP_BASE_URL}}/verification
+      use: code
+      after:
+        default_browser_return_url: {{APP_BASE_URL}}/account/
+
+session:
+  lifespan: 24h
+  cookie:
+    persistent: true
+    same_site: Lax
+    domain: {{SESSION_COOKIE_DOMAIN}}
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+courier:
+  smtp:
+    from_address: {{KRATOS_SMTP_FROM_ADDRESS}}
+    from_name: {{KRATOS_SMTP_FROM_NAME}}
+
+log:
+  level: {{ORY_LOG_LEVEL}}
+  format: text
+  leak_sensitive_values: false

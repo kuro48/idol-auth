@@ -1,0 +1,68 @@
+{
+  "$id": "https://idol-auth.local/schemas/identity.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Identity",
+  "type": "object",
+  "properties": {
+    "traits": {
+      "type": "object",
+      "properties": {
+        "primary_identifier_type": {
+          "type": "string",
+          "enum": ["email"],
+          "title": "Primary Identifier Type"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "title": "Email",
+          "ory.sh/kratos": {
+            "credentials": {
+              "password": {
+                "identifier": true
+              },
+              "code": {
+                "identifier": true,
+                "via": "email"
+              },
+              "passkey": {
+                "display_name": true
+              }
+            },
+            "recovery": {
+              "via": "email"
+            },
+            "verification": {
+              "via": "email"
+            }
+          }
+        },
+        "phone": {
+          "type": "string",
+          "title": "Phone Number"
+        },
+        "display_name": {
+          "type": "string",
+          "title": "Display Name",
+          "maxLength": 50
+        },
+        "recovery_email": {
+          "type": "string",
+          "format": "email",
+          "title": "Recovery Email",
+          "ory.sh/kratos": {
+            "recovery": {
+              "via": "email"
+            }
+          }
+        },
+        "recovery_phone": {
+          "type": "string",
+          "title": "Recovery Phone Number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
