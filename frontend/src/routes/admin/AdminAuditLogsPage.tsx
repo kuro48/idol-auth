@@ -27,7 +27,7 @@ export function AdminAuditLogsPage() {
             </tr>
           </thead>
           <tbody>
-            {data?.items.map(log => (
+            {data?.items?.map(log => (
               <tr key={log.id}>
                 <td className={styles.mono}>{log.event_type}</td>
                 <td className={styles.muted}>{log.actor_type}:{log.actor_id.slice(0, 8)}</td>

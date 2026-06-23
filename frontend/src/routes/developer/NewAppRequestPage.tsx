@@ -8,16 +8,21 @@ import type { AppRequest } from '@/lib/api/types'
 import { PageHeader } from '@/components/ui/PageHeader'
 import styles from './NewAppRequestPage.module.css'
 
+const httpsUrl = z.string().refine(
+  v => { try { const u = new URL(v); return u.protocol === 'https:' } catch { return false } },
+  { message: 'Must be a valid https:// URL' }
+)
+
 const schema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  type: z.enum(['consumer', 'business', 'internal']),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  homepage_url: z.string().url('Must be a valid URL'),
-  privacy_policy_url: z.string().url('Must be a valid URL'),
-  terms_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  name: z.string().min(1, 'Name is required').max(100, 'Name must be at most 100 characters'),
+  type: z.enum(['web', 'spa', 'native', 'm2m']),
+  description: z.string().min(1, 'Description is required').max(1000, 'Description must be at most 1000 characters'),
+  homepage_url: httpsUrl,
+  privacy_policy_url: httpsUrl,
+  terms_url: httpsUrl.optional().or(z.literal('')),
   contact_email: z.string().email('Must be a valid email').optional().or(z.literal('')),
   organization: z.string().optional(),
-  purpose: z.string().min(10, 'Purpose must be at least 10 characters'),
+  purpose: z.string().min(200, 'Purpose must be at least 200 characters').max(2000, 'Purpose must be at most 2000 characters'),
   redirect_uris: z.string().min(1, 'At least one redirect URI is required'),
   scopes: z.string().optional(),
 })
@@ -29,7 +34,7 @@ export function NewAppRequestPage() {
   const qc = useQueryClient()
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { type: 'consumer' },
+    defaultValues: { type: 'web' },
   })
 
   const submit = useMutation({
@@ -64,9 +69,10 @@ export function NewAppRequestPage() {
         </Field>
         <Field label="Type" error={errors.type?.message}>
           <select {...register('type')} className={styles.input}>
-            <option value="consumer">Consumer</option>
-            <option value="business">Business</option>
-            <option value="internal">Internal</option>
+            <option value="web">Web</option>
+            <option value="spa">SPA</option>
+            <option value="native">Native</option>
+            <option value="m2m">M2M</option>
           </select>
         </Field>
         <Field label="Description" error={errors.description?.message}>
