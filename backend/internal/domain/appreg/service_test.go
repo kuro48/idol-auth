@@ -124,6 +124,21 @@ func TestSubmit_Success(t *testing.T) {
 	}
 }
 
+func TestSubmit_AllowsFiftyCharacterPurpose(t *testing.T) {
+	repo := newStubRepo()
+	svc := newSvc(repo)
+	input := validInput()
+	input.Purpose = strings.Repeat("x", 50)
+
+	req, err := svc.Submit(context.Background(), "identity-1", input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.Purpose != input.Purpose {
+		t.Errorf("want purpose to be preserved")
+	}
+}
+
 func TestSubmit_DuplicatePending(t *testing.T) {
 	repo := newStubRepo()
 	svc := newSvc(repo)
